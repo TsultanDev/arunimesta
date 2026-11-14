@@ -7,7 +7,7 @@
   },
   "configurePresets": [
     {
-      "name": "vscode-msvc-base",
+      "name": "clang-base",
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
@@ -26,42 +26,26 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      },
-      "vendor": {
-        "microsoft.com/VisualStudioSettings/CMake/1.0": {
-          "intelliSenseMode": "windows-msvc-x64",
-          "enableMicrosoftCodeAnalysis": true
-        }
       }
     },
     {
-      "name": "msvc-x64-debug",
-      "displayName": "MSVC 2026 x64 - Debug",
-      "description": "Build Debug menggunakan MSVC VS2026 dan Ninja di VS Code",
-      "inherits": "vscode-msvc-base",
+      "name": "clang-x64-debug",
+      "displayName": "Clang LLVM x64 - Debug",
+      "description": "Build Debug menggunakan Clang LLVM dan Ninja",
+      "inherits": "clang-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
-      "name": "msvc-x64-release",
-      "displayName": "MSVC 2026 x64 - Release",
-      "description": "Build Release dengan optimasi penuh menggunakan MSVC VS2026",
-      "inherits": "vscode-msvc-base",
+      "name": "clang-x64-release",
+      "displayName": "Clang LLVM x64 - Release",
+      "description": "Build Release dengan optimasi penuh menggunakan Clang LLVM",
+      "inherits": "clang-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
-      }
-    },
-    {
-      "name": "msvc-x64-relwithdebinfo",
-      "displayName": "MSVC 2026 x64 - RelWithDebInfo",
-      "description": "Build Release dengan simbol debug (untuk profiling)",
-      "inherits": "vscode-msvc-base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       }
     }
   ],
@@ -69,17 +53,12 @@
     {
       "name": "build-debug",
       "displayName": "Build Debug",
-      "configurePreset": "msvc-x64-debug"
+      "configurePreset": "clang-x64-debug"
     },
     {
       "name": "build-release",
       "displayName": "Build Release",
-      "configurePreset": "msvc-x64-release"
-    },
-    {
-      "name": "build-relwithdebinfo",
-      "displayName": "Build RelWithDebInfo",
-      "configurePreset": "msvc-x64-relwithdebinfo"
+      "configurePreset": "clang-x64-release"
     }
   ]
 }
