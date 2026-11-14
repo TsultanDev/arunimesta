@@ -1,58 +1,57 @@
 module;
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <memory>
+#include <string>
 #include <utility>
 #include <print>
-
 export module aru:application;
 
-export namespace aru {
-    template <typename T>
-    class Handle {
-    private:
-        std::unique_ptr<T> pointer;
-
-    public:
-        Handle() = default;
-        explicit Handle(std::unique_ptr<T> ptr) noexcept : pointer(std::move(ptr)) {}
-
-        Handle(const Handle&) = delete;
-        Handle& operator=(const Handle&) = delete;
-
-        Handle(Handle&&) noexcept = default;
-        Handle& operator=(Handle&&) noexcept = default;
-
-        T* operator->() noexcept { return pointer.get(); }
-        const T* operator->() const noexcept { return pointer.get(); }
-    };
-
-    struct Application {
-        const char* name = nullptr;
-        uint32_t version = 0;
-
-        static std::expected<Handle<Application>, int> init(const char* name, uint32_t version);
-        void printInfo() const;
-    };
+namespace aru {
+    struct Application_T;
+    export class Application;
 }
 
-std::expected<aru::Handle<aru::Application>, int> aru::Application::init(const char* name, uint32_t version) {
-    if (!name) {
-        return std::unexpected(-1);
-    }
+struct aru::Application_T{
+    std::string name = "";
+    uint32_t version = 0;
+};
+class aru::Application{
+    public:
+        static std::expected<Application, bool> init(std::string name, uint32_t version);
+        void printInfo() const;
 
-    auto app = std::make_unique<Application>(Application{
+        Application(const Application&) = delete;
+        Application& operator=(const Application&);
+
+        Application(Application&&) noexcept = default;
+        Application& operator=(Application&&) noexcept = default;
+
+        void* operator new(size_t) = delete;
+
+    private:
+        Application(std::unique_ptr<Application_T> app);
+        std::unique_ptr<Application_T> app;
+};
+
+aru::Application::Application(std::unique_ptr<Application_T> app) : app(std::move(app)){
+
+}
+std::expected<aru::Application, bool> aru::Application::init(std::string name, uint32_t version) {
+    auto app = Application(std::make_unique<Application_T>(Application_T{
         .name = name,
-        .version = version
-    });
+        .version = version,
+    }));
 
     #ifndef NDEBUG
+    std::println(stdout, "Aru: Application(created!!)");
     std::println(stdout, "Aru: Application(created!!), name: {}, version: {}", name, version);
     #endif
 
-    return Handle<Application>(std::move(app));
+    return app;
 }
 
 void aru::Application::printInfo() const {
-    std::println(stdout, "Aru: Application(created!!)");
+    std::println(stdout, "Aru: Application(created!!), name: {}, version: {}", this->app->name, this->app->version);
 }
