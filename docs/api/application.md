@@ -62,7 +62,7 @@ Aru: Application(created!!), name: Hello, version: 1
 | :--- | :--- | :--- |
 | Constructor | Private | Use `init()` |
 | Copy constructor | `= delete` | Cannot be copied |
-| Copy assignment | Declared, not defined | Do not use; will be fixed to `= delete` |
+| Copy assignment | `= delete` | Cannot be assigned |
 | Move constructor | `noexcept = default` | Can be moved |
 | Move assignment | `noexcept = default` | Can be moved |
 | `operator new` | `= delete` | Cannot `new Application(...)` |
@@ -136,9 +136,10 @@ int main() {
 - There is no `Application::run()` or bootstrap callback yet.
 - `version` is still a raw number; there is no `major.minor.patch` encoding helper.
 - The `bool` error type is not descriptive.
-- Copy assignment is not defined.
 - `printInfo()` is not wrapped in `#ifndef NDEBUG`, so it always prints.
 - There are no thread-safety guarantees.
+
+For windowing, see [`window.md`](window.md).
 
 ## Compatibility
 

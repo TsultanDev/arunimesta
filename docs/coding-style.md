@@ -154,6 +154,14 @@ std::println(stdout, "Aru: Window(created!!), title: {}", title);
 #endif
 ```
 
+## Windows Interop
+
+- Include `<Windows.h>` in the global module fragment.
+- Use the explicit Unicode (`...W`) Win32 APIs: `RegisterClassExW`, `CreateWindowExW`, `DefWindowProcW`, `PeekMessageW`, `DispatchMessageW`.
+- Never mix ANSI (`...A`) and Unicode (`...W`) APIs for the same window. Mixing them corrupts text; for example, a title created with `CreateWindowExA` and handled by `DefWindowProcW` is re-read as UTF-16 and can appear as CJK characters.
+- Public APIs take UTF-8 `std::string`. Convert to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` before calling a `...W` function, and keep the conversion helper unexported.
+- Define `UNICODE` and `_UNICODE` for targets that include `<Windows.h>` (see `modules/aru_window/CMakeLists.txt`).
+
 ## Formatting
 
 There is no automatic formatter yet. Follow the existing style:
@@ -175,4 +183,5 @@ There is no automatic formatter yet. Follow the existing style:
 - [ ] CMake target with `FILE_SET CXX_MODULES`.
 - [ ] Added to the root `CMakeLists.txt`.
 - [ ] Facade `export import` updated.
+- [ ] Win32 code uses only the Unicode (`...W`) APIs and converts UTF-8 to UTF-16.
 - [ ] Documentation in `docs/` updated.

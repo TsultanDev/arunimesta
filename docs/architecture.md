@@ -11,7 +11,7 @@ Currently there are only two modules:
 ```text
 modules/
 ├── aru/            # executable + module aru
-└── aru_window/     # static library aru.window (still a skeleton)
+└── aru_window/     # static library aru.window (Win32 windowing)
 ```
 
 The Vulkan renderer **does not exist yet** in the repository. Its planned architecture is discussed in [roadmap.md](roadmap.md).
@@ -28,16 +28,15 @@ The Vulkan renderer **does not exist yet** in the repository. Its planned archit
                 │      module aru          │
                 │      (lib.cppm)          │
                 │  export import           │
-                │      :application        │
-                └────────────┬─────────────┘
-                             │
-                ┌────────────▼─────────────┐
-                │  module aru:application  │
-                │  Application +           │
-                │  Application_T           │
-                └──────────────────────────┘
-
-     (planned) module aru.window  ←── not used by aru yet
+                │  :application, aru.window│
+                └───────┬──────────┬───────┘
+                        │          │
+        ┌───────────────▼──┐   ┌───▼──────────────────┐
+        │ module           │   │ module aru.window    │
+        │ aru:application  │   │ Window::create_window│
+        │ Application +    │   │ Window::event_loop   │
+        │ Application_T    │   └──────────────────────┘
+        └──────────────────┘
 ```
 
 ### Module `aru`
@@ -46,18 +45,33 @@ The Vulkan renderer **does not exist yet** in the repository. Its planned archit
   ```cpp
   export module aru;
   export import :application;
+
+  export import aru.window;
   ```
 - `modules/aru/src/application.cppm` is the **partition** `aru:application`.
 - `main.cpp` only needs to do `import aru;` and does not need to know about internal partitions.
 
 The facade/partition split is useful as the module grows: consumers keep importing a single name (`aru`), while the implementation is split into multiple partitions.
 
-### Module `aru.window` (work in progress)
+### Module `aru.window`
 
-- The static library target `aru_window` already has a `CMakeLists.txt`.
-- `src/window.cppm` only contains the skeleton `export module aru.window:window;` and incomplete class declarations.
-- `src/lib.cppm` is still empty.
-- This module has **not** been added to `add_subdirectory()` in the root `CMakeLists.txt`, so it is not built.
+- The static library target `aru_window` has a `CMakeLists.txt`, is registered in the root `CMakeLists.txt`, and is linked into the `aru` executable.
+- `src/window.cppm` is the partition `aru.window:window`. It implements `Window::create_window()` and `Window::event_loop()`.
+- `src/lib.cppm` is the facade and re-exports the partition:
+  ```cpp
+  export module aru.window;
+  export import :window;
+  ```
+- `modules/aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
+- The implementation uses the Win32 Unicode APIs: `RegisterClassExW`, `CreateWindowExW`, `DefWindowProcW`, `PeekMessageW`, and `DispatchMessageW`.
+- The window class name is `ArunimestaClass`; registration is idempotent, so `ERROR_CLASS_ALREADY_EXISTS` is ignored.
+
+### Unicode and String Handling
+
+- The public API takes UTF-8 `std::string` values. With Clang, the source and execution character sets are UTF-8.
+- Win32 `...W` APIs take UTF-16. The internal `toWide()` helper converts titles with `MultiByteToWideChar(CP_UTF8, ...)` before calling `CreateWindowExW`.
+- `UNICODE` and `_UNICODE` are defined for the `aru_window` target in `modules/aru_window/CMakeLists.txt`.
+- **Never mix ANSI (`...A`) and Unicode (`...W`) Win32 APIs for the same window.** Doing so corrupts text: an earlier version created the window with `CreateWindowExA`, but the window procedure called `DefWindowProcW`. `DefWindowProcW` re-read the ANSI title pointer as UTF-16, so the bytes of `"Arunimesta"` were displayed as CJK characters (`U+7241 U+6E75 ...`). Using the `W` APIs consistently fixes this.
 
 ## `Application` Design Patterns
 
@@ -106,7 +120,7 @@ static std::expected<Application, bool> init(std::string name, uint32_t version)
 
 ```cpp
 Application(const Application&) = delete;
-Application& operator=(const Application&);   // declared, not defined
+Application& operator=(const Application&) = delete;
 Application(Application&&) noexcept = default;
 Application& operator=(Application&&) noexcept = default;
 void* operator new(size_t) = delete;
@@ -114,7 +128,7 @@ void* operator new(size_t) = delete;
 
 - Objects can be moved, but not copied.
 - `operator new` is deleted so `Application` cannot be created with plain `new`; creation only happens through `Application::init()`.
-- Note: copy assignment is still **declared without a definition**. As long as it is not used, the build succeeds; this needs to be cleaned up (explicitly deleted) in the next API cleanup.
+- Only the scalar `operator new` is deleted; `operator new[]` should be added for consistency.
 
 ### Lifetime
 
@@ -124,11 +138,15 @@ main()
        ├─ make_unique<Application_T>
        ├─ (debug) println log
        └─ return std::expected<Application, bool>
-            └─ printInfo()
-                 └─ destructor Application → unique_ptr → ~Application_T
+            ├─ printInfo()
+            └─ window::Window::create_window(title, width, height)
+                 ├─ toWide(title)  (UTF-8 → UTF-16)
+                 ├─ CreateWindowExW + ShowWindow
+                 └─ while (window.event_loop()) { ... }
+                      └─ WM_DESTROY → PostQuitMessage → WM_QUIT → return false
 ```
 
-There is no `Application::run()` in this iteration of the code yet. `main.cpp` only calls `printInfo()` inside `transform`.
+There is no `Application::run()` in this iteration of the code yet. `main.cpp` calls `printInfo()` and then creates the window inside `transform`.
 
 ## Error Handling
 
@@ -140,16 +158,16 @@ There is no `Application::run()` in this iteration of the code yet. `main.cpp` o
 ## Logging
 
 - Logging uses `std::println` and is only active in debug builds with `#ifndef NDEBUG`.
-- The prefix currently used is: `Aru: Application(...)`.
+- The prefix currently used is: `Aru: Application(...)` and `Aru: Window(created!!), title: ...`.
 - Target convention: `Aru: <Area>(<event>)`, for example `Aru: Window(created!!)`.
 - Currently `init()` prints two similar log lines; this can be tidied up later.
 
 ## Build and Module Boundaries
 
-- The root `CMakeLists.txt` only adds `modules/aru`.
+- The root `CMakeLists.txt` adds `modules/aru` and `modules/aru_window`.
 - Each module registers its `.cppm` files through `FILE_SET CXX_MODULES`.
 - Standard headers are included in the **global module fragment** (`module;` ... `export module ...;`) so they do not leak to consumers.
-- `aru` does not depend on `aru.window` at this time.
+- `aru` depends on `aru_window` through `target_link_libraries(aru PRIVATE aru_window)`.
 
 ## Adding a New Module
 
@@ -166,9 +184,9 @@ General steps:
 
 | Item | Impact | Plan |
 | :--- | :--- | :--- |
-| `aru.window` is incomplete | Windowing cannot be used yet | Finish the `Window` class, fill in the facade, add it to the root CMake |
-| `aru_window` is not in `add_subdirectory` | The module is not built | Add it once the source is complete |
-| `Application` copy assignment has no definition | Potential link error if used | Delete it explicitly (`= delete`) |
+| Window teardown is implicit | `DestroyWindow` is not called; cleanup relies on process exit | Add RAII teardown in `Window_T` or `Window` |
+| No input handling | Keyboard and mouse messages are ignored | Handle `WM_KEYDOWN` / `WM_MOUSEMOVE` and expose events |
+| No resize handling | `WM_SIZE` is not processed | Handle resize before the RHI needs it |
 | `bool` error type | No failure details | Replace with an error enum/struct |
 | No tests yet | Regressions go undetected | Fill the `test/` folder with unit tests |
 | Duplicate logs in `init()` | Repeated debug output | Clean up during refactor |

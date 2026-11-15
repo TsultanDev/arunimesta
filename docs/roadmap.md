@@ -9,7 +9,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | Build system | ✅ Done | CMake ≥ 3.28, Clang, Ninja, Debug/Release presets |
 | Named modules | ✅ Done | `aru` + `aru:application` partition, `lib.cppm` facade |
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
-| Windowing | 🚧 In progress | `aru.window` is still a skeleton; not in the root build |
+| Windowing | ✅ Basic | `aru.window` creates a Unicode Win32 window and runs a polling event loop; no input/resize yet |
 | Vulkan renderer | ⬜ Not started | No RHI source yet |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
@@ -27,16 +27,18 @@ This document contains the status, milestones, and development plan for Arunimes
 
 **Done criteria:** the project can be configured and built, and the `aru` executable runs and prints application info.
 
-### M1 — Windowing (in progress)
+### M1 — Windowing (basic implementation done)
 
-- [ ] Finish the `Window` class in `aru.window:window`
-- [ ] Fill in the `aru.window` facade (`lib.cppm`)
-- [ ] Add `modules/aru_window` to the root `CMakeLists.txt`
-- [ ] Basic event loop integration (polling)
+- [x] Finish the `Window` class in `aru.window:window`
+- [x] Fill in the `aru.window` facade (`lib.cppm`)
+- [x] Add `modules/aru_window` to the root `CMakeLists.txt`
+- [x] Basic event loop integration (polling)
+- [x] Unicode window titles (UTF-8 → UTF-16 conversion)
 - [ ] Create and destroy windows safely (RAII)
-- [ ] Add a usage example in the executable
+- [x] Add a usage example in the executable
+- [ ] Handle keyboard and mouse input
 
-**Done criteria:** `aru` can create a window, process events, and exit cleanly.
+**Done criteria:** `aru` can create a window, process events, and exit cleanly. Window creation and the quit loop work; explicit teardown and input handling remain.
 
 ### M2 — Vulkan RHI Foundation
 
@@ -84,15 +86,16 @@ This document contains the status, milestones, and development plan for Arunimes
 - **`std::expected` in the public API**: explicit failures, not exceptions.
 - **Pimpl + `unique_ptr`**: implementation details hidden, ownership clear.
 - **RAII**: all resources are cleaned up by destructors.
+- **Unicode-first Win32**: use the `...W` APIs and convert UTF-8 `std::string` titles to UTF-16 before calling Win32.
 - **Windows-first**: the current presets and targets are Windows x64; other platform support will follow.
 
 ## Technical Debt
 
 Cleanup priorities before adding large subsystems:
 
-1. Complete or temporarily remove the half-finished `modules/aru_window`.
-2. Register `aru_window` in the root `CMakeLists.txt` once it is done.
-3. Change `Application` copy assignment to `= delete`.
+1. Add explicit window teardown (`DestroyWindow` via `Window_T`/`Window` RAII).
+2. Handle keyboard and mouse input.
+3. Handle resize (`WM_SIZE`).
 4. Replace the `bool` error type with an error enum/struct.
 5. Add unit tests in `test/`.
 6. Clean up the duplicate logs in `Application::init()`.

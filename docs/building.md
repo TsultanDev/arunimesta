@@ -101,17 +101,17 @@ Then configure and build again.
 
 ## Module `aru_window`
 
-Currently `modules/aru_window` has **not** been added to the root `CMakeLists.txt`, so it is not built. Once the module's source is complete, add:
+`modules/aru_window` is registered in the root `CMakeLists.txt` and linked into the `aru` executable:
 
 ```cmake
+# Root CMakeLists.txt
 add_subdirectory("modules/aru_window")
-```
 
-Then link it to the targets that need it:
-
-```cmake
+# modules/aru/CMakeLists.txt
 target_link_libraries(aru PRIVATE aru_window)
 ```
+
+The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Window titles passed to `Window::create_window()` are UTF-8 and converted to UTF-16 internally with `MultiByteToWideChar(CP_UTF8, ...)`.
 
 ## Troubleshooting
 
@@ -124,9 +124,11 @@ target_link_libraries(aru PRIVATE aru_window)
 | Error while compiling `.cppm` | The compiler does not support modules | Use a Clang version that supports C++23 modules |
 | Header changes are not detected | Stale build/module cache | Delete the build directory and configure again |
 | `import aru;` fails | The `.cppm` file is not listed in `FILE_SET CXX_MODULES`, or the target is not linked | Check `target_sources` and `target_link_libraries` |
+| Window title shows garbled or CJK characters | ANSI (`...A`) and Unicode (`...W`) Win32 APIs are mixed | Use the `...W` variants consistently and convert UTF-8 titles to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` |
 
 ## Notes
 
 - All module files must be listed in `target_sources(... FILE_SET CXX_MODULES ...)` to be compiled.
 - External library includes go in the global module fragment, not after `export module`.
 - Debug builds enable `std::println` logging; Release builds do not.
+- The `aru_window` target defines `UNICODE` and `_UNICODE`; keep Win32 code on the Unicode (`...W`) APIs.

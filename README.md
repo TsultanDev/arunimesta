@@ -12,7 +12,7 @@
 
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** The build system and application module foundation are working. The windowing module is still a skeleton, and the Vulkan renderer has not been implemented.
+> **Status: early development.** The build system, application module, and basic Win32 windowing are working. The Vulkan renderer has not been implemented.
 
 ---
 
@@ -22,10 +22,10 @@
 | :--- | :--- |
 | Build system (CMake + Clang + Ninja) | ✅ Working |
 | Module `aru` (facade + `Application`) | ✅ Working |
-| Module `aru.window` | 🚧 Skeleton / incomplete |
+| Module `aru.window` | ✅ Basic (window + event loop) |
 | Vulkan renderer (RHI) | ⬜ Not started |
 
-The only thing that can currently be built and run is the `aru` executable, which creates an `Application` object, prints application info, and then exits.
+The `aru` executable creates an `Application` object, prints application info, opens a Win32 window, and runs its event loop until the window is closed.
 
 ---
 
@@ -37,6 +37,8 @@ The only thing that can currently be built and run is the `aru` executable, whic
 - **Heap allocation blocked**: `operator new` is deleted so objects can only be created through the factory and cannot be freely allocated on the heap.
 - **RAII**: `Application_T` is cleaned up automatically by `std::unique_ptr`.
 - **Debug logging**: `std::println` output is only active in debug builds (`#ifndef NDEBUG`).
+- **Win32 windowing**: `aru.window` creates and shows a window, runs a polling event loop, and exits the loop when the window is destroyed.
+- **Unicode window titles**: titles are passed as UTF-8 `std::string` and converted to UTF-16 with `MultiByteToWideChar`, so non-ASCII titles render correctly.
 - **CMake Presets**: Clang LLVM x64 presets for Debug and Release, complete with `compile_commands.json` for clangd.
 - **Modular structure**: each module lives in `modules/<module_name>` with its own `CMakeLists.txt`.
 
@@ -51,7 +53,7 @@ The only thing that can currently be built and run is the `aru` executable, whic
 | **Build System** | CMake ≥ 3.28 + Ninja |
 | **Standard Features** | `std::expected`, `std::print` / `std::println`, `std::unique_ptr` |
 | **Target Platform** | Windows x64 (matching the available presets) |
-| **Windowing** | `aru.window` — *work in progress* (Win32 target) |
+| **Windowing** | `aru.window` — Win32 Unicode APIs, basic window + event loop |
 | **Rendering** | Vulkan — *planned* |
 
 ---
@@ -114,6 +116,7 @@ Expected output (debug build):
 Aru: Application(created!!)
 Aru: Application(created!!), name: Hello, version: 1
 Aru: Application(created!!), name: Hello, version: 1
+Aru: Window(created!!), title: Arunimesta
 ```
 
 ### Manual Build
@@ -159,11 +162,11 @@ arunimesta/
 │   │       ├── application.cppm     # export module aru:application;
 │   │       └── main.cpp             # int main()
 │   │
-│   └── aru_window/                  # Static library — windowing (WIP)
+│   └── aru_window/                  # Static library — windowing (Win32)
 │       ├── CMakeLists.txt
 │       └── src/
-│           ├── lib.cppm             # facade (not filled in yet)
-│           └── window.cppm          # aru.window:window skeleton
+│           ├── lib.cppm             # export module aru.window; (facade)
+│           └── window.cppm          # Win32 window + event loop
 │
 ├── assets/                          # Assets (currently empty)
 ├── test/                            # Test area (currently empty)
@@ -176,9 +179,9 @@ arunimesta/
 | :--- | :--- | :--- | :--- |
 | `aru` | Executable | ✅ | Entry point; uses module `aru` and runs `Application`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
-| `aru.window` | Static library | 🚧 | Planned windowing abstraction; the source is still a skeleton. |
+| `aru.window` | Static library | ✅ | Win32 window creation and polling event loop; UTF-8 titles are converted to UTF-16. |
 
-> Note: `modules/aru_window` has not been added to `add_subdirectory()` in the root `CMakeLists.txt`, so it is not built yet.
+> `modules/aru_window` is registered in the root `CMakeLists.txt` and linked into the `aru` executable.
 
 ---
 
@@ -188,15 +191,25 @@ The code currently in `modules/aru/src/main.cpp`:
 
 ```cpp
 #include <expected>
-#include <utility>
+#include <print>
 import aru;
 
 int main(int argc, char** argv) {
     auto result = aru::Application::init("Hello", 1)
         .transform([](aru::Application&& app) -> void {
             app.printInfo();
+
+            auto window = aru::window::Window::create_window("Arunimesta", 800, 600)
+                .transform([](aru::window::Window&& window) -> void {
+                    while (window.event_loop()) {
+                    }
+                });
         });
 
+    if (!result) {
+        std::println(stdout, "App exit unsuccessfully!!");
+    }
+    std::println(stdout, "App exit successfully!!");
     return 0;
 }
 ```
@@ -218,7 +231,21 @@ int main() {
 }
 ```
 
-Full reference: [`docs/api/application.md`](docs/api/application.md).
+Window creation with explicit error handling:
+
+```cpp
+auto window = aru::window::Window::create_window("Arunimesta — 世界", 800, 600);
+if (!window) {
+    return 1;
+}
+
+while (window->event_loop()) {
+}
+```
+
+Titles are UTF-8, so non-ASCII text such as `世界` is supported.
+
+References: [`docs/api/application.md`](docs/api/application.md) and [`docs/api/window.md`](docs/api/window.md).
 
 ---
 
@@ -230,6 +257,7 @@ Full reference: [`docs/api/application.md`](docs/api/application.md).
 | [docs/building.md](docs/building.md) | Prerequisites, presets, manual build, troubleshooting |
 | [docs/coding-style.md](docs/coding-style.md) | Naming, `.cppm` file layout, factory/pimpl patterns |
 | [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
+| [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones and future plans |
 
 ---
@@ -239,7 +267,7 @@ Full reference: [`docs/api/application.md`](docs/api/application.md).
 - [x] CMake + Clang + Ninja build system
 - [x] C++23 named modules and module partitions
 - [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
-- [ ] Finish the `aru.window` module and add it to the root build
+- [x] Basic `aru.window`: Unicode window creation and polling event loop
 - [ ] Vulkan RHI: instance, surface, adapter/device, swapchain
 - [ ] Render pass, pipeline, command buffer, and render loop
 - [ ] Event handling and resize
@@ -253,7 +281,8 @@ Details: [`docs/roadmap.md`](docs/roadmap.md).
 
 - This project is **under active development**; the API and structure may change without backward compatibility.
 - The current build presets are specific to **Windows x64 + Clang**.
-- The `aru_window` module is still incomplete and is not built yet.
+- Windowing is basic: a single polling loop with no input handling, resize handling, or explicit window teardown yet.
+- Window titles are UTF-8 and may contain non-ASCII characters.
 - No license has been chosen yet.
 
 ---

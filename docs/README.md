@@ -10,12 +10,13 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [building.md](building.md) | Prerequisites, building with presets or manually, and troubleshooting. |
 | [coding-style.md](coding-style.md) | Naming conventions, `.cppm` file layout, and factory/pimpl patterns. |
 | [api/application.md](api/application.md) | `aru::Application` API reference. |
+| [api/window.md](api/window.md) | `aru::window::Window` API reference. |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
 ## Documentation Principles
 
 - **In sync with the code**: examples and API names must match the source in `modules/`.
-- **Honest about status**: parts that are still skeletons are explicitly marked.
+- **Honest about status**: parts that are not implemented are explicitly marked.
 - **Practical**: each document answers the questions that come up when building or developing the engine.
 - **Language**: English, using standard technical terminology.
 
