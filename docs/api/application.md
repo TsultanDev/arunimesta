@@ -16,7 +16,7 @@ Implementation details are stored in `Application_T` (not exported) and owned th
 
 ## API
 
-### `static std::expected<Application, bool> init(std::string name, uint32_t version)`
+### `static std::expected<Application, ApplicationError> init(std::string name, uint32_t version)`
 
 Creates an `Application` instance.
 
@@ -29,7 +29,7 @@ Returns:
 
 - A `std::expected` containing an `Application` on success.
 - Currently the implementation **always returns success**; there is no failure path.
-- The `bool` error type is a placeholder and does not provide information about the cause.
+- The error type is `ApplicationError` (currently only `Unknown`).
 
 Side effects (debug builds only):
 
@@ -135,7 +135,7 @@ int main() {
 
 - There is no `Application::run()` or bootstrap callback yet.
 - `version` is still a raw number; there is no `major.minor.patch` encoding helper.
-- The `bool` error type is not descriptive.
+- The error type is `ApplicationError` (currently only `Unknown`).
 - `printInfo()` is not wrapped in `#ifndef NDEBUG`, so it always prints.
 - There are no thread-safety guarantees.
 

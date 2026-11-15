@@ -3,12 +3,12 @@ module;
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <limits>
 #include <memory>
 #include <print>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <winuser.h>
 
 export module aru.window:window;
 
@@ -17,14 +17,24 @@ static std::wstring toWide(std::string_view text);
 
 namespace aru {
     namespace window {
+        export enum class WindowError {
+            ModuleHandleFailed,
+            ClassRegistrationFailed,
+            InvalidArguments,
+            CreationFailed
+        };
+
         struct Window_T;
         export class Window;
     }
 }
 
-static std::wstring toWide(std::string_view text)
-{
+static std::wstring toWide(std::string_view text) {
     if (text.empty()) {
+        return {};
+    }
+
+    if (text.size() > static_cast<size_t>((std::numeric_limits<int>::max)())) {
         return {};
     }
 
@@ -36,14 +46,17 @@ static std::wstring toWide(std::string_view text)
     }
 
     std::wstring wide(static_cast<size_t>(length), L'\0');
-    MultiByteToWideChar(
+    const int converted = MultiByteToWideChar(
         CP_UTF8, 0, text.data(), static_cast<int>(text.size()), wide.data(), length
     );
+    if (converted <= 0) {
+        return {};
+    }
     return wide;
 }
 
-static LRESULT CALLBACK windowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam){
-    switch(message){
+static LRESULT CALLBACK windowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
         case WM_DESTROY:
             PostQuitMessage(0);
             break;
@@ -51,14 +64,20 @@ static LRESULT CALLBACK windowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
     return DefWindowProcW(hwnd, message, wParam, lParam);
 }
 
-struct aru::window::Window_T{
+struct aru::window::Window_T {
     HINSTANCE instance = nullptr;
     HWND hwnd = nullptr;
+
+    ~Window_T() {
+        if (hwnd != nullptr) {
+            DestroyWindow(hwnd);
+        }
+    }
 };
 
-class aru::window::Window{
+class aru::window::Window {
     public:
-        static std::expected<Window, bool> create_window(std::string title, uint32_t width, uint32_t height);
+        static std::expected<Window, WindowError> create_window(std::string title, uint32_t width, uint32_t height);
         bool event_loop();
 
         Window(const Window&) = delete;
@@ -67,19 +86,25 @@ class aru::window::Window{
         Window(Window&&) noexcept = default;
         Window& operator=(Window&&) noexcept = default;
 
+        void* operator new(size_t) = delete;
+        void* operator new[](size_t) = delete;
+
     private:
         Window(std::unique_ptr<Window_T> window);
         std::unique_ptr<Window_T> window;
 };
 
-aru::window::Window::Window(std::unique_ptr<aru::window::Window_T> window) : window(std::move(window)){
-
+aru::window::Window::Window(std::unique_ptr<aru::window::Window_T> window) : window(std::move(window)) {
 }
 
-std::expected<aru::window::Window, bool> aru::window::Window::create_window(std::string title, uint32_t width, uint32_t height){
+std::expected<aru::window::Window, aru::window::WindowError> aru::window::Window::create_window(std::string title, uint32_t width, uint32_t height) {
+    if (width == 0 || height == 0) {
+        return std::unexpected<WindowError>(WindowError::InvalidArguments);
+    }
+
     HINSTANCE instance = GetModuleHandleW(nullptr);
-    if(!instance){
-        return std::unexpected<bool>(false);
+    if (!instance) {
+        return std::unexpected<WindowError>(WindowError::ModuleHandleFailed);
     }
 
     constexpr wchar_t CLASS_NAME[] = L"ArunimestaClass";
@@ -91,12 +116,14 @@ std::expected<aru::window::Window, bool> aru::window::Window::create_window(std:
     window_class.lpfnWndProc = windowProc;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
 
-    if(!RegisterClassExW(&window_class) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS){
-        return std::unexpected<bool>(false);
+    if (!RegisterClassExW(&window_class) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
+        return std::unexpected<WindowError>(WindowError::ClassRegistrationFailed);
     }
 
-    // The public API takes UTF-8; Win32 expects UTF-16.
     const std::wstring wideTitle = toWide(title);
+    if (!title.empty() && wideTitle.empty()) {
+        return std::unexpected<WindowError>(WindowError::CreationFailed);
+    }
 
     HWND hwnd = CreateWindowExW(
         0,
@@ -112,16 +139,17 @@ std::expected<aru::window::Window, bool> aru::window::Window::create_window(std:
         instance,
         nullptr
     );
-    if(hwnd == nullptr){
-        return std::unexpected<bool>(false);
+    if (hwnd == nullptr) {
+        return std::unexpected<WindowError>(WindowError::CreationFailed);
     }
 
     ShowWindow(hwnd, SW_SHOWNORMAL);
 
-    auto window = aru::window::Window(std::make_unique<aru::window::Window_T>(aru::window::Window_T{
-        .instance = instance,
-        .hwnd = hwnd
-    }));
+    auto impl = std::make_unique<aru::window::Window_T>();
+    impl->instance = instance;
+    impl->hwnd = hwnd;
+
+    auto window = aru::window::Window(std::move(impl));
 
     #ifndef NDEBUG
     std::println(stderr, "Aru: Window(created!!), title: {}", title);
@@ -130,14 +158,23 @@ std::expected<aru::window::Window, bool> aru::window::Window::create_window(std:
     return window;
 }
 
-bool aru::window::Window::event_loop(){
+bool aru::window::Window::event_loop() {
+    if (!this->window) {
+        return false;
+    }
+
     MSG msg = {};
-    while(PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)){
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
-        if(msg.message == WM_QUIT){
+    bool hadMessage = false;
+    while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        hadMessage = true;
+        if (msg.message == WM_QUIT) {
             return false;
         }
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+    if (!hadMessage) {
+        WaitMessage();
     }
     return true;
 }

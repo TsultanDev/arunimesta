@@ -17,7 +17,7 @@ Implementation details are stored in `Window_T` (not exported) and owned through
 
 ## API
 
-### `static std::expected<Window, bool> create_window(std::string title, uint32_t width, uint32_t height)`
+### `static std::expected<Window, WindowError> create_window(std::string title, uint32_t width, uint32_t height)`
 
 Creates, shows, and returns a window.
 
@@ -30,8 +30,7 @@ Creates, shows, and returns a window.
 Returns:
 
 - A `std::expected` containing a `Window` on success.
-- `std::unexpected(false)` if the module handle, window class registration, or window creation fails.
-- The error type is `bool` and does not provide the Win32 error code.
+- `std::unexpected(WindowError::...)` if the module handle, window class registration, or window creation fails.
 
 Side effects (debug builds only):
 
@@ -94,7 +93,7 @@ struct aru::window::Window_T {
 - No resize handling (`WM_SIZE`).
 - `DestroyWindow` is not called explicitly; the window is cleaned up when the process exits.
 - The window class name is fixed to `ArunimestaClass`.
-- The error type is `bool` and does not report the Win32 error code.
+- The error type is `WindowError` and does not yet carry the Win32 error code.
 - No thread-safety guarantees.
 
 ## Compatibility
