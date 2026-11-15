@@ -1,114 +1,114 @@
 # Roadmap
 
-Dokumen ini berisi status, milestone, dan rencana pengembangan Arunimesta. Roadmap bersifat arahan, bukan kontrak; prioritas dapat berubah.
+This document contains the status, milestones, and development plan for Arunimesta. The roadmap is a direction, not a contract; priorities may change.
 
-## Status Saat Ini
+## Current Status
 
-| Area | Status | Keterangan |
+| Area | Status | Notes |
 | :--- | :--- | :--- |
-| Build system | ✅ Selesai | CMake ≥ 3.28, Clang, Ninja, preset Debug/Release |
-| Named modules | ✅ Selesai | `aru` + partition `aru:application`, facade `lib.cppm` |
-| `Application` | ✅ Dasar | Factory `std::expected`, pimpl `unique_ptr`, move-only |
-| Windowing | 🚧 Berjalan | `aru.window` masih kerangka; belum masuk root build |
-| Renderer Vulkan | ⬜ Belum | Belum ada source RHI |
-| Testing | ⬜ Belum | Folder `test/` masih kosong |
-| Dokumentasi | ✅ Awal | README + `docs/` |
+| Build system | ✅ Done | CMake ≥ 3.28, Clang, Ninja, Debug/Release presets |
+| Named modules | ✅ Done | `aru` + `aru:application` partition, `lib.cppm` facade |
+| `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
+| Windowing | 🚧 In progress | `aru.window` is still a skeleton; not in the root build |
+| Vulkan renderer | ⬜ Not started | No RHI source yet |
+| Testing | ⬜ Not started | The `test/` folder is still empty |
+| Documentation | ✅ Initial | README + `docs/` |
 
-## Milestone
+## Milestones
 
-### M0 — Fondasi (selesai)
+### M0 — Foundation (done)
 
-- [x] Struktur workspace modular di `modules/`
-- [x] C++23 named modules dan facade
-- [x] Build preset Clang x64 Debug/Release
-- [x] `Application` dengan `std::expected` dan pimpl
-- [x] Logging debug-only
-- [x] Dokumentasi awal
+- [x] Modular workspace structure under `modules/`
+- [x] C++23 named modules and facade
+- [x] Clang x64 Debug/Release build presets
+- [x] `Application` with `std::expected` and pimpl
+- [x] Debug-only logging
+- [x] Initial documentation
 
-**Kriteria selesai:** proyek dapat di-configure dan di-build, executable `aru` berjalan dan mencetak informasi aplikasi.
+**Done criteria:** the project can be configured and built, and the `aru` executable runs and prints application info.
 
-### M1 — Windowing (sedang dikerjakan)
+### M1 — Windowing (in progress)
 
-- [ ] Menyelesaikan class `Window` di `aru.window:window`
-- [ ] Mengisi facade `aru.window` (`lib.cppm`)
-- [ ] Menambahkan `modules/aru_window` ke root `CMakeLists.txt`
-- [ ] Integrasi event loop dasar (polling)
-- [ ] Membuat dan menghancurkan window dengan aman (RAII)
-- [ ] Menambahkan contoh pemakaian di executable
+- [ ] Finish the `Window` class in `aru.window:window`
+- [ ] Fill in the `aru.window` facade (`lib.cppm`)
+- [ ] Add `modules/aru_window` to the root `CMakeLists.txt`
+- [ ] Basic event loop integration (polling)
+- [ ] Create and destroy windows safely (RAII)
+- [ ] Add a usage example in the executable
 
-**Kriteria selesai:** `aru` dapat membuat window, memproses event, dan keluar dengan bersih.
+**Done criteria:** `aru` can create a window, process events, and exit cleanly.
 
-### M2 — Fondasi Vulkan RHI
+### M2 — Vulkan RHI Foundation
 
-- [ ] Modul `aru_rhi` (static library) dan facade `aru.rhi`
-- [ ] Loader/instance Vulkan
-- [ ] Debug messenger pada build debug
-- [ ] Surface dari window
-- [ ] Pemilihan physical device dan queue family
-- [ ] Logical device dan queue
+- [ ] `aru_rhi` module (static library) and `aru.rhi` facade
+- [ ] Vulkan loader/instance
+- [ ] Debug messenger in debug builds
+- [ ] Surface from the window
+- [ ] Physical device and queue family selection
+- [ ] Logical device and queue
 
-**Kriteria selesai:** instance, surface, dan device berhasil dibuat serta dihancurkan tanpa validation error.
+**Done criteria:** the instance, surface, and device are created and destroyed without validation errors.
 
-### M3 — Presentasi
+### M3 — Presentation
 
-- [ ] Swapchain, image views, dan framebuffer
+- [ ] Swapchain, image views, and framebuffers
 - [ ] Render pass
-- [ ] Pemilihan format dan present mode
-- [ ] Penanganan resize (recreate swapchain)
+- [ ] Format and present mode selection
+- [ ] Resize handling (recreate swapchain)
 
-**Kriteria selesai:** frame kosong berhasil di-present ke window.
+**Done criteria:** an empty frame is successfully presented to the window.
 
-### M4 — Rendering Frame
+### M4 — Frame Rendering
 
-- [ ] Command pool dan command buffer
-- [ ] Sinkronisasi (fence/semaphore) dan frame in-flight
-- [ ] Graphics pipeline dan shader
-- [ ] Vertex/index buffer
-- [ ] Render loop per-frame
+- [ ] Command pool and command buffers
+- [ ] Synchronization (fence/semaphore) and frames in flight
+- [ ] Graphics pipeline and shaders
+- [ ] Vertex/index buffers
+- [ ] Per-frame render loop
 
-**Kriteria selesai:** objek sederhana (misalnya segitiga) tampil dan beranimasi.
+**Done criteria:** a simple object (for example a triangle) is displayed and animated.
 
-### M5 — Sistem Engine
+### M5 — Engine Systems
 
 - [ ] Resource management
-- [ ] Matematika (misalnya GLM)
+- [ ] Math (for example GLM)
 - [ ] ECS
 - [ ] Asset pipeline
-- [ ] Scene dan kamera
+- [ ] Scene and camera
 - [ ] PBR pipeline
 
-## Arah Desain
+## Design Direction
 
-- **Module per subsistem**: `aru`, `aru.window`, `aru.rhi`, dan modul pendukung lain.
-- **Facade + partition**: konsumen mengimpor satu nama modul; implementasi dipecah internal.
-- **`std::expected` di API publik**: kegagalan eksplisit, bukan exception.
-- **Pimpl + `unique_ptr`**: detail implementasi tersembunyi, ownership jelas.
-- **RAII**: semua resource dibersihkan oleh destructor.
-- **Windows-first**: preset dan target saat ini Windows x64; dukungan platform lain menyusul.
+- **Module per subsystem**: `aru`, `aru.window`, `aru.rhi`, and other supporting modules.
+- **Facade + partitions**: consumers import a single module name; the implementation is split internally.
+- **`std::expected` in the public API**: explicit failures, not exceptions.
+- **Pimpl + `unique_ptr`**: implementation details hidden, ownership clear.
+- **RAII**: all resources are cleaned up by destructors.
+- **Windows-first**: the current presets and targets are Windows x64; other platform support will follow.
 
-## Utang Teknis
+## Technical Debt
 
-Prioritas pembersihan sebelum menambah subsistem besar:
+Cleanup priorities before adding large subsystems:
 
-1. Lengkapi atau hapus sementara `modules/aru_window` yang masih setengah jadi.
-2. Daftarkan `aru_window` ke root `CMakeLists.txt` setelah selesai.
-3. Ubah copy assignment `Application` menjadi `= delete`.
-4. Ganti tipe error `bool` dengan enum/struct error.
-5. Tambahkan unit test di `test/`.
-6. Rapikan log duplikat pada `Application::init()`.
-7. Tambahkan `operator new[] = delete` agar konsisten.
-8. Tambahkan `.clang-format` bila formatting ingin diotomatiskan.
+1. Complete or temporarily remove the half-finished `modules/aru_window`.
+2. Register `aru_window` in the root `CMakeLists.txt` once it is done.
+3. Change `Application` copy assignment to `= delete`.
+4. Replace the `bool` error type with an error enum/struct.
+5. Add unit tests in `test/`.
+6. Clean up the duplicate logs in `Application::init()`.
+7. Add `operator new[] = delete` for consistency.
+8. Add `.clang-format` if formatting should be automated.
 
-## Non-Goals (Sementara)
+## Non-Goals (For Now)
 
-- Dukungan platform non-Windows.
+- Non-Windows platform support.
 - Multi-threaded renderer.
-- Editor visual.
-- Format asset kustom.
+- Visual editor.
+- Custom asset format.
 
-## Cara Memperbarui Roadmap
+## How to Update the Roadmap
 
-- Tandai item `[x]` hanya setelah implementasi masuk dan build berhasil.
-- Pindahkan item yang berubah prioritas ke milestone yang sesuai.
-- Catat utang teknis baru di bagian **Utang Teknis**.
-- Perbarui [README](../README.md) bila status ringkas berubah.
+- Mark an item `[x]` only after the implementation is merged and the build succeeds.
+- Move items whose priority changes to the appropriate milestone.
+- Record new technical debt in the **Technical Debt** section.
+- Update the [README](../README.md) if the summary status changes.

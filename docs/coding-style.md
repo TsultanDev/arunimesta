@@ -1,68 +1,68 @@
-# Konvensi Kode
+# Code Conventions
 
-Dokumen ini merangkum konvensi yang dipakai (dan dituju) oleh kode Arunimesta. Belum ada file `.clang-format` di repositori, jadi konsistensi dijaga secara manual.
+This document summarizes the conventions used (and targeted) by the Arunimesta code. There is no `.clang-format` file in the repository yet, so consistency is maintained manually.
 
-## Penamaan
+## Naming
 
-| Elemen | Konvensi | Contoh |
+| Element | Convention | Example |
 | :--- | :--- | :--- |
-| Class / struct publik | `PascalCase` | `Application`, `Window` |
-| Struct implementasi internal | `PascalCase` + `_T` | `Application_T` |
-| Fungsi / method | `camelCase` | `init`, `printInfo` |
-| Variabel / parameter / member | `camelCase` | `app`, `name`, `version` |
+| Public class / struct | `PascalCase` | `Application`, `Window` |
+| Internal implementation struct | `PascalCase` + `_T` | `Application_T` |
+| Function / method | `camelCase` | `init`, `printInfo` |
+| Variable / parameter / member | `camelCase` | `app`, `name`, `version` |
 | Enum type | `PascalCase` | `Flags` |
 | Enum value | `PascalCase` | `None`, `Resizable` |
 | Namespace | `lowercase` | `aru`, `aru::window` |
-| Module | `lowercase.titik` | `aru`, `aru.window`, `aru:application` |
+| Module | `lowercase.dot` | `aru`, `aru.window`, `aru:application` |
 | Module file | `lowercase.cppm` | `application.cppm` |
-| Macro | `UPPER_SNAKE_CASE` | *(belum ada di engine)* |
+| Macro | `UPPER_SNAKE_CASE` | *(none in the engine yet)* |
 
-Catatan:
+Notes:
 
-- Member diakses eksplisit dengan `this->` pada implementasi class.
-- Parameter yang menyimpan nilai ke member boleh memakai nama yang sama, misalnya `version(version)`.
+- Members are accessed explicitly with `this->` in class implementations.
+- Parameters that store a value into a member may use the same name, for example `version(version)`.
 
-## Ekstensi dan Lokasi File
+## File Extensions and Locations
 
-- Modul C++ memakai ekstensi `.cppm`.
-- Entry point memakai `.cpp`.
-- Setiap modul berada di `modules/<nama_modul>/src/`.
-- Header/source non-module (bila nanti ada) diletakkan di `modules/<nama_modul>/include/`.
+- C++ modules use the `.cppm` extension.
+- The entry point uses `.cpp`.
+- Each module lives in `modules/<module_name>/src/`.
+- Non-module headers/sources (if added later) go in `modules/<module_name>/include/`.
 
-## Layout File `.cppm`
+## `.cppm` File Layout
 
 ```cpp
 module;                              // global module fragment
 
-#include <cstdint>                   // include standar / library eksternal
+#include <cstdint>                   // standard library / external library includes
 #include <memory>
 
-export module aru:widget;            // deklarasi modul / partition
+export module aru:widget;            // module / partition declaration
 
 namespace aru {
-    struct Widget_T;                 // forward declaration impl
-    export class Widget;             // deklarasi class publik
+    struct Widget_T;                 // impl forward declaration
+    export class Widget;             // public class declaration
 }
 
-struct aru::Widget_T {               // definisi impl (tidak diekspor)
+struct aru::Widget_T {               // impl definition (not exported)
     // ...
 };
 
-class aru::Widget {                  // definisi class publik
+class aru::Widget {                  // public class definition
     // ...
 };
 ```
 
-Aturan:
+Rules:
 
-1. Include **wajib** berada di global module fragment (`module;` sampai `export module ...;`).
-2. Jangan menaruh `#include` setelah `export module`, karena akan ikut terekspos ke konsumen.
-3. Definisikan struct `_T` sebelum member `unique_ptr<_T>` dihancurkan; urutan ini membuat compiler melihat tipe lengkap.
-4. Deklarasikan semua yang perlu dipakai konsumen dengan `export`.
+1. Includes **must** be in the global module fragment (`module;` through `export module ...;`).
+2. Do not put `#include` after `export module`, because it will be exposed to consumers.
+3. Define the `_T` struct before the `unique_ptr<_T>` member is destroyed; this order lets the compiler see the complete type.
+4. Declare everything consumers need with `export`.
 
-## Facade dan Partition
+## Facade and Partitions
 
-Untuk modul yang dipecah:
+For a module that is split up:
 
 ```cpp
 // application.cppm
@@ -75,13 +75,13 @@ export module aru;
 export import :application;
 ```
 
-- Konsumen cukup `import aru;`.
-- Partisi internal tidak diimpor langsung oleh kode luar.
-- Nama partition mengikuti nama file tanpa ekstensi.
+- Consumers only need `import aru;`.
+- Internal partitions are not imported directly by outside code.
+- Partition names follow the file name without the extension.
 
-## Pola Factory + Pimpl
+## Factory + Pimpl Pattern
 
-Gunakan pola berikut untuk class yang memiliki resource/internal state:
+Use the following pattern for classes that hold a resource/internal state:
 
 ```cpp
 namespace aru {
@@ -90,13 +90,13 @@ namespace aru {
 }
 
 struct aru::Thing_T {
-    // state internal
+    // internal state
 };
 
 class aru::Thing {
     public:
-        static std::expected<Thing, bool> init(/* parameter */);
-        // method publik lain
+        static std::expected<Thing, bool> init(/* parameters */);
+        // other public methods
 
         Thing(const Thing&) = delete;
         Thing& operator=(const Thing&) = delete;
@@ -112,29 +112,29 @@ class aru::Thing {
 };
 ```
 
-Ketentuan:
+Requirements:
 
-- Constructor privat; pembuatan lewat factory statis.
-- Factory mengembalikan `std::expected<T, Error>`.
-- Copy dihapus; move di-default.
-- `operator new` dihapus agar tidak bisa dialokasikan di heap secara bebas.
-- Implementasi internal tidak diekspor.
+- Private constructor; creation goes through a static factory.
+- The factory returns `std::expected<T, Error>`.
+- Copy is deleted; move is defaulted.
+- `operator new` is deleted so the object cannot be freely allocated on the heap.
+- Internal implementation is not exported.
 
-> Pada kode saat ini `Application` hanya menghapus `operator new` skalar. Untuk konsistensi, tambahkan juga `operator new[]` saat membersihkan API.
+> In the current code, `Application` only deletes the scalar `operator new`. For consistency, also add `operator new[]` when cleaning up the API.
 
 ## Error Handling
 
-- Gunakan `std::expected` untuk kegagalan yang dapat dipulihkan.
-- Hindari `throw` pada batas API publik.
-- Berikan tipe error yang bermakna; jangan gunakan `bool` untuk jangka panjang.
-- Jangan mengabaikan hasil `expected`; periksa atau teruskan dengan `transform` / `and_then`.
+- Use `std::expected` for recoverable failures.
+- Avoid `throw` at public API boundaries.
+- Provide meaningful error types; do not use `bool` long-term.
+- Do not ignore an `expected` result; check it or propagate it with `transform` / `and_then`.
 
-Contoh:
+Example:
 
 ```cpp
 auto app = aru::Application::init("Arunimesta", 1);
 if (!app) {
-    // tangani kegagalan
+    // handle failure
     return 1;
 }
 app->printInfo();
@@ -142,11 +142,11 @@ app->printInfo();
 
 ## Logging
 
-- Gunakan `std::println` / `std::print`.
-- Bungkus dengan `#ifndef NDEBUG` agar hanya aktif di build debug.
-- Format prefix: `Aru: <Area>(<event>)`.
+- Use `std::println` / `std::print`.
+- Wrap it with `#ifndef NDEBUG` so it is only active in debug builds.
+- Prefix format: `Aru: <Area>(<event>)`.
 
-Contoh:
+Example:
 
 ```cpp
 #ifndef NDEBUG
@@ -156,23 +156,23 @@ std::println(stdout, "Aru: Window(created!!), title: {}", title);
 
 ## Formatting
 
-Belum ada formatter otomatis. Ikuti gaya yang sudah ada:
+There is no automatic formatter yet. Follow the existing style:
 
-- Indentasi 4 spasi.
-- Kurung kurawal gaya Allman pada deklarasi class/function utama (baris baru).
-- Satu statement per baris.
-- Hindari baris terlalu panjang; pecah parameter atau chained call.
-- Gunakan `std::uint32_t`/`uint32_t` secara konsisten sesuai file (saat ini `uint32_t` dengan `<cstdint>`).
+- 4-space indentation.
+- Allman braces on main class/function declarations (new line).
+- One statement per line.
+- Avoid overly long lines; wrap parameters or chained calls.
+- Use `std::uint32_t`/`uint32_t` consistently per file (currently `uint32_t` with `<cstdint>`).
 
-## Checklist Modul Baru
+## New Module Checklist
 
-- [ ] File `.cppm` dengan `export module` yang jelas.
-- [ ] Include di global module fragment.
-- [ ] Tipe internal dinamai `<Type>_T` dan tidak diekspor.
-- [ ] Factory mengembalikan `std::expected`.
-- [ ] Copy dihapus, move di-default.
-- [ ] `operator new` dihapus bila objek hanya boleh lewat factory.
-- [ ] Target CMake dengan `FILE_SET CXX_MODULES`.
-- [ ] Ditambahkan ke root `CMakeLists.txt`.
-- [ ] Facade `export import` diperbarui.
-- [ ] Dokumentasi di `docs/` diperbarui.
+- [ ] `.cppm` file with a clear `export module`.
+- [ ] Includes in the global module fragment.
+- [ ] Internal types named `<Type>_T` and not exported.
+- [ ] Factory returns `std::expected`.
+- [ ] Copy deleted, move defaulted.
+- [ ] `operator new` deleted if objects may only be created through the factory.
+- [ ] CMake target with `FILE_SET CXX_MODULES`.
+- [ ] Added to the root `CMakeLists.txt`.
+- [ ] Facade `export import` updated.
+- [ ] Documentation in `docs/` updated.

@@ -1,17 +1,17 @@
-# Panduan Build
+# Build Guide
 
-Dokumen ini menjelaskan cara membangun Arunimesta dari source, baik memakai preset maupun manual.
+This document explains how to build Arunimesta from source, both with presets and manually.
 
-## Prasyarat
+## Prerequisites
 
-| Kebutuhan | Versi / Catatan |
+| Requirement | Version / Notes |
 | :--- | :--- |
-| Clang | Harus mendukung C++23 modules; `clang++` tersedia di `PATH` |
-| CMake | ≥ 3.28 (dibutuhkan untuk `FILE_SET ... TYPE CXX_MODULES`) |
-| Ninja | Generator yang dipakai preset |
-| OS | Windows x64 — preset yang tersedia hanya aktif di Windows |
+| Clang | Must support C++23 modules; `clang++` available in `PATH` |
+| CMake | ≥ 3.28 (required for `FILE_SET ... TYPE CXX_MODULES`) |
+| Ninja | The generator used by the presets |
+| OS | Windows x64 — the available presets are only active on Windows |
 
-Anda dapat memeriksa tool yang terpasang:
+You can check the installed tools:
 
 ```bash
 clang++ --version
@@ -19,23 +19,23 @@ cmake --version
 ninja --version
 ```
 
-> Vulkan SDK belum dibutuhkan sampai modul RHI diimplementasikan.
+> The Vulkan SDK is not required until the RHI module is implemented.
 
-## Preset yang Tersedia
+## Available Presets
 
-| Configure Preset | Build Preset | Build Type | Direktori Output |
+| Configure Preset | Build Preset | Build Type | Output Directory |
 | :--- | :--- | :--- | :--- |
 | `clang-x64-debug` | `build-debug` | Debug | `build/clang-x64-debug` |
 | `clang-x64-release` | `build-release` | Release | `build/clang-x64-release` |
 
-Preset menggunakan:
+The presets use:
 
-- Generator **Ninja**
-- Compiler **clang++**
-- `CMAKE_EXPORT_COMPILE_COMMANDS=ON` (untuk clangd)
-- Kondisi `hostSystemName == Windows`
+- The **Ninja** generator
+- The **clang++** compiler
+- `CMAKE_EXPORT_COMPILE_COMMANDS=ON` (for clangd)
+- The `hostSystemName == Windows` condition
 
-## Build dengan Preset
+## Building with Presets
 
 ### Debug
 
@@ -51,23 +51,23 @@ cmake --preset clang-x64-release
 cmake --build --preset build-release
 ```
 
-## Menjalankan
+## Running
 
-Executable Debug:
+Debug executable:
 
 ```bash
 ./build/clang-x64-debug/modules/aru/aru.exe
 ```
 
-Executable Release:
+Release executable:
 
 ```bash
 ./build/clang-x64-release/modules/aru/aru.exe
 ```
 
-## Build Manual
+## Manual Build
 
-Jika preset tidak cocok dengan environment Anda:
+If the presets do not fit your environment:
 
 ```bash
 cmake -S . -B build/manual -G Ninja \
@@ -77,11 +77,11 @@ cmake -S . -B build/manual -G Ninja \
 cmake --build build/manual
 ```
 
-Hasilnya berada di `build/manual/modules/aru/aru.exe`.
+The result is located at `build/manual/modules/aru/aru.exe`.
 
-## Build Ulang dari Nol
+## Clean Rebuild
 
-Jika ada error aneh akibat cache atau modul lama:
+If you encounter strange errors caused by the cache or old modules:
 
 ```bash
 rm -rf build/clang-x64-debug      # Bash / Git Bash
@@ -91,23 +91,23 @@ rm -rf build/clang-x64-debug      # Bash / Git Bash
 Remove-Item -Recurse -Force build\clang-x64-debug   # PowerShell
 ```
 
-Lalu configure dan build ulang.
+Then configure and build again.
 
-## Integrasi clangd
+## clangd Integration
 
-- `CMakePresets.json` mengekspor `compile_commands.json`.
-- `.clangd` mengarahkan clangd ke `build/clang-x64-debug`.
-- Jadi, lakukan configure preset Debug terlebih dahulu agar IDE/clangd mengenali modul dan include.
+- `CMakePresets.json` exports `compile_commands.json`.
+- `.clangd` points clangd to `build/clang-x64-debug`.
+- Therefore, configure the Debug preset first so that the IDE/clangd recognizes the modules and includes.
 
-## Modul `aru_window`
+## Module `aru_window`
 
-Saat ini `modules/aru_window` **belum** ditambahkan ke root `CMakeLists.txt`, sehingga tidak ikut dibangun. Setelah source modul selesai, tambahkan:
+Currently `modules/aru_window` has **not** been added to the root `CMakeLists.txt`, so it is not built. Once the module's source is complete, add:
 
 ```cmake
 add_subdirectory("modules/aru_window")
 ```
 
-Lalu hubungkan ke target yang membutuhkannya:
+Then link it to the targets that need it:
 
 ```cmake
 target_link_libraries(aru PRIVATE aru_window)
@@ -115,18 +115,18 @@ target_link_libraries(aru PRIVATE aru_window)
 
 ## Troubleshooting
 
-| Gejala | Kemungkinan Penyebab | Solusi |
+| Symptom | Likely Cause | Solution |
 | :--- | :--- | :--- |
-| `clang++: command not found` | Clang belum terpasang / tidak di `PATH` | Install LLVM dan pastikan `clang++` bisa dipanggil |
-| `CMake ... does not support CXX_MODULES` | CMake terlalu lama | Gunakan CMake ≥ 3.28 |
-| Preset tidak muncul / error kondisi | Preset hanya aktif di Windows | Gunakan Windows, atau buat preset/manual configure sendiri |
-| `ninja: command not found` | Ninja belum terpasang | Install Ninja atau gunakan generator lain |
-| Error saat compile `.cppm` | Compiler tidak mendukung modules | Gunakan Clang versi yang mendukung C++23 modules |
-| Perubahan header tidak terdeteksi | Cache build/modul lama | Hapus direktori build lalu configure ulang |
-| `import aru;` gagal | File `.cppm` tidak terdaftar di `FILE_SET CXX_MODULES` atau target tidak di-link | Periksa `target_sources` dan `target_link_libraries` |
+| `clang++: command not found` | Clang is not installed / not in `PATH` | Install LLVM and make sure `clang++` can be invoked |
+| `CMake ... does not support CXX_MODULES` | CMake is too old | Use CMake ≥ 3.28 |
+| Preset does not appear / condition error | Presets are only active on Windows | Use Windows, or create your own preset/manual configuration |
+| `ninja: command not found` | Ninja is not installed | Install Ninja or use another generator |
+| Error while compiling `.cppm` | The compiler does not support modules | Use a Clang version that supports C++23 modules |
+| Header changes are not detected | Stale build/module cache | Delete the build directory and configure again |
+| `import aru;` fails | The `.cppm` file is not listed in `FILE_SET CXX_MODULES`, or the target is not linked | Check `target_sources` and `target_link_libraries` |
 
-## Catatan
+## Notes
 
-- Semua file modul harus terdaftar di `target_sources(... FILE_SET CXX_MODULES ...)` agar ikut dikompilasi.
-- Include library eksternal diletakkan di global module fragment, bukan setelah `export module`.
-- Build Debug mengaktifkan log `std::println`; build Release tidak.
+- All module files must be listed in `target_sources(... FILE_SET CXX_MODULES ...)` to be compiled.
+- External library includes go in the global module fragment, not after `export module`.
+- Debug builds enable `std::println` logging; Release builds do not.

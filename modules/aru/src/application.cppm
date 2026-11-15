@@ -23,7 +23,7 @@ class aru::Application{
         void printInfo() const;
 
         Application(const Application&) = delete;
-        Application& operator=(const Application&);
+        Application& operator=(const Application&) = delete;
 
         Application(Application&&) noexcept = default;
         Application& operator=(Application&&) noexcept = default;
@@ -40,13 +40,13 @@ aru::Application::Application(std::unique_ptr<Application_T> app) : app(std::mov
 }
 std::expected<aru::Application, bool> aru::Application::init(std::string name, uint32_t version) {
     auto app = Application(std::make_unique<Application_T>(Application_T{
-        .name = name,
+        .name = std::move(name),
         .version = version,
     }));
 
     #ifndef NDEBUG
     std::println(stdout, "Aru: Application(created!!)");
-    std::println(stdout, "Aru: Application(created!!), name: {}, version: {}", name, version);
+    std::println(stdout, "Aru: Application(created!!), name: {}, version: {}", app.app->name, app.app->version);
     #endif
 
     return app;

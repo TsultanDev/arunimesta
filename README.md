@@ -10,66 +10,66 @@
 
 </div>
 
-**Arunimesta** adalah game engine 3D yang dibangun dari nol dengan **C++23** dan *named modules*. Proyek ini menekankan arsitektur modular, error handling eksplisit, dan manajemen resource berbasis RAII.
+**Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** Fondasi build system dan modul aplikasi sudah berjalan. Modul windowing masih berupa kerangka, dan renderer Vulkan belum diimplementasikan.
+> **Status: early development.** The build system and application module foundation are working. The windowing module is still a skeleton, and the Vulkan renderer has not been implemented.
 
 ---
 
-## Status Proyek
+## Project Status
 
-| Bagian | Status |
+| Area | Status |
 | :--- | :--- |
-| Build system (CMake + Clang + Ninja) | ✅ Berjalan |
-| Modul `aru` (facade + `Application`) | ✅ Berjalan |
-| Modul `aru.window` | 🚧 Kerangka / belum selesai |
-| Renderer Vulkan (RHI) | ⬜ Belum dimulai |
+| Build system (CMake + Clang + Ninja) | ✅ Working |
+| Module `aru` (facade + `Application`) | ✅ Working |
+| Module `aru.window` | 🚧 Skeleton / incomplete |
+| Vulkan renderer (RHI) | ⬜ Not started |
 
-Saat ini yang dapat dibangun dan dijalankan adalah executable `aru`, yang membuat objek `Application`, mencetak informasi aplikasi, lalu keluar.
+The only thing that can currently be built and run is the `aru` executable, which creates an `Application` object, prints application info, and then exits.
 
 ---
 
-## Fitur Saat Ini
+## Current Features
 
-- **C++23 Named Modules**: Modul utama `aru` dengan *module partition* `aru:application` dan facade `lib.cppm`.
-- **Factory + `std::expected`**: `Application::init()` mengembalikan `std::expected<Application, bool>` tanpa melempar exception.
-- **Pimpl dengan `std::unique_ptr`**: Detail implementasi disembunyikan di `Application_T`; objek bersifat *move-only*.
-- **Heap allocation diblokir**: `operator new` dihapus agar objek hanya dibuat melalui factory dan tidak dialokasikan bebas di heap.
-- **RAII**: `Application_T` dibersihkan otomatis oleh `std::unique_ptr`.
-- **Debug logging**: Output `std::println` hanya aktif pada build debug (`#ifndef NDEBUG`).
-- **CMake Presets**: Preset Clang LLVM x64 untuk Debug dan Release, dilengkapi `compile_commands.json` untuk clangd.
-- **Struktur modular**: Setiap modul berada di `modules/<nama_modul>` dengan `CMakeLists.txt` sendiri.
+- **C++23 Named Modules**: the main module `aru` with the module partition `aru:application` and the facade `lib.cppm`.
+- **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, bool>` without throwing exceptions.
+- **Pimpl with `std::unique_ptr`**: implementation details are hidden in `Application_T`; the object is *move-only*.
+- **Heap allocation blocked**: `operator new` is deleted so objects can only be created through the factory and cannot be freely allocated on the heap.
+- **RAII**: `Application_T` is cleaned up automatically by `std::unique_ptr`.
+- **Debug logging**: `std::println` output is only active in debug builds (`#ifndef NDEBUG`).
+- **CMake Presets**: Clang LLVM x64 presets for Debug and Release, complete with `compile_commands.json` for clangd.
+- **Modular structure**: each module lives in `modules/<module_name>` with its own `CMakeLists.txt`.
 
 ---
 
 ## Tech Stack
 
-| Komponen | Teknologi |
+| Component | Technology |
 | :--- | :--- |
-| **Bahasa** | C++23 (named modules) |
+| **Language** | C++23 (named modules) |
 | **Compiler** | Clang (`clang++`) |
 | **Build System** | CMake ≥ 3.28 + Ninja |
-| **Fitur Standar** | `std::expected`, `std::print` / `std::println`, `std::unique_ptr` |
-| **Platform Target** | Windows x64 (sesuai preset yang tersedia) |
-| **Windowing** | `aru.window` — *work in progress* (target Win32) |
+| **Standard Features** | `std::expected`, `std::print` / `std::println`, `std::unique_ptr` |
+| **Target Platform** | Windows x64 (matching the available presets) |
+| **Windowing** | `aru.window` — *work in progress* (Win32 target) |
 | **Rendering** | Vulkan — *planned* |
 
 ---
 
-## Prasyarat
+## Prerequisites
 
-1. **Clang** dengan dukungan C++23 modules; `clang++` harus tersedia di `PATH`.
-2. **CMake ≥ 3.28** — diperlukan untuk `FILE_SET ... TYPE CXX_MODULES`.
-3. **Ninja** sebagai generator.
-4. **Windows x64** — preset yang disediakan hanya aktif di Windows.
+1. **Clang** with C++23 modules support; `clang++` must be available in `PATH`.
+2. **CMake ≥ 3.28** — required for `FILE_SET ... TYPE CXX_MODULES`.
+3. **Ninja** as the generator.
+4. **Windows x64** — the provided presets are only active on Windows.
 
-> Vulkan SDK belum diperlukan sampai modul RHI mulai diimplementasikan.
+> The Vulkan SDK is not required until the RHI module starts being implemented.
 
 ---
 
 ## Build
 
-### 1. Clone Repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/TsultanDev/arunimesta.git
@@ -96,19 +96,19 @@ cmake --preset clang-x64-release
 cmake --build --preset build-debug
 ```
 
-atau:
+or:
 
 ```bash
 cmake --build --preset build-release
 ```
 
-### 4. Jalankan
+### 4. Run
 
 ```bash
 ./build/clang-x64-debug/modules/aru/aru.exe
 ```
 
-Output yang diharapkan (build debug):
+Expected output (debug build):
 
 ```text
 Aru: Application(created!!)
@@ -116,9 +116,9 @@ Aru: Application(created!!), name: Hello, version: 1
 Aru: Application(created!!), name: Hello, version: 1
 ```
 
-### Build Manual
+### Manual Build
 
-Jika tidak ingin memakai preset:
+If you prefer not to use the presets:
 
 ```bash
 cmake -S . -B build/clang-x64-debug -G Ninja \
@@ -128,30 +128,30 @@ cmake -S . -B build/clang-x64-debug -G Ninja \
 cmake --build build/clang-x64-debug
 ```
 
-Detail dan troubleshooting ada di [`docs/building.md`](docs/building.md).
+Details and troubleshooting are in [`docs/building.md`](docs/building.md).
 
 ---
 
-## Struktur Proyek
+## Project Structure
 
 ```text
 arunimesta/
-├── .clangd                          # Konfigurasi clangd (compile_commands.json)
+├── .clangd                          # clangd configuration (compile_commands.json)
 ├── .gitignore
 ├── CMakeLists.txt                   # Root build script
-├── CMakePresets.json                # Preset Clang/Ninja (Debug & Release)
+├── CMakePresets.json                # Clang/Ninja presets (Debug & Release)
 ├── README.md
 │
-├── docs/                            # Dokumentasi proyek
-│   ├── README.md                    # Indeks dokumentasi
-│   ├── architecture.md              # Arsitektur & desain modul
-│   ├── building.md                  # Panduan build & troubleshooting
-│   ├── coding-style.md              # Konvensi kode
-│   ├── roadmap.md                   # Rencana pengembangan
+├── docs/                            # Project documentation
+│   ├── README.md                    # Documentation index
+│   ├── architecture.md              # Architecture & module design
+│   ├── building.md                  # Build guide & troubleshooting
+│   ├── coding-style.md              # Code conventions
+│   ├── roadmap.md                   # Development plan
 │   └── api/
-│       └── application.md           # Referensi API Application
+│       └── application.md           # Application API reference
 │
-├── modules/                         # Semua target build
+├── modules/                         # All build targets
 │   ├── aru/                         # Executable — entry point
 │   │   ├── CMakeLists.txt
 │   │   └── src/
@@ -162,29 +162,29 @@ arunimesta/
 │   └── aru_window/                  # Static library — windowing (WIP)
 │       ├── CMakeLists.txt
 │       └── src/
-│           ├── lib.cppm             # facade (belum diisi)
-│           └── window.cppm          # kerangka aru.window:window
+│           ├── lib.cppm             # facade (not filled in yet)
+│           └── window.cppm          # aru.window:window skeleton
 │
-├── assets/                          # Aset (saat ini kosong)
-├── test/                            # Area pengujian (saat ini kosong)
-└── build/                           # Output build (di-ignore)
+├── assets/                          # Assets (currently empty)
+├── test/                            # Test area (currently empty)
+└── build/                           # Build output (ignored)
 ```
 
-### Deskripsi Modul
+### Module Descriptions
 
-| Modul | Tipe | Status | Deskripsi |
+| Module | Type | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `aru` | Executable | ✅ | Entry point; memakai modul `aru` dan menjalankan `Application`. |
-| `aru:application` | Module partition | ✅ | Implementasi `Application` beserta detail internal `Application_T`. |
-| `aru.window` | Static library | 🚧 | Rencana abstraksi windowing; source masih berupa kerangka. |
+| `aru` | Executable | ✅ | Entry point; uses module `aru` and runs `Application`. |
+| `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
+| `aru.window` | Static library | 🚧 | Planned windowing abstraction; the source is still a skeleton. |
 
-> Catatan: `modules/aru_window` belum ditambahkan ke `add_subdirectory()` di root `CMakeLists.txt`, sehingga belum ikut dibangun.
+> Note: `modules/aru_window` has not been added to `add_subdirectory()` in the root `CMakeLists.txt`, so it is not built yet.
 
 ---
 
-## Contoh Penggunaan
+## Usage Example
 
-Kode yang saat ini ada di `modules/aru/src/main.cpp`:
+The code currently in `modules/aru/src/main.cpp`:
 
 ```cpp
 #include <expected>
@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-Penanganan error yang lebih eksplisit:
+More explicit error handling:
 
 ```cpp
 import aru;
@@ -209,7 +209,7 @@ import aru;
 int main() {
     auto app = aru::Application::init("Arunimesta", 1);
     if (!app) {
-        // init() gagal
+        // init() failed
         return 1;
     }
 
@@ -218,47 +218,47 @@ int main() {
 }
 ```
 
-Referensi lengkap: [`docs/api/application.md`](docs/api/application.md).
+Full reference: [`docs/api/application.md`](docs/api/application.md).
 
 ---
 
-## Dokumentasi
+## Documentation
 
-| Dokumen | Isi |
+| Document | Contents |
 | :--- | :--- |
-| [docs/architecture.md](docs/architecture.md) | Struktur modul, pimpl, ownership, alur inisialisasi |
-| [docs/building.md](docs/building.md) | Prasyarat, preset, build manual, troubleshooting |
-| [docs/coding-style.md](docs/coding-style.md) | Penamaan, layout file `.cppm`, pola factory/pimpl |
-| [docs/api/application.md](docs/api/application.md) | API `aru::Application` |
-| [docs/roadmap.md](docs/roadmap.md) | Milestone dan rencana ke depan |
+| [docs/architecture.md](docs/architecture.md) | Module structure, pimpl, ownership, initialization flow |
+| [docs/building.md](docs/building.md) | Prerequisites, presets, manual build, troubleshooting |
+| [docs/coding-style.md](docs/coding-style.md) | Naming, `.cppm` file layout, factory/pimpl patterns |
+| [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
+| [docs/roadmap.md](docs/roadmap.md) | Milestones and future plans |
 
 ---
 
-## Roadmap Singkat
+## Roadmap Summary
 
-- [x] Build system CMake + Clang + Ninja
-- [x] Named modules C++23 dan module partition
-- [x] `Application` dengan factory `std::expected` dan pimpl `unique_ptr`
-- [ ] Menyelesaikan modul `aru.window` dan memasukkannya ke root build
+- [x] CMake + Clang + Ninja build system
+- [x] C++23 named modules and module partitions
+- [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
+- [ ] Finish the `aru.window` module and add it to the root build
 - [ ] Vulkan RHI: instance, surface, adapter/device, swapchain
-- [ ] Render pass, pipeline, command buffer, dan render loop
-- [ ] Event handling dan resize
-- [ ] Resource management dan ECS
+- [ ] Render pass, pipeline, command buffer, and render loop
+- [ ] Event handling and resize
+- [ ] Resource management and ECS
 
-Detail: [`docs/roadmap.md`](docs/roadmap.md).
-
----
-
-## Catatan
-
-- Proyek ini **dalam tahap pengembangan aktif**; API dan struktur dapat berubah tanpa kompatibilitas mundur.
-- Preset build saat ini dikhususkan untuk **Windows x64 + Clang**.
-- Modul `aru_window` masih belum lengkap dan belum ikut dibangun.
-- Belum ada lisensi yang ditetapkan.
+Details: [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
-## Referensi
+## Notes
+
+- This project is **under active development**; the API and structure may change without backward compatibility.
+- The current build presets are specific to **Windows x64 + Clang**.
+- The `aru_window` module is still incomplete and is not built yet.
+- No license has been chosen yet.
+
+---
+
+## References
 
 - [C++23 Modules — cppreference](https://en.cppreference.com/w/cpp/language/modules.html)
 - [std::expected — cppreference](https://en.cppreference.com/w/cpp/utility/expected)

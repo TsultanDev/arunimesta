@@ -1,22 +1,22 @@
-# Arsitektur
+# Architecture
 
-Dokumen ini menjelaskan struktur kode Arunimesta saat ini, keputusan desain utama, dan batas-batas modul.
+This document describes the current code structure of Arunimesta, the main design decisions, and the module boundaries.
 
-## Ringkasan
+## Overview
 
-Arunimesta adalah proyek C++23 yang menggunakan **named modules**. Kode dipecah per subsistem di bawah `modules/`, dan setiap modul memiliki target CMake sendiri.
+Arunimesta is a C++23 project that uses **named modules**. The code is split per subsystem under `modules/`, and each module has its own CMake target.
 
-Saat ini hanya dua modul yang ada:
+Currently there are only two modules:
 
 ```text
 modules/
-├── aru/            # executable + modul aru
-└── aru_window/     # static library aru.window (masih kerangka)
+├── aru/            # executable + module aru
+└── aru_window/     # static library aru.window (still a skeleton)
 ```
 
-Renderer Vulkan **belum ada** di repositori. Rencana arsitekturnya dibahas di [roadmap.md](roadmap.md).
+The Vulkan renderer **does not exist yet** in the repository. Its planned architecture is discussed in [roadmap.md](roadmap.md).
 
-## Peta Modul
+## Module Map
 
 ```text
                 ┌──────────────────────────┐
@@ -37,33 +37,33 @@ Renderer Vulkan **belum ada** di repositori. Rencana arsitekturnya dibahas di [r
                 │  Application_T           │
                 └──────────────────────────┘
 
-     (rencana) module aru.window  ←── belum dipakai oleh aru
+     (planned) module aru.window  ←── not used by aru yet
 ```
 
-### Modul `aru`
+### Module `aru`
 
-- `modules/aru/src/lib.cppm` adalah **facade**:
+- `modules/aru/src/lib.cppm` is the **facade**:
   ```cpp
   export module aru;
   export import :application;
   ```
-- `modules/aru/src/application.cppm` adalah **partition** `aru:application`.
-- `main.cpp` cukup melakukan `import aru;` dan tidak perlu mengetahui partition internal.
+- `modules/aru/src/application.cppm` is the **partition** `aru:application`.
+- `main.cpp` only needs to do `import aru;` and does not need to know about internal partitions.
 
-Pemisahan facade/partition berguna ketika modul bertambah: konsumen tetap mengimpor satu nama (`aru`), sementara implementasi dipecah menjadi beberapa partition.
+The facade/partition split is useful as the module grows: consumers keep importing a single name (`aru`), while the implementation is split into multiple partitions.
 
-### Modul `aru.window` (work in progress)
+### Module `aru.window` (work in progress)
 
-- Target static library `aru_window` sudah punya `CMakeLists.txt`.
-- `src/window.cppm` baru berisi kerangka `export module aru.window:window;` dan deklarasi class yang belum lengkap.
-- `src/lib.cppm` masih kosong.
-- Modul ini **belum** ditambahkan ke `add_subdirectory()` di root `CMakeLists.txt`, jadi tidak ikut dibangun.
+- The static library target `aru_window` already has a `CMakeLists.txt`.
+- `src/window.cppm` only contains the skeleton `export module aru.window:window;` and incomplete class declarations.
+- `src/lib.cppm` is still empty.
+- This module has **not** been added to `add_subdirectory()` in the root `CMakeLists.txt`, so it is not built.
 
-## Pola Desain `Application`
+## `Application` Design Patterns
 
-### Pimpl dengan `unique_ptr`
+### Pimpl with `unique_ptr`
 
-Detail implementasi `Application` dipisahkan ke struct `Application_T`:
+The implementation details of `Application` are separated into the `Application_T` struct:
 
 ```cpp
 namespace aru {
@@ -84,39 +84,39 @@ private:
 };
 ```
 
-Konsekuensi:
+Consequences:
 
-- Layout publik `Application` stabil meskipun field internal berubah.
-- `Application_T` tidak diekspos ke konsumen modul.
-- Penghancuran `Application_T` terjadi otomatis lewat `unique_ptr` (RAII).
+- The public layout of `Application` stays stable even if internal fields change.
+- `Application_T` is not exposed to module consumers.
+- `Application_T` is destroyed automatically through `unique_ptr` (RAII).
 
-### Factory dan `std::expected`
+### Factory and `std::expected`
 
-Objek tidak dibuat dengan constructor publik, melainkan lewat factory:
+Objects are not created with a public constructor, but through a factory:
 
 ```cpp
 static std::expected<Application, bool> init(std::string name, uint32_t version);
 ```
 
-- Tidak ada exception yang dilempar untuk kegagalan inisialisasi.
-- Pemanggil wajib memeriksa hasil (`if (!app)` atau `.transform(...)`).
-- Parameter kedua `bool` saat ini adalah placeholder tipe error. Belum ada nilai kegagalan yang dikembalikan; `init()` selalu sukses. Tipe ini dapat diganti dengan enum/struct error di masa depan.
+- No exceptions are thrown for initialization failures.
+- Callers must check the result (`if (!app)` or `.transform(...)`).
+- The second `bool` parameter is currently a placeholder error type. No failure values are returned yet; `init()` always succeeds. This type can be replaced with an error enum/struct in the future.
 
-### Move-only dan larangan alokasi heap
+### Move-only and heap allocation ban
 
 ```cpp
 Application(const Application&) = delete;
-Application& operator=(const Application&);   // dideklarasikan, belum didefinisikan
+Application& operator=(const Application&);   // declared, not defined
 Application(Application&&) noexcept = default;
 Application& operator=(Application&&) noexcept = default;
 void* operator new(size_t) = delete;
 ```
 
-- Objek dapat dipindahkan, tetapi tidak disalin.
-- `operator new` dihapus agar `Application` tidak dibuat dengan `new` biasa; pembuatan hanya lewat `Application::init()`.
-- Catatan: copy assignment masih **dideklarasikan tanpa definisi**. Selama tidak dipakai, build tetap berhasil; ini perlu dibersihkan (dihapus eksplisit) pada pembersihan API berikutnya.
+- Objects can be moved, but not copied.
+- `operator new` is deleted so `Application` cannot be created with plain `new`; creation only happens through `Application::init()`.
+- Note: copy assignment is still **declared without a definition**. As long as it is not used, the build succeeds; this needs to be cleaned up (explicitly deleted) in the next API cleanup.
 
-### Alur hidup
+### Lifetime
 
 ```text
 main()
@@ -128,47 +128,47 @@ main()
                  └─ destructor Application → unique_ptr → ~Application_T
 ```
 
-Belum ada `Application::run()` pada iterasi kode ini. `main.cpp` hanya memanggil `printInfo()` di dalam `transform`.
+There is no `Application::run()` in this iteration of the code yet. `main.cpp` only calls `printInfo()` inside `transform`.
 
 ## Error Handling
 
-- API publik menggunakan `std::expected`.
-- Belum ada exception yang dilempar oleh kode engine.
-- Tipe error saat ini `bool`, sehingga tidak ada informasi penyebab kegagalan.
-- Rekomendasi ke depan: ganti dengan `enum class Error` atau struct error yang bisa memberi konteks.
+- The public API uses `std::expected`.
+- No exceptions are thrown by engine code yet.
+- The error type is currently `bool`, so there is no information about the cause of failure.
+- Future recommendation: replace it with an `enum class Error` or an error struct that can provide context.
 
 ## Logging
 
-- Log memakai `std::println` dan hanya aktif pada build debug dengan `#ifndef NDEBUG`.
-- Prefix yang dipakai saat ini: `Aru: Application(...)`.
-- Target konvensi: `Aru: <Area>(<event>)`, misalnya `Aru: Window(created!!)`.
-- Saat ini `init()` mencetak dua baris log yang isinya mirip; dapat dirapikan nanti.
+- Logging uses `std::println` and is only active in debug builds with `#ifndef NDEBUG`.
+- The prefix currently used is: `Aru: Application(...)`.
+- Target convention: `Aru: <Area>(<event>)`, for example `Aru: Window(created!!)`.
+- Currently `init()` prints two similar log lines; this can be tidied up later.
 
-## Build dan Batas Modul
+## Build and Module Boundaries
 
-- Root `CMakeLists.txt` hanya menambahkan `modules/aru`.
-- Setiap modul mendaftarkan file `.cppm` melalui `FILE_SET CXX_MODULES`.
-- Include header standar diletakkan di **global module fragment** (`module;` ... `export module ...;`) agar tidak bocor ke konsumen.
-- `aru` tidak bergantung pada `aru.window` saat ini.
+- The root `CMakeLists.txt` only adds `modules/aru`.
+- Each module registers its `.cppm` files through `FILE_SET CXX_MODULES`.
+- Standard headers are included in the **global module fragment** (`module;` ... `export module ...;`) so they do not leak to consumers.
+- `aru` does not depend on `aru.window` at this time.
 
-## Menambah Modul Baru
+## Adding a New Module
 
-Langkah umum:
+General steps:
 
-1. Buat direktori `modules/<nama>/src`.
-2. Tambahkan file partition, misalnya `foo.cppm` dengan `export module aru:foo;`.
-3. Tambahkan facade `lib.cppm` dengan `export module aru; export import :foo;` (atau modul terpisah bila bukan bagian dari `aru`).
-4. Buat `CMakeLists.txt` modul dengan `add_library(...)` dan `target_sources(... FILE_SET CXX_MODULES ...)`.
-5. Daftarkan modul di root `CMakeLists.txt` dengan `add_subdirectory(...)`.
-6. Jika modul dipakai executable, tambahkan dependency target di `target_link_libraries`.
+1. Create the directory `modules/<name>/src`.
+2. Add a partition file, for example `foo.cppm` with `export module aru:foo;`.
+3. Add a facade `lib.cppm` with `export module aru; export import :foo;` (or a separate module if it is not part of `aru`).
+4. Create the module's `CMakeLists.txt` with `add_library(...)` and `target_sources(... FILE_SET CXX_MODULES ...)`.
+5. Register the module in the root `CMakeLists.txt` with `add_subdirectory(...)`.
+6. If the module is used by an executable, add the target dependency in `target_link_libraries`.
 
-## Utang Teknis yang Diketahui
+## Known Technical Debt
 
-| Item | Dampak | Rencana |
+| Item | Impact | Plan |
 | :--- | :--- | :--- |
-| `aru.window` belum lengkap | Windowing belum bisa dipakai | Selesaikan class `Window`, isi facade, tambahkan ke root CMake |
-| `aru_window` belum di-`add_subdirectory` | Modul tidak ikut build | Tambahkan setelah source lengkap |
-| Copy assignment `Application` tanpa definisi | Berpotensi link error bila dipakai | Hapus eksplisit (`= delete`) |
-| Tipe error `bool` | Tidak ada detail kegagalan | Ganti dengan enum/struct error |
-| Belum ada test | Regresi tidak terdeteksi | Isi folder `test/` dengan unit test |
-| Log duplikat di `init()` | Output debug berulang | Rapikan saat refactor |
+| `aru.window` is incomplete | Windowing cannot be used yet | Finish the `Window` class, fill in the facade, add it to the root CMake |
+| `aru_window` is not in `add_subdirectory` | The module is not built | Add it once the source is complete |
+| `Application` copy assignment has no definition | Potential link error if used | Delete it explicitly (`= delete`) |
+| `bool` error type | No failure details | Replace with an error enum/struct |
+| No tests yet | Regressions go undetected | Fill the `test/` folder with unit tests |
+| Duplicate logs in `init()` | Repeated debug output | Clean up during refactor |

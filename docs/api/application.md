@@ -1,6 +1,6 @@
 # API: `aru::Application`
 
-Referensi untuk class `Application` yang diekspor oleh modul `aru`.
+Reference for the `Application` class exported by module `aru`.
 
 ```cpp
 import aru;
@@ -8,34 +8,34 @@ import aru;
 aru::Application
 ```
 
-## Ringkasan
+## Overview
 
-`Application` merepresentasikan konfigurasi dasar aplikasi: nama dan versi. Objek dibuat melalui factory `init()` dan bersifat *move-only*.
+`Application` represents the basic configuration of an application: its name and version. Objects are created through the `init()` factory and are *move-only*.
 
-Detail implementasi disimpan pada `Application_T` (tidak diekspor) dan dimiliki melalui `std::unique_ptr`.
+Implementation details are stored in `Application_T` (not exported) and owned through `std::unique_ptr`.
 
 ## API
 
 ### `static std::expected<Application, bool> init(std::string name, uint32_t version)`
 
-Membuat instance `Application`.
+Creates an `Application` instance.
 
-| Parameter | Tipe | Keterangan |
+| Parameter | Type | Description |
 | :--- | :--- | :--- |
-| `name` | `std::string` | Nama aplikasi. Disimpan dengan move. |
-| `version` | `uint32_t` | Nilai versi apa adanya; belum ada encoding khusus. |
+| `name` | `std::string` | Application name. Stored by move. |
+| `version` | `uint32_t` | Raw version value; there is no special encoding yet. |
 
-Mengembalikan:
+Returns:
 
-- `std::expected` yang berisi `Application` bila berhasil.
-- Saat ini implementasi **selalu mengembalikan sukses**; belum ada jalur kegagalan.
-- Tipe error `bool` adalah placeholder dan belum memberi informasi penyebab.
+- A `std::expected` containing an `Application` on success.
+- Currently the implementation **always returns success**; there is no failure path.
+- The `bool` error type is a placeholder and does not provide information about the cause.
 
-Efek samping (hanya build debug):
+Side effects (debug builds only):
 
-- Mencetak log pembuatan aplikasi ke `stdout`.
+- Prints an application creation log to `stdout`.
 
-Contoh:
+Example:
 
 ```cpp
 auto app = aru::Application::init("Arunimesta", 1);
@@ -46,29 +46,29 @@ if (!app) {
 
 ### `void printInfo() const`
 
-Mencetak nama dan versi aplikasi ke `stdout`.
+Prints the application name and version to `stdout`.
 
-Tidak memiliki guard debug; pemanggilan tetap menghasilkan output pada build Release.
+It has no debug guard; calls still produce output in Release builds.
 
-Contoh output:
+Example output:
 
 ```text
 Aru: Application(created!!), name: Hello, version: 1
 ```
 
-## Lifetime dan Ownership
+## Lifetime and Ownership
 
-| Operasi | Status | Catatan |
+| Operation | Status | Notes |
 | :--- | :--- | :--- |
-| Constructor | Privat | Gunakan `init()` |
-| Copy constructor | `= delete` | Tidak dapat disalin |
-| Copy assignment | Dideklarasikan, belum didefinisikan | Jangan dipakai; akan diperbaiki menjadi `= delete` |
-| Move constructor | `noexcept = default` | Dapat dipindahkan |
-| Move assignment | `noexcept = default` | Dapat dipindahkan |
-| `operator new` | `= delete` | Tidak bisa `new Application(...)` |
-| Destructor | Implisit | `Application_T` dihancurkan via `unique_ptr` |
+| Constructor | Private | Use `init()` |
+| Copy constructor | `= delete` | Cannot be copied |
+| Copy assignment | Declared, not defined | Do not use; will be fixed to `= delete` |
+| Move constructor | `noexcept = default` | Can be moved |
+| Move assignment | `noexcept = default` | Can be moved |
+| `operator new` | `= delete` | Cannot `new Application(...)` |
+| Destructor | Implicit | `Application_T` is destroyed via `unique_ptr` |
 
-Urutan penghancuran:
+Destruction order:
 
 ```text
 ~Application()
@@ -76,9 +76,9 @@ Urutan penghancuran:
        └─ ~Application_T()
 ```
 
-## Contoh Penggunaan
+## Usage Examples
 
-### Gaya `transform` (seperti `main.cpp`)
+### `transform` style (as in `main.cpp`)
 
 ```cpp
 #include <expected>
@@ -95,9 +95,9 @@ int main() {
 }
 ```
 
-Pada gaya ini, kegagalan tidak ditangani secara eksplisit. Cocok untuk contoh, tetapi tidak disarankan untuk kode produksi.
+In this style, failures are not handled explicitly. It is suitable for examples, but not recommended for production code.
 
-### Gaya pemeriksaan eksplisit
+### Explicit check style
 
 ```cpp
 import aru;
@@ -113,7 +113,7 @@ int main() {
 }
 ```
 
-### Memindahkan objek
+### Moving an object
 
 ```cpp
 #include <utility>
@@ -131,17 +131,17 @@ int main() {
 }
 ```
 
-## Keterbatasan Saat Ini
+## Current Limitations
 
-- Belum ada `Application::run()` atau callback bootstrap.
-- `version` masih berupa angka mentah; belum ada helper encoding `major.minor.patch`.
-- Tipe error `bool` belum deskriptif.
-- Copy assignment belum didefinisikan.
-- `printInfo()` tidak dibungkus `#ifndef NDEBUG`, sehingga selalu mencetak.
-- Tidak ada jaminan thread-safety.
+- There is no `Application::run()` or bootstrap callback yet.
+- `version` is still a raw number; there is no `major.minor.patch` encoding helper.
+- The `bool` error type is not descriptive.
+- Copy assignment is not defined.
+- `printInfo()` is not wrapped in `#ifndef NDEBUG`, so it always prints.
+- There are no thread-safety guarantees.
 
-## Kompatibilitas
+## Compatibility
 
-- Memerlukan C++23 (`std::expected`, `std::print`, named modules).
-- Diimpor melalui `import aru;`.
-- Belum ada jaminan stabilitas API; lihat [roadmap](../roadmap.md).
+- Requires C++23 (`std::expected`, `std::print`, named modules).
+- Imported via `import aru;`.
+- There is no API stability guarantee yet; see [roadmap](../roadmap.md).

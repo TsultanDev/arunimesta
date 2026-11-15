@@ -1,27 +1,27 @@
-# Dokumentasi Arunimesta
+# Arunimesta Documentation
 
-Folder ini berisi dokumentasi teknis proyek Arunimesta. Dokumen ditulis berdasarkan kondisi kode saat ini; jika implementasi berubah, perbarui dokumen terkait.
+This folder contains the technical documentation for the Arunimesta project. The documents are written based on the current state of the code; if the implementation changes, update the relevant documents.
 
-## Daftar Dokumen
+## Document List
 
-| Dokumen | Deskripsi |
+| Document | Description |
 | :--- | :--- |
-| [architecture.md](architecture.md) | Arsitektur modul, pola pimpl, ownership, dan alur inisialisasi. |
-| [building.md](building.md) | Prasyarat, cara build dengan preset maupun manual, dan troubleshooting. |
-| [coding-style.md](coding-style.md) | Konvensi penamaan, layout file `.cppm`, dan pola factory/pimpl. |
-| [api/application.md](api/application.md) | Referensi API `aru::Application`. |
-| [roadmap.md](roadmap.md) | Status, milestone, dan rencana pengembangan. |
+| [architecture.md](architecture.md) | Module architecture, pimpl pattern, ownership, and initialization flow. |
+| [building.md](building.md) | Prerequisites, building with presets or manually, and troubleshooting. |
+| [coding-style.md](coding-style.md) | Naming conventions, `.cppm` file layout, and factory/pimpl patterns. |
+| [api/application.md](api/application.md) | `aru::Application` API reference. |
+| [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
-## Prinsip Dokumentasi
+## Documentation Principles
 
-- **Sinkron dengan kode**: contoh dan nama API harus sesuai source di `modules/`.
-- **Jujur soal status**: bagian yang masih kerangka ditandai eksplisit.
-- **Praktis**: setiap dokumen menjawab pertanyaan yang muncul saat membangun atau mengembangkan engine.
-- **Bahasa**: Indonesia, dengan istilah teknis tetap dalam bahasa Inggris bila lebih jelas.
+- **In sync with the code**: examples and API names must match the source in `modules/`.
+- **Honest about status**: parts that are still skeletons are explicitly marked.
+- **Practical**: each document answers the questions that come up when building or developing the engine.
+- **Language**: English, using standard technical terminology.
 
-## Mulai Dari Mana?
+## Where to Start?
 
-- Baru pertama kali build? Baca [building.md](building.md).
-- Ingin memahami struktur kode? Baca [architecture.md](architecture.md).
-- Ingin menambah modul atau mengubah API? Baca [coding-style.md](coding-style.md).
-- Ingin tahu rencana berikutnya? Baca [roadmap.md](roadmap.md).
+- Building for the first time? Read [building.md](building.md).
+- Want to understand the code structure? Read [architecture.md](architecture.md).
+- Want to add a module or change the API? Read [coding-style.md](coding-style.md).
+- Want to know the next steps? Read [roadmap.md](roadmap.md).
