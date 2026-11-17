@@ -99,9 +99,22 @@ Then configure and build again.
 - `.clangd` points clangd to `build/clang-x64-debug`.
 - Therefore, configure the Debug preset first so that the IDE/clangd recognizes the modules and includes.
 
-## Module `aru_window`
+## Module `aru.standard`
 
-`modules/aru_window` is registered in the root `CMakeLists.txt` and linked into the `aru` executable:
+`modules/aru_std` is a static library that is registered in the root `CMakeLists.txt` and linked into the `aru` executable:
+
+```cmake
+# modules/aru/CMakeLists.txt
+target_link_libraries(aru PRIVATE aru_std)
+```
+
+It provides module `aru.standard` (the `:string`, `:result`, and `:print` partitions), and the `aru` facade re-exports it, so `import aru;` exposes `String`, `Result`, `println`, and `eprintln`. See the [API references](api/string.md).
+
+## Module `aru_window` (paused)
+
+`modules/aru_window` contains the Win32 windowing module `aru.window`, but it is **currently disabled in the build**: both `add_subdirectory("modules/aru_window")` in the root `CMakeLists.txt` and `export import aru.window;` in `modules/aru/src/lib.cppm` are commented out while the `Window` class is being refactored.
+
+Once re-enabled, it will be linked into the `aru` executable again:
 
 ```cmake
 # Root CMakeLists.txt
@@ -132,3 +145,4 @@ The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Win
 - External library includes go in the global module fragment, not after `export module`.
 - Debug builds enable `std::println` logging; Release builds do not.
 - The `aru_window` target defines `UNICODE` and `_UNICODE`; keep Win32 code on the Unicode (`...W`) APIs.
+- `modules/aru_window` is currently commented out of the build; expect its `.cppm` sources to be work in progress.

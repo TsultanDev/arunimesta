@@ -12,7 +12,7 @@
 
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** The build system, application module, and basic Win32 windowing are working. The Vulkan renderer has not been implemented.
+> **Status: early development.** The build system, the application module, and the standard library module (`aru.standard` with `String`, `Result`, and `println`) are working. The `aru.window` module is being refactored and is temporarily disabled in the build. The Vulkan renderer has not been implemented.
 
 ---
 
@@ -22,17 +22,20 @@
 | :--- | :--- |
 | Build system (CMake + Clang + Ninja) | ✅ Working |
 | Module `aru` (facade + `Application`) | ✅ Working |
-| Module `aru.window` | ✅ Basic (window + event loop) |
+| Module `aru.standard` (`String`, `Result`, `println`) | ✅ Working |
+| Module `aru.window` | ⏸ Paused (refactoring; disabled in build) |
 | Vulkan renderer (RHI) | ⬜ Not started |
 
-The `aru` executable creates an `Application` object, prints application info, opens a Win32 window, and runs its event loop until the window is closed.
+The `aru` executable currently demonstrates `aru::standard::String`: it creates a UTF-8 string and converts it to a new UTF-32 string through the `String::from()` factory.
 
 ---
 
 ## Current Features
 
 - **C++23 Named Modules**: the main module `aru` with the module partition `aru:application` and the facade `lib.cppm`.
-- **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, bool>` without throwing exceptions.
+- **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. A new string of any target type is created from an existing string with the static `String::from()` factory, which transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`.
+- **Result Type**: `aru::standard::Result<T, E>` is a lightweight discriminated union for explicit success/failure values without exceptions.
+- **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, ApplicationError>` without throwing exceptions.
 - **Pimpl with `std::unique_ptr`**: implementation details are hidden in `Application_T`; the object is *move-only*.
 - **Heap allocation blocked**: `operator new` is deleted so objects can only be created through the factory and cannot be freely allocated on the heap.
 - **RAII**: `Application_T` is cleaned up automatically by `std::unique_ptr`.
@@ -53,7 +56,8 @@ The `aru` executable creates an `Application` object, prints application info, o
 | **Build System** | CMake ≥ 3.28 + Ninja |
 | **Standard Features** | `std::expected`, `std::print` / `std::println`, `std::unique_ptr` |
 | **Target Platform** | Windows x64 (matching the available presets) |
-| **Windowing** | `aru.window` — Win32 Unicode APIs, basic window + event loop |
+| **Standard Library** | `aru.standard` — `String` (UTF-8/16/32), `Result`, debug `println`/`eprintln` |
+| **Windowing** | `aru.window` — Win32 Unicode APIs, window + event loop (*paused*) |
 | **Rendering** | Vulkan — *planned* |
 
 ---
@@ -110,14 +114,7 @@ cmake --build --preset build-release
 ./build/clang-x64-debug/modules/aru/aru.exe
 ```
 
-Expected output (debug build):
-
-```text
-Aru: Application(created!!)
-Aru: Application(created!!), name: Hello, version: 1
-Aru: Application(created!!), name: Hello, version: 1
-Aru: Window(created!!), title: Arunimesta
-```
+The current demo program prints nothing; it only exercises `String` creation and conversion.
 
 ### Manual Build
 
@@ -152,7 +149,10 @@ arunimesta/
 │   ├── coding-style.md              # Code conventions
 │   ├── roadmap.md                   # Development plan
 │   └── api/
-│       └── application.md           # Application API reference
+│       ├── application.md           # Application API reference
+│       ├── string.md                # String API reference
+│       ├── result.md                # Result API reference
+│       └── print.md                 # print API reference
 │
 ├── modules/                         # All build targets
 │   ├── aru/                         # Executable — entry point
@@ -162,7 +162,15 @@ arunimesta/
 │   │       ├── application.cppm     # export module aru:application;
 │   │       └── main.cpp             # int main()
 │   │
-│   └── aru_window/                  # Static library — windowing (Win32)
+│   ├── aru_std/                     # Static library — standard library module
+│   │   ├── CMakeLists.txt
+│   │   └── src/
+│   │       ├── lib.cppm             # export module aru.standard; (facade)
+│   │       ├── string.cppm          # String<T> (UTF-8/16/32) + transcoding
+│   │       ├── result.cppm          # Result<T, E> discriminated union
+│   │       └── print.cppm           # println / eprintln (debug builds)
+│   │
+│   └── aru_window/                  # Static library — windowing (Win32, paused)
 │       ├── CMakeLists.txt
 │       └── src/
 │           ├── lib.cppm             # export module aru.window; (facade)
@@ -177,11 +185,15 @@ arunimesta/
 
 | Module | Type | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `aru` | Executable | ✅ | Entry point; uses module `aru` and runs `Application`. |
+| `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `aru.standard`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
-| `aru.window` | Static library | ✅ | Win32 window creation and polling event loop; UTF-8 titles are converted to UTF-16. |
+| `aru.standard` | Static library | ✅ | Facade `lib.cppm` over the `:string`, `:result`, and `:print` partitions. |
+| `aru.standard:string` | Module partition | ✅ | `String<T>` for `char8_t`/`char16_t`/`char32_t` with transcoding `from()` factories. |
+| `aru.standard:result` | Module partition | ✅ | `Result<T, E>` discriminated union. |
+| `aru.standard:print` | Module partition | ✅ | Debug-gated `println` / `eprintln` wrappers. |
+| `aru.window` | Static library | ⏸ | Win32 window creation and event loop; temporarily disabled in the build. |
 
-> `modules/aru_window` is registered in the root `CMakeLists.txt` and linked into the `aru` executable.
+> `modules/aru` links the `aru_std` static library (`target_link_libraries(aru PRIVATE aru_std)`). `modules/aru_window` is registered in the root `CMakeLists.txt` but is currently commented out while it is being refactored.
 
 ---
 
@@ -190,33 +202,30 @@ arunimesta/
 The code currently in `modules/aru/src/main.cpp`:
 
 ```cpp
+#include <expected>
 #include <print>
 import aru;
 
 int main() {
-    auto app = aru::Application::init("Hello", 1);
-    if (!app) {
-        std::println(stderr, "App exit unsuccessfully!!");
-        return 1;
-    }
-
-    app->printInfo();
-
-    auto window = aru::window::Window::create_window("Arunimesta", 800, 600);
-    if (!window) {
-        std::println(stderr, "App exit unsuccessfully!!");
-        return 1;
-    }
-
-    while (window->event_loop()) {
-    }
-
-    std::println(stdout, "App exit successfully!!");
+    auto string = aru::standard::String<char8_t>::from(u8"Hello");
+    auto s2 = aru::standard::String<char32_t>::from(string);
     return 0;
 }
 ```
 
-More explicit error handling:
+Strings are not converted in place. A **new** string is created from an existing one with the static `from()` factory; the target type is the `String` type the factory is called on:
+
+```cpp
+import aru;
+
+auto u8s  = aru::standard::String<char8_t>::from(u8"halo 🌍 dunia");
+auto u16s = aru::standard::String<char16_t>::from(u8s);  // UTF-8 -> UTF-16
+auto u32s = aru::standard::String<char32_t>::from(u16s); // UTF-16 -> UTF-32
+auto u8b  = aru::standard::String<char8_t>::from(u32s);  // UTF-32 -> UTF-8
+// u8b == u8s: roundtrip is lossless
+```
+
+Application with explicit error handling:
 
 ```cpp
 import aru;
@@ -233,7 +242,7 @@ int main() {
 }
 ```
 
-Window creation with explicit error handling:
+Window creation with explicit error handling (`aru.window` is currently disabled in the build):
 
 ```cpp
 auto window = aru::window::Window::create_window("Arunimesta — 世界", 800, 600);
@@ -247,7 +256,7 @@ while (window->event_loop()) {
 
 Titles are UTF-8, so non-ASCII text such as `世界` is supported.
 
-References: [`docs/api/application.md`](docs/api/application.md) and [`docs/api/window.md`](docs/api/window.md).
+References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/result.md`](docs/api/result.md), and [`docs/api/print.md`](docs/api/print.md).
 
 ---
 
@@ -259,7 +268,10 @@ References: [`docs/api/application.md`](docs/api/application.md) and [`docs/api/
 | [docs/building.md](docs/building.md) | Prerequisites, presets, manual build, troubleshooting |
 | [docs/coding-style.md](docs/coding-style.md) | Naming, `.cppm` file layout, factory/pimpl patterns |
 | [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
-| [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API |
+| [docs/api/string.md](docs/api/string.md) | `aru::standard::String` API (UTF-8/16/32) |
+| [docs/api/result.md](docs/api/result.md) | `aru::standard::Result` API |
+| [docs/api/print.md](docs/api/print.md) | `aru::standard::println` / `eprintln` API |
+| [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API (paused) |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones and future plans |
 
 ---
@@ -269,7 +281,8 @@ References: [`docs/api/application.md`](docs/api/application.md) and [`docs/api/
 - [x] CMake + Clang + Ninja build system
 - [x] C++23 named modules and module partitions
 - [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
-- [x] Basic `aru.window`: Unicode window creation and polling event loop
+- [x] `aru.standard`: `String` (UTF-8/16/32 with transcoding), `Result`, debug `println`
+- [ ] Finish and re-enable `aru.window`: RAII window creation and polling event loop
 - [ ] Vulkan RHI: instance, surface, adapter/device, swapchain
 - [ ] Render pass, pipeline, command buffer, and render loop
 - [ ] Event handling and resize
@@ -283,7 +296,7 @@ Details: [`docs/roadmap.md`](docs/roadmap.md).
 
 - This project is **under active development**; the API and structure may change without backward compatibility.
 - The current build presets are specific to **Windows x64 + Clang**.
-- Windowing is basic: a single polling loop with no input handling, resize handling, or explicit window teardown yet.
+- The `aru.window` module is **temporarily disabled in the build** while it is refactored; the API shown in [its reference](docs/api/window.md) may change.
 - Window titles are UTF-8 and may contain non-ASCII characters.
 - No license has been chosen yet.
 

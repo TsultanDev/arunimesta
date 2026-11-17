@@ -1,10 +1,11 @@
 # API: `aru::window::Window`
 
-Reference for the `Window` class exported by module `aru.window` and re-exported by `aru`.
+Reference for the `Window` class exported by module `aru.window`.
+
+> **Status: paused.** `aru.window` is currently disabled in the build (commented out in the root `CMakeLists.txt` and in the `aru` facade) while the `Window` class is refactored. This document describes the in-progress source; expect changes. `import aru;` no longer re-exports it.
 
 ```cpp
-import aru;
-// or: import aru.window;
+import aru.window;
 
 aru::window::Window
 ```
@@ -100,5 +101,5 @@ struct aru::window::Window_T {
 
 - Windows x64 with Win32 (`user32`, `gdi32`).
 - Requires C++23.
-- Imported via `import aru;` or `import aru.window;`.
+- Imported via `import aru.window;` (not currently re-exported by `import aru;`, and the module is disabled in the build).
 - No API stability guarantee yet; see [roadmap](../roadmap.md).

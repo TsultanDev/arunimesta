@@ -6,14 +6,15 @@ This document summarizes the conventions used (and targeted) by the Arunimesta c
 
 | Element | Convention | Example |
 | :--- | :--- | :--- |
-| Public class / struct | `PascalCase` | `Application`, `Window` |
+| Public class / struct | `PascalCase` | `Application`, `Window`, `String` |
 | Internal implementation struct | `PascalCase` + `_T` | `Application_T` |
-| Function / method | `camelCase` | `init`, `printInfo` |
-| Variable / parameter / member | `camelCase` | `app`, `name`, `version` |
-| Enum type | `PascalCase` | `Flags` |
+| Function / method | `camelCase` | `init`, `printInfo`, `create_window` |
+| Variable / parameter / member | `camelCase` | `app`, `name`, `version`, `char_size` |
+| Enum type | `PascalCase` | `Flags`, `ApplicationError` |
 | Enum value | `PascalCase` | `None`, `Resizable` |
-| Namespace | `lowercase` | `aru`, `aru::window` |
-| Module | `lowercase.dot` | `aru`, `aru.window`, `aru:application` |
+| Concept | `lowercase` | `character` |
+| Namespace | `lowercase` | `aru`, `aru::window`, `aru::standard` |
+| Module | `lowercase.dot` | `aru`, `aru.window`, `aru.standard:string` |
 | Module file | `lowercase.cppm` | `application.cppm` |
 | Macro | `UPPER_SNAKE_CASE` | *(none in the engine yet)* |
 
@@ -79,6 +80,37 @@ export import :application;
 - Internal partitions are not imported directly by outside code.
 - Partition names follow the file name without the extension.
 
+## Template and Concept Conventions
+
+Used by `aru.standard:string` (see [the `String` reference](api/string.md)):
+
+1. **Constrain templates with a named concept** that is declared and defined once in the export block, then reused everywhere:
+   ```cpp
+   template<typename T>
+   concept character = (
+       std::same_as<T, char8_t> || std::same_as<T, char16_t> ||
+       std::same_as<T, char32_t>
+   );
+
+   template<character T>
+   class String;
+   ```
+2. **Out-of-line member definitions repeat the constraint** with the fully qualified concept name:
+   ```cpp
+   template<aru::standard::character T>
+   aru::standard::String<T>::String(const T* str) { /* ... */ }
+   ```
+   Concepts must be defined in their first declaration; do not split a `concept` into a forward declaration plus definition (that pattern is only valid for classes).
+3. **Different instantiations of one class template are unrelated classes.** When they must share access (for example, `String<char8_t>::from(u32s)` reading private data of `String<char32_t>`), declare mutual friendship inside the class:
+   ```cpp
+   private:
+       template<character U>
+       friend class String;
+   ```
+4. **Keep internal helpers in an unexported `<namespace>::detail` namespace** placed between the class declaration and its definition (e.g. `aru::standard::detail::decode_utf8`). Helpers and forward-declared helper functions may be marked `static` or `noexcept` as appropriate.
+5. **Creation goes through static factories (`from(...)`)**, which may call private constructors.
+6. Comments inside modules follow the engine language (Indonesian) but should stay short and explanatory.
+
 ## Factory + Pimpl Pattern
 
 Use the following pattern for classes that hold a resource/internal state:
@@ -95,7 +127,7 @@ struct aru::Thing_T {
 
 class aru::Thing {
     public:
-        static std::expected<Thing, bool> init(/* parameters */);
+        static std::expected<Thing, ThingError> init(/* parameters */);
         // other public methods
 
         Thing(const Thing&) = delete;
@@ -124,9 +156,9 @@ Requirements:
 
 ## Error Handling
 
-- Use `std::expected` for recoverable failures.
+- Use `std::expected` for recoverable failures, with a meaningful error type (`ApplicationError`, `aru::window::Error`).
 - Avoid `throw` at public API boundaries.
-- Provide meaningful error types; do not use `bool` long-term.
+- `aru.standard:result` offers `Result<T, E>` for lightweight two-value returns; see [the `Result` reference](api/result.md).
 - Do not ignore an `expected` result; check it or propagate it with `transform` / `and_then`.
 
 Example:

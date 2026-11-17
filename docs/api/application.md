@@ -33,7 +33,7 @@ Returns:
 
 Side effects (debug builds only):
 
-- Prints an application creation log to `stdout`.
+- Prints application creation logs to `stderr`.
 
 Example:
 
