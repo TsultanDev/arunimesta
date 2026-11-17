@@ -64,7 +64,7 @@ auto u8b  = aru::standard::String<char8_t>::from(u32s);   // UTF-32 -> UTF-8
 // u8b == u8s
 ```
 
-### `const T* string_data() const noexcept` / `T* string_data() noexcept`
+### `const T* stringData() const noexcept` / `T* stringData() noexcept`
 
 Pointer to the internal buffer. The buffer is always null-terminated (`T{}` terminator). A mutable pointer is returned from a non-const string; mutating it past `length()` is undefined behavior territory — avoid writing to the terminator.
 
@@ -72,7 +72,7 @@ Pointer to the internal buffer. The buffer is always null-terminated (`T{}` term
 
 Number of code units, excluding the terminator. For example, `u8"halo 🌍 dunia"` has length 15 in UTF-8, 13 in UTF-16 (the emoji is a surrogate pair), and 12 in UTF-32.
 
-### `std::uint32_t byte_size() const noexcept`
+### `std::uint32_t byteSize() const noexcept`
 
 `length() * sizeof(T)` — the number of bytes of code-unit storage, excluding the terminator.
 
@@ -98,16 +98,27 @@ for (char32_t unit : u32s) {
 
 Compares the raw storage; strings are equal when their code units (including the terminator) are identical.
 
+### `String move() noexcept`
+
+Moves the contents out; the source string becomes empty. The result type is **always the same type** as the source (`String<T>::move()` returns `String<T>`) — cross-type moves are not possible, only `UTF-8 → UTF-8`, `UTF-16 → UTF-16`, `UTF-32 → UTF-32`. Cross-type transfer goes through `from()` (which copies/transcodes).
+
+```cpp
+auto s8  = aru::standard::String<char8_t>::from(u8"halo");
+auto s8b = s8.move();      // s8 is now empty, s8b owns the buffer
+```
+
 ### Constructors and assignment
 
 | Operation | Status | Notes |
 | :--- | :--- | :--- |
-| `String()` | Public | Empty string (terminator only). |
-| `String(const T*)` | Public | From a null-terminated C string; same as `from()`. |
-| Copy constructor / assignment | `= default` | Copies the storage. |
-| Move constructor / assignment | `noexcept = default` | Moves the storage. |
-| `String(std::vector<T>)` | Private | Used internally by `from()`; the vector must already end with a terminator. |
-| Destructor | `= default` | `std::vector` cleans up. |
+| `String()` | Private | Hidden; allocation goes through `from()`. |
+| `String(const T*)` | Private | Hidden; use `from(const T*)`. |
+| Copy constructor | Deleted | Copying goes through `from()` (same type = copy) or copy assignment. |
+| Move constructor | Deleted | Moving goes through `move()` or move assignment. |
+| Copy assignment | Public | Copies the storage. |
+| Move assignment | `noexcept` | Moves the storage (`b = a.move()`). |
+| `String(std::vector<T>)` | Private | Used internally by `from()` / `move()`; the vector must already end with a terminator. |
+| Destructor | Public | Must stay public: stack objects must be destructible. `std::vector` cleans up. |
 
 ### `value_type`
 
@@ -116,7 +127,7 @@ Compares the raw storage; strings are equal when their code units (including the
 ## Internal Notes
 
 - Different instantiations (`String<char8_t>`, `String<char16_t>`, ...) are unrelated classes; they are mutually friendly (`template<character U> friend class String;`) so `from()` can read the private storage of another instantiation.
-- Encoding/decoding helpers live in the unexported `aru::standard::detail` namespace: `decode_utf8`, `decode_utf16`, `decode_utf32`, `encode_codepoint`, and `cstr_length`.
+- Encoding/decoding helpers live in the unexported `aru::standard::detail` namespace: `decodeUtf8`, `decodeUtf16`, `decodeUtf32`, `encodeCodepoint`, and `cstrLength`.
 - The UTF-8 decoder rejects overlong encodings, code points above `U+10FFFF`, and surrogates (`U+D800–U+DFFF`).
 
 ## Current Limitations

@@ -30,13 +30,13 @@ Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<T>);
 
 Constructs a result holding either the value or the error. Construction from a `T` marks the result as "ok"; construction from an `E` marks it as "error".
 
-### `bool is_ok_or_err() const noexcept`
+### `bool isOkOrErr() const noexcept`
 
 `true` when the result holds a value, `false` when it holds an error.
 
 ### `explicit operator bool() const noexcept`
 
-Same as `is_ok_or_err()`; usable in conditions:
+Same as `isOkOrErr()`; usable in conditions:
 
 ```cpp
 aru::standard::Result<int, std::string> r = 42;
@@ -45,12 +45,12 @@ if (r) {
 }
 ```
 
-### `template<std::invocable<const E&> Func> T value_or_unexpected(Func&& fn)`
+### `template<std::invocable<const E&> Func> T valueOrUnexpected(Func&& fn)`
 
 Returns the stored value with move semantics when the result is ok. Otherwise, invokes `fn` with the error and returns its result:
 
 ```cpp
-auto value = result.value_or_unexpected([](const std::string& err) {
+auto value = result.valueOrUnexpected([](const std::string& err) {
     std::println(stderr, "failed: {}", err);
     return -1;
 });
@@ -86,7 +86,7 @@ Destruction order:
 ## Current Limitations
 
 - No copy/move constructors or assignment operators for `Result` itself yet.
-- No `value()` / `error()` accessors yet; use `value_or_unexpected()`.
+- No `value()` / `error()` accessors yet; use `valueOrUnexpected()`.
 - No monadic operations (`and_then`, `transform`, `or_else`).
 - Not a drop-in replacement for `std::expected` in public APIs; `std::expected` remains the engine-wide convention for factories.
 

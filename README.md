@@ -33,7 +33,8 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 ## Current Features
 
 - **C++23 Named Modules**: the main module `aru` with the module partition `aru:application` and the facade `lib.cppm`.
-- **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. A new string of any target type is created from an existing string with the static `String::from()` factory, which transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`.
+- **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. A new string of any target type is created from an existing string with the static `String::from()` factory, which transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`. Moving within the same encoding is done with `s.move()`.
+- **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation is factory-only (`Vector<T>::create()`), copying goes through assignment or `copy()`, moving through move assignment or `move()`, and literal lists through `v = {1, 2, 3}`. Copy/move constructors are deleted.
 - **Result Type**: `aru::standard::Result<T, E>` is a lightweight discriminated union for explicit success/failure values without exceptions.
 - **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, ApplicationError>` without throwing exceptions.
 - **Pimpl with `std::unique_ptr`**: implementation details are hidden in `Application_T`; the object is *move-only*.
@@ -56,7 +57,7 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 | **Build System** | CMake ≥ 3.28 + Ninja |
 | **Standard Features** | `std::expected`, `std::print` / `std::println`, `std::unique_ptr` |
 | **Target Platform** | Windows x64 (matching the available presets) |
-| **Standard Library** | `aru.standard` — `String` (UTF-8/16/32), `Result`, debug `println`/`eprintln` |
+| **Standard Library** | `aru.standard` — `String` (UTF-8/16/32), `Vector`, `Result`, debug `println`/`eprintln` |
 | **Windowing** | `aru.window` — Win32 Unicode APIs, window + event loop (*paused*) |
 | **Rendering** | Vulkan — *planned* |
 
@@ -151,6 +152,7 @@ arunimesta/
 │   └── api/
 │       ├── application.md           # Application API reference
 │       ├── string.md                # String API reference
+│       ├── vector.md                # Vector API reference
 │       ├── result.md                # Result API reference
 │       └── print.md                 # print API reference
 │
@@ -167,6 +169,7 @@ arunimesta/
 │   │   └── src/
 │   │       ├── lib.cppm             # export module aru.standard; (facade)
 │   │       ├── string.cppm          # String<T> (UTF-8/16/32) + transcoding
+│   │       ├── vector.cppm          # Vector<T> + iter() / intoIter()
 │   │       ├── result.cppm          # Result<T, E> discriminated union
 │   │       └── print.cppm           # println / eprintln (debug builds)
 │   │
@@ -187,8 +190,9 @@ arunimesta/
 | :--- | :--- | :--- | :--- |
 | `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `aru.standard`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
-| `aru.standard` | Static library | ✅ | Facade `lib.cppm` over the `:string`, `:result`, and `:print` partitions. |
-| `aru.standard:string` | Module partition | ✅ | `String<T>` for `char8_t`/`char16_t`/`char32_t` with transcoding `from()` factories. |
+| `aru.standard` | Static library | ✅ | Facade `lib.cppm` over the `:string`, `:vector`, `:result`, and `:print` partitions. |
+| `aru.standard:string` | Module partition | ✅ | `String<T>` for `char8_t`/`char16_t`/`char32_t` with transcoding `from()` and `move()`. |
+| `aru.standard:vector` | Module partition | ✅ | `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()`. |
 | `aru.standard:result` | Module partition | ✅ | `Result<T, E>` discriminated union. |
 | `aru.standard:print` | Module partition | ✅ | Debug-gated `println` / `eprintln` wrappers. |
 | `aru.window` | Static library | ⏸ | Win32 window creation and event loop; temporarily disabled in the build. |
@@ -225,6 +229,21 @@ auto u8b  = aru::standard::String<char8_t>::from(u32s);  // UTF-32 -> UTF-8
 // u8b == u8s: roundtrip is lossless
 ```
 
+Same-encoding moves use `move()`; the source becomes empty:
+
+```cpp
+auto s8b = u8s.move();   // UTF-8 -> UTF-8, same type only
+```
+
+Vectors are allocated through the `create()` factory, filled by assignment, and copied/moved via assignment or `copy()`/`move()`:
+
+```cpp
+auto vec = aru::standard::Vector<int>::create(16);
+vec = {1, 3, 4};
+auto copy = vec.copy();
+auto moved = vec.move();   // vec is now empty
+```
+
 Application with explicit error handling:
 
 ```cpp
@@ -256,7 +275,7 @@ while (window->event_loop()) {
 
 Titles are UTF-8, so non-ASCII text such as `世界` is supported.
 
-References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/result.md`](docs/api/result.md), and [`docs/api/print.md`](docs/api/print.md).
+References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), and [`docs/api/print.md`](docs/api/print.md).
 
 ---
 
@@ -269,6 +288,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 | [docs/coding-style.md](docs/coding-style.md) | Naming, `.cppm` file layout, factory/pimpl patterns |
 | [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
 | [docs/api/string.md](docs/api/string.md) | `aru::standard::String` API (UTF-8/16/32) |
+| [docs/api/vector.md](docs/api/vector.md) | `aru::standard::Vector` API (factory-only allocation) |
 | [docs/api/result.md](docs/api/result.md) | `aru::standard::Result` API |
 | [docs/api/print.md](docs/api/print.md) | `aru::standard::println` / `eprintln` API |
 | [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API (paused) |
@@ -281,7 +301,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 - [x] CMake + Clang + Ninja build system
 - [x] C++23 named modules and module partitions
 - [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
-- [x] `aru.standard`: `String` (UTF-8/16/32 with transcoding), `Result`, debug `println`
+- [x] `aru.standard`: `String` (UTF-8/16/32 with transcoding), `Vector`, `Result`, debug `println`
 - [ ] Finish and re-enable `aru.window`: RAII window creation and polling event loop
 - [ ] Vulkan RHI: instance, surface, adapter/device, swapchain
 - [ ] Render pass, pipeline, command buffer, and render loop

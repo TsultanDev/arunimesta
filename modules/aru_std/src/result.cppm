@@ -28,11 +28,11 @@ class aru::standard::Result{
 
         ~Result();
 
-        bool is_ok_or_err() const noexcept;
+        bool isOkOrErr() const noexcept;
         explicit operator bool() const noexcept;
 
         template <std::invocable<const E&> Func>
-        T value_or_unexpected(Func&& fn);
+        T valueOrUnexpected(Func&& fn);
 
 
 };
@@ -59,13 +59,13 @@ aru::standard::Result<T, E>::~Result<T, E>() {
 }
 
 template<typename T, typename E>
-bool aru::standard::Result<T, E>::is_ok_or_err() const noexcept{
+bool aru::standard::Result<T, E>::isOkOrErr() const noexcept{
     return this->has_value;
 }
 
 template<typename T, typename E>
 template <std::invocable<const E&> Func>
-T aru::standard::Result<T, E>::value_or_unexpected(Func&& fn){
+T aru::standard::Result<T, E>::valueOrUnexpected(Func&& fn){
     if (has_value) {
         return std::move(value);
     }

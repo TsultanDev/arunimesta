@@ -35,12 +35,12 @@ The Vulkan renderer **does not exist yet** in the repository. Its planned archit
             │   aru.standard           │
             └───────┬──────────┬───────┘
                     │          │
-    ┌───────────────▼──────┐  ┌▼─────────────────────────────┐
-    │ module               │  │ module aru.standard          │
-    │ aru:application      │  │ :string    :result    :print │
-    │ Application +        │  │ String<T>  Result<T,E>       │
-    │ Application_T        │  │                     println  │
-    └──────────────────────┘  └──────────────────────────────┘
+    ┌───────────────▼──────┐  ┌▼──────────────────────────────────────────┐
+    │ module               │  │ module aru.standard                       │
+    │ aru:application      │  │ :string      :result    :print   :vector  │
+    │ Application +        │  │ String<T>    Result<T,E>         Vector<T>│
+    │ Application_T        │  │                     println  copy/move    │
+    └──────────────────────┘  └───────────────────────────────────────────┘
 
     module aru.window (paused; disabled in build)
     └── :window — Window::create_window, Window::event_loop
@@ -71,17 +71,27 @@ The facade/partition split is useful as the module grows: consumers keep importi
   export import :print;
   export import :result;
   export import :string;
+  export import :vector;
   ```
 - `modules/aru_std/src/string.cppm` is the partition `aru.standard:string`. It exports the `character` concept and the `String<T>` class template.
 - `modules/aru_std/src/result.cppm` is the partition `aru.standard:result`. It exports `Result<T, E>`.
 - `modules/aru_std/src/print.cppm` is the partition `aru.standard:print`. It exports `println` and `eprintln`.
+- `modules/aru_std/src/vector.cppm` is the partition `aru.standard:vector`. It exports `Vector<T>` with `VectorIterator` and `VectorIntoIter`.
+
+#### Allocation rules (`String` and `Vector`)
+
+Both types follow the same policy — initialization happens through factory functions, copy/move constructors are deleted, and copy/move happen through assignment or explicit member functions:
+
+- `String<T>`: allocation via `String<T>::from(...)` (pointer or another string, cross-type converts and copies). Moving out via `s.move()` (same encoding only).
+- `Vector<T>`: allocation via `Vector<T>::create(capacity)`. Copy via assignment `=` or `v.copy()`; move via move assignment or `v.move()`; literal assignment via `v = {1, 2, 3}`.
+- Default constructors are private; copy/move constructors are deleted; destructors stay public (stack objects must be destructible).
 
 #### `String` design
 
 - `String<T>` is constrained by the exported `character` concept (`char8_t`, `char16_t`, `char32_t`).
-- Storage is a `std::vector<T>` that always ends with a null terminator, so `string_data()` can hand out a C-string of the element type.
-- `char_size` counts code units (excluding the terminator); `size` counts bytes (`char_size * sizeof(T)`).
-- Conversion between encodings is **not** a mutating `encode()` method. A new string is created with the static `String<TargetT>::from(const String<SourceT>&)` factory, which decodes each code point from the source and re-encodes it into the target (see the transcoders in `aru::standard::detail`).
+- Storage is a `std::vector<T>` that always ends with a null terminator, so `stringData()` can hand out a C-string of the element type.
+- `charSize` counts code units (excluding the terminator); `size` counts bytes (`charSize * sizeof(T)`).
+- Conversion between encodings is **not** a mutating `encode()` method. A new string is created with the static `String<TargetT>::from(const String<SourceT>&)` factory, which decodes each code point from the source and re-encodes it into the target (see the transcoders in `aru::standard::detail`). Moving within the same encoding is done with `s.move()`.
 - Invalid sequences decode to the replacement character `U+FFFD` (no exceptions).
 - Different instantiations of `String<T>` are unrelated classes; the mutual `template<character U> friend class String;` declaration lets `from()` read the private data of `String<SourceT>`.
 - `from(const String<SourceT>&)` with `SourceT == T` copies the storage directly (terminator included, no extra push).
@@ -227,6 +237,7 @@ General steps:
 | No resize handling | `WM_SIZE` is not processed | Handle resize before the RHI needs it |
 | `ApplicationError` is minimal | Only `Unknown`; no failure context | Expand the error enum/struct as failure paths appear |
 | `String` is read-mostly | No `append`/`+`/`+=`, no `std::formatter`/`std::hash` support | Add concatenation, formatting, and hashing |
+| `Vector` is basic | No `insert`/`erase`/`clear`, no bounds checking, no `std::formatter`/`std::hash` | Add the missing operations when needed |
 | `Result` has no accessors | No `value()`/`error()`; only `value_or_unexpected()` | Add checked accessors |
 | No tests yet | Regressions go undetected | Fill the `test/` folder with unit tests |
 | Duplicate logs in `init()` | Repeated debug output | Clean up during refactor |

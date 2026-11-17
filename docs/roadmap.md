@@ -9,7 +9,8 @@ This document contains the status, milestones, and development plan for Arunimes
 | Build system | ✅ Done | CMake ≥ 3.28, Clang, Ninja, Debug/Release presets |
 | Named modules | ✅ Done | `aru` + `aru:application` partition, `lib.cppm` facade |
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
-| `aru.standard` (`String`) | ✅ Basic | `char8_t`/`char16_t`/`char32_t`, transcoding `from()`, `U+FFFD` replacement |
+| `aru.standard` (`String`) | ✅ Basic | `char8_t`/`char16_t`/`char32_t`, transcoding `from()`, `move()`, `U+FFFD` replacement |
+| `aru.standard` (`Vector`) | ✅ Basic | Factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()` |
 | `aru.standard` (`Result`) | ✅ Basic | Discriminated union, `value_or_unexpected()` |
 | `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
 | Windowing | ⏸ Paused | `aru.window` disabled in the build while `Window` is refactored |
@@ -37,10 +38,12 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] `:result` partition — `Result<T, E>` discriminated union
 - [x] `:string` partition — `String<T>` for `char8_t`/`char16_t`/`char32_t`
 - [x] Cross-encoding conversion via static `String::from()` factory (UTF-8 ⇄ UTF-16 ⇄ UTF-32, `U+FFFD` on invalid input)
+- [x] `:vector` partition — `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, initializer-list assignment, `iter()`/`intoIter()`
+- [x] Factory-only allocation policy for `String` and `Vector`; copy/move constructors deleted
 - [ ] String concatenation (`append`, `+`, `+=`)
-- [ ] `std::formatter` / `std::hash` support for `String`
+- [ ] `std::formatter` / `std::hash` support for `String` and `Vector`
 
-**Done criteria:** strings in the three UTF encodings can be created and converted between without data loss; `aru` links `aru_std` and re-exports it through `import aru;`.
+**Done criteria:** strings in the three UTF encodings and `Vector<T>` can be allocated through their factories, copied/moved through assignment or `copy()`/`move()`, and converted without data loss; `aru` links `aru_std` and re-exports it through `import aru;`.
 
 ### M1 — Windowing (paused; partial)
 

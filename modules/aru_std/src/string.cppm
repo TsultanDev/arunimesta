@@ -22,10 +22,10 @@ export namespace aru{
 }
 
 namespace aru::standard::detail{
-    inline constexpr std::uint32_t replacement_codepoint = 0xFFFD;
+    inline constexpr std::uint32_t replacementCodepoint = 0xFFFD;
 
     template<character T>
-    std::size_t cstr_length(const T* str) noexcept {
+    std::size_t cstrLength(const T* str) noexcept {
         std::size_t length = 0;
         while (str[length] != T{}) {
             ++length;
@@ -33,7 +33,8 @@ namespace aru::standard::detail{
         return length;
     }
 
-    std::uint32_t decode_utf8(const std::vector<char8_t>& data, std::size_t& index) noexcept {
+    // Dekode satu code point UTF-8, mengembalikan U+FFFD untuk sekuens tidak valid.
+    std::uint32_t decodeUtf8(const std::vector<char8_t>& data, std::size_t& index) noexcept {
         const std::uint8_t first = static_cast<std::uint8_t>(data[index]);
         std::uint32_t codepoint = 0;
         std::size_t length = 0;
@@ -52,37 +53,38 @@ namespace aru::standard::detail{
             length = 4;
         } else {
             ++index;
-            return replacement_codepoint;
+            return replacementCodepoint;
         }
 
         if (index + length > data.size()) {
             index = data.size();
-            return replacement_codepoint;
+            return replacementCodepoint;
         }
 
         for (std::size_t i = 1; i < length; ++i) {
             const std::uint8_t byte = static_cast<std::uint8_t>(data[index + i]);
             if ((byte & 0xC0) != 0x80) {
                 ++index;
-                return replacement_codepoint;
+                return replacementCodepoint;
             }
             codepoint = (codepoint << 6) | (byte & 0x3F);
         }
 
-        constexpr std::uint32_t min_codepoint[] = {0, 0x80, 0x800, 0x10000};
-        const bool overlong = codepoint < min_codepoint[length - 1];
-        const bool out_of_range = codepoint > 0x10FFFF;
+        constexpr std::uint32_t minCodepoint[] = {0, 0x80, 0x800, 0x10000};
+        const bool overlong = codepoint < minCodepoint[length - 1];
+        const bool outOfRange = codepoint > 0x10FFFF;
         const bool surrogate = codepoint >= 0xD800 && codepoint <= 0xDFFF;
-        if (overlong || out_of_range || surrogate) {
+        if (overlong || outOfRange || surrogate) {
             index += length;
-            return replacement_codepoint;
+            return replacementCodepoint;
         }
 
         index += length;
         return codepoint;
     }
 
-    std::uint32_t decode_utf16(const std::vector<char16_t>& data, std::size_t& index) noexcept {
+    // Dekode satu code point UTF-16, mengembalikan U+FFFD untuk sekuens tidak valid.
+    std::uint32_t decodeUtf16(const std::vector<char16_t>& data, std::size_t& index) noexcept {
         const std::uint32_t unit = static_cast<std::uint32_t>(data[index]);
 
         if (unit < 0xD800 || unit > 0xDFFF) {
@@ -90,40 +92,44 @@ namespace aru::standard::detail{
             return unit;
         }
 
+        // Surrogate rendah tanpa surrogate tinggi sebelumnya.
         if (unit >= 0xDC00) {
             ++index;
-            return replacement_codepoint;
+            return replacementCodepoint;
         }
 
+        // Surrogate tinggi, perlu pasangan surrogate rendah.
         if (index + 1 >= data.size()) {
             ++index;
-            return replacement_codepoint;
+            return replacementCodepoint;
         }
 
         const std::uint32_t low = static_cast<std::uint32_t>(data[index + 1]);
         if (low < 0xDC00 || low > 0xDFFF) {
             ++index;
-            return replacement_codepoint;
+            return replacementCodepoint;
         }
 
         index += 2;
         return 0x10000 + ((unit - 0xD800) << 10) + (low - 0xDC00);
     }
 
-    std::uint32_t decode_utf32(const std::vector<char32_t>& data, std::size_t& index) noexcept {
+    // Dekode satu code point UTF-32, mengembalikan U+FFFD untuk nilai tidak valid.
+    std::uint32_t decodeUtf32(const std::vector<char32_t>& data, std::size_t& index) noexcept {
         const std::uint32_t codepoint = static_cast<std::uint32_t>(data[index]);
         ++index;
 
-        const bool out_of_range = codepoint > 0x10FFFF;
+        const bool outOfRange = codepoint > 0x10FFFF;
         const bool surrogate = codepoint >= 0xD800 && codepoint <= 0xDFFF;
-        if (out_of_range || surrogate) {
-            return replacement_codepoint;
+        if (outOfRange || surrogate) {
+            return replacementCodepoint;
         }
         return codepoint;
     }
 
+    // Enkode satu code point ke target, codepoint harus sudah valid.
     template<character T>
-    void encode_codepoint(std::vector<T>& out, std::uint32_t codepoint) {
+    void encodeCodepoint(std::vector<T>& out, std::uint32_t codepoint) {
         if constexpr (std::same_as<T, char8_t>) {
             if (codepoint < 0x80) {
                 out.push_back(static_cast<char8_t>(codepoint));
@@ -161,14 +167,19 @@ class aru::standard::String{
 
         static String from(const T* str);
 
+        // Konversi antar encoding; SourceT == T berarti salinan (otomatis mengcopy).
         template<character SourceT>
         static String from(const String<SourceT>& str);
 
-        const T* string_data() const noexcept;
-        T* string_data() noexcept;
+        // Pindahkan isi string keluar; string asal menjadi kosong.
+        // Tipe hasil selalu sama dengan string asal (aturan UTF8/16/32).
+        String move() noexcept;
+
+        const T* stringData() const noexcept;
+        T* stringData() noexcept;
 
         std::uint32_t length() const noexcept;
-        std::uint32_t byte_size() const noexcept;
+        std::uint32_t byteSize() const noexcept;
         bool empty() const noexcept;
 
         const T& operator[](std::uint32_t index) const noexcept;
@@ -179,52 +190,46 @@ class aru::standard::String{
 
         bool operator==(const String&) const noexcept;
 
-        String();
-        String(const T*);
-        String(const String&);
-        String(String&&) noexcept;
         String& operator=(const String&);
         String& operator=(String&&) noexcept;
         ~String();
 
     private:
+        // Semua instansiasi String saling berteman, agar from<SourceT>()
+        // dapat mengakses data private dari String<SourceT>.
         template<character U>
         friend class String;
 
-        explicit String(std::vector<T> str_data);
+        String();
+        String(const T* str);
+        explicit String(std::vector<T> strData);
 
-        std::uint32_t char_size = {};
-        std::uint32_t size = {};
-        std::vector<T> data;
+        std::uint32_t charSize = {};  // jumlah code unit (tanpa terminator)
+        std::uint32_t size = {};      // jumlah byte (charSize * sizeof(T))
+        std::vector<T> data;          // selalu diakhiri terminator null
 };
 
 template<aru::standard::character T>
-aru::standard::String<T>::String() : char_size(0), size(0), data(1, T{}) {}
+aru::standard::String<T>::String() : charSize(0), size(0), data(1, T{}) {}
 
 template<aru::standard::character T>
-aru::standard::String<T>::String(const T* str) : char_size(0), size(0), data() {
-    this->char_size = static_cast<std::uint32_t>(detail::cstr_length(str));
-    this->size = this->char_size * sizeof(T);
+aru::standard::String<T>::String(const T* str) : charSize(0), size(0), data() {
+    this->charSize = static_cast<std::uint32_t>(detail::cstrLength(str));
+    this->size = this->charSize * sizeof(T);
 
-    this->data.reserve(static_cast<std::size_t>(this->char_size) + 1);
-    for (std::uint32_t i = 0; i < this->char_size; ++i) {
+    this->data.reserve(static_cast<std::size_t>(this->charSize) + 1);
+    for (std::uint32_t i = 0; i < this->charSize; ++i) {
         this->data.push_back(str[i]);
     }
     this->data.push_back(T{});
 }
 
 template<aru::standard::character T>
-aru::standard::String<T>::String(std::vector<T> str_data) :
-    char_size(static_cast<std::uint32_t>(str_data.size()) - 1),
-    size(this->char_size * sizeof(T)),
-    data(std::move(str_data))
+aru::standard::String<T>::String(std::vector<T> strData) :
+    charSize(static_cast<std::uint32_t>(strData.size()) - 1),
+    size(this->charSize * sizeof(T)),
+    data(std::move(strData))
 {}
-
-template<aru::standard::character T>
-aru::standard::String<T>::String(const String&) = default;
-
-template<aru::standard::character T>
-aru::standard::String<T>::String(String&&) noexcept = default;
 
 template<aru::standard::character T>
 aru::standard::String<T>& aru::standard::String<T>::operator=(const String&) = default;
@@ -248,18 +253,18 @@ aru::standard::String<T> aru::standard::String<T>::from(const String<SourceT>& s
     if constexpr (std::same_as<T, SourceT>) {
         out = str.data;  // sudah termasuk terminator
     } else {
-        out.reserve(str.char_size);
+        out.reserve(str.charSize);
         std::size_t index = 0;
-        while (index < str.char_size) {
+        while (index < str.charSize) {
             std::uint32_t codepoint = 0;
             if constexpr (std::same_as<SourceT, char8_t>) {
-                codepoint = detail::decode_utf8(str.data, index);
+                codepoint = detail::decodeUtf8(str.data, index);
             } else if constexpr (std::same_as<SourceT, char16_t>) {
-                codepoint = detail::decode_utf16(str.data, index);
+                codepoint = detail::decodeUtf16(str.data, index);
             } else {
-                codepoint = detail::decode_utf32(str.data, index);
+                codepoint = detail::decodeUtf32(str.data, index);
             }
-            detail::encode_codepoint(out, codepoint);
+            detail::encodeCodepoint(out, codepoint);
         }
         out.push_back(T{});
     }
@@ -267,28 +272,36 @@ aru::standard::String<T> aru::standard::String<T>::from(const String<SourceT>& s
 }
 
 template<aru::standard::character T>
-const T* aru::standard::String<T>::string_data() const noexcept{
+aru::standard::String<T> aru::standard::String<T>::move() noexcept{
+    std::vector<T> stolen = std::exchange(this->data, std::vector<T>());
+    this->charSize = 0;
+    this->size = 0;
+    return String<T>(std::move(stolen));
+}
+
+template<aru::standard::character T>
+const T* aru::standard::String<T>::stringData() const noexcept{
     return this->data.data();
 }
 
 template<aru::standard::character T>
-T* aru::standard::String<T>::string_data() noexcept{
+T* aru::standard::String<T>::stringData() noexcept{
     return this->data.data();
 }
 
 template<aru::standard::character T>
 std::uint32_t aru::standard::String<T>::length() const noexcept{
-    return this->char_size;
+    return this->charSize;
 }
 
 template<aru::standard::character T>
-std::uint32_t aru::standard::String<T>::byte_size() const noexcept{
+std::uint32_t aru::standard::String<T>::byteSize() const noexcept{
     return this->size;
 }
 
 template<aru::standard::character T>
 bool aru::standard::String<T>::empty() const noexcept{
-    return this->char_size == 0;
+    return this->charSize == 0;
 }
 
 template<aru::standard::character T>
