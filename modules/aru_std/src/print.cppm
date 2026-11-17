@@ -2,7 +2,7 @@ module;
 #include <cstdio>
 #include <print>
 
-export module aru.std:print;
+export module aru.standard:print;
 
 export namespace aru{
     namespace standard{

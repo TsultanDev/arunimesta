@@ -1,4 +1,4 @@
 export module aru;
 export import :application;
 
-export import aru.window;
+//export import aru.window;

@@ -2,6 +2,7 @@ set(SOURCES
   "src/lib.cppm"
   "src/print.cppm"
   "src/result.cppm"
+  "src/string.cppm"
 )
 add_library(aru_std STATIC)
 

@@ -7,32 +7,35 @@ export module aru.standard:result;
 export namespace aru{
     namespace standard{
         template <typename T, typename E>
-        class Result{
-            private:
-                bool has_value = {};
-                union{
-                    T value;
-                    E error;
-                };
-            public:
-
-                Result(const T& value);
-                Result(T&& value) noexcept(std::is_nothrow_move_constructible_v<T>);
-                Result(const E& error);
-                Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<T>);
-
-                ~Result();
-
-                bool is_ok_or_err() const noexcept;
-                explicit operator bool() const noexcept;
-
-                template <std::invocable<const E&> Func>
-                T value_or_unexpected(Func&& fn);
-
-
-        };
+        class Result;
     }
 }
+
+template <typename T, typename E>
+class aru::standard::Result{
+    private:
+        bool has_value = {};
+        union{
+            T value;
+            E error;
+        };
+    public:
+
+        Result(const T& value);
+        Result(T&& value) noexcept(std::is_nothrow_move_constructible_v<T>);
+        Result(const E& error);
+        Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<T>);
+
+        ~Result();
+
+        bool is_ok_or_err() const noexcept;
+        explicit operator bool() const noexcept;
+
+        template <std::invocable<const E&> Func>
+        T value_or_unexpected(Func&& fn);
+
+
+};
 
 template<typename T, typename E>
 aru::standard::Result<T, E>::Result(const T& value) : has_value(true), value(value){}
