@@ -11,13 +11,9 @@ int main() {
 
     app->printInfo();
 
-    auto window = aru::window::Window::create_window("Arunimesta", 800, 600);
-    if (!window) {
-        std::println(stderr, "App exit unsuccessfully!!");
-        return 1;
-    }
+    auto window = aru::window::Window("Arunimesta", 800, 600);
+    while (window.event_loop()) {
 
-    while (window->event_loop()) {
     }
 
     std::println(stdout, "App exit successfully!!");
