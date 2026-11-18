@@ -11,9 +11,9 @@ This document contains the status, milestones, and development plan for Arunimes
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
 | `aru.standard` (`String`) | ✅ Basic | `char8_t`/`char16_t`/`char32_t`, transcoding `from()`, `move()`, `U+FFFD` replacement |
 | `aru.standard` (`Vector`) | ✅ Basic | Factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()` |
-| `aru.standard` (`Result`) | ✅ Basic | Discriminated union, `value_or_unexpected()` |
+| `aru.standard` (`Result`) | ✅ Basic | Discriminated union, in-place construction, `valueOrUnexpected()` |
 | `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
-| Windowing | ⏸ Paused | `aru.window` disabled in the build while `Window` is refactored |
+| Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `Result` errors, copy/move assignment, event loop |
 | Vulkan renderer | ⬜ Not started | No RHI source yet |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
@@ -45,19 +45,20 @@ This document contains the status, milestones, and development plan for Arunimes
 
 **Done criteria:** strings in the three UTF encodings and `Vector<T>` can be allocated through their factories, copied/moved through assignment or `copy()`/`move()`, and converted without data loss; `aru` links `aru_std` and re-exports it through `import aru;`.
 
-### M1 — Windowing (paused; partial)
+### M1 — Windowing (done; basic)
 
-- [ ] Finish the `Window` class refactor in `aru.window:window`
-- [ ] Fix the broken copy `operator=` and finish the `Data`/`pData` refactor
+- [x] Finish the `Window` class in `aru.window:window`
+- [x] Safe copy/move assignment plus `copy()` / `move()`; copy/move constructors deleted
 - [x] Fill in the `aru.window` facade (`lib.cppm`)
-- [ ] Add `modules/aru_window` back to the root `CMakeLists.txt` and re-enable `export import aru.window`
-- [x] Basic event loop integration (polling)
-- [x] Unicode window titles (UTF-8 → UTF-16 conversion)
-- [ ] Create and destroy windows safely (RAII)
+- [x] Register `modules/aru_window` in the root `CMakeLists.txt` and re-export `aru.window`
+- [x] Blocking event loop integration (`GetMessageW`)
+- [x] Unicode window titles (UTF-8 → UTF-16 via `String`)
+- [x] Create and destroy windows safely (RAII with null checks)
+- [x] `createFromWindow()` for a genuinely new OS window
 - [x] Add a usage example in the executable
 - [ ] Handle keyboard and mouse input
 
-**Done criteria:** `aru` can create a window, process events, and exit cleanly. Window creation and the quit loop work in the paused source; the module is currently disabled in the build pending the refactor.
+**Done criteria:** `aru` can create a window, process events, and exit cleanly. The module is active in the build and exported through `import aru;`.
 
 ### M2 — Vulkan RHI Foundation
 
@@ -113,9 +114,9 @@ This document contains the status, milestones, and development plan for Arunimes
 
 Cleanup priorities before adding large subsystems:
 
-1. Finish and re-enable `aru.window` (fix the copy `operator=`, restore `add_subdirectory` and the facade import).
-2. Add explicit window teardown (`DestroyWindow` via `Window_T`/`Window` RAII).
-3. Handle keyboard and mouse input.
+1. Handle keyboard and mouse input.
+2. Add a non-blocking/polling event-loop variant if the renderer needs one.
+3. Carry the Win32 error code in `aru::window::Error`.
 4. Handle resize (`WM_SIZE`).
 5. Add `String` concatenation (`append`, `+`, `+=`).
 6. Add `std::formatter` / `std::hash` support for `String`.

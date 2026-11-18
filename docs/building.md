@@ -105,26 +105,24 @@ Then configure and build again.
 
 ```cmake
 # modules/aru/CMakeLists.txt
-target_link_libraries(aru PRIVATE aru_std)
+target_link_libraries(aru PRIVATE aru_window aru_std)
 ```
 
-It provides module `aru.standard` (the `:string`, `:result`, and `:print` partitions), and the `aru` facade re-exports it, so `import aru;` exposes `String`, `Result`, `println`, and `eprintln`. See the [API references](api/string.md).
+It provides module `aru.standard` (the `:string`, `:vector`, `:result`, and `:print` partitions), and the `aru` facade re-exports it, so `import aru;` exposes `String`, `Vector`, `Result`, `println`, and `eprintln`. See the [API references](api/string.md).
 
-## Module `aru_window` (paused)
+## Module `aru_window` (active)
 
-`modules/aru_window` contains the Win32 windowing module `aru.window`, but it is **currently disabled in the build**: both `add_subdirectory("modules/aru_window")` in the root `CMakeLists.txt` and `export import aru.window;` in `modules/aru/src/lib.cppm` are commented out while the `Window` class is being refactored.
-
-Once re-enabled, it will be linked into the `aru` executable again:
+`modules/aru_window` contains the Win32 windowing module `aru.window`. It is registered in the root `CMakeLists.txt` and re-exported by the `aru` facade:
 
 ```cmake
 # Root CMakeLists.txt
 add_subdirectory("modules/aru_window")
 
 # modules/aru/CMakeLists.txt
-target_link_libraries(aru PRIVATE aru_window)
+target_link_libraries(aru PRIVATE aru_window aru_std)
 ```
 
-The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Window titles passed to `Window::create_window()` are UTF-8 and converted to UTF-16 internally with `MultiByteToWideChar(CP_UTF8, ...)`.
+The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Windows are created with `Window::create()`; narrow UTF-8 titles are converted to UTF-16 with `String<char8_t>` → `String<char16_t>`, and a direct `const char16_t*` overload is available. See the [Window API](api/window.md).
 
 ## Troubleshooting
 
@@ -137,7 +135,7 @@ The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Win
 | Error while compiling `.cppm` | The compiler does not support modules | Use a Clang version that supports C++23 modules |
 | Header changes are not detected | Stale build/module cache | Delete the build directory and configure again |
 | `import aru;` fails | The `.cppm` file is not listed in `FILE_SET CXX_MODULES`, or the target is not linked | Check `target_sources` and `target_link_libraries` |
-| Window title shows garbled or CJK characters | ANSI (`...A`) and Unicode (`...W`) Win32 APIs are mixed | Use the `...W` variants consistently and convert UTF-8 titles to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` |
+| Window title shows garbled or CJK characters | ANSI (`...A`) and Unicode (`...W`) Win32 APIs are mixed | Use the `...W` variants consistently and convert UTF-8 titles to UTF-16 via `String<char8_t>` → `String<char16_t>` |
 
 ## Notes
 

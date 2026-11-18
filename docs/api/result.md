@@ -25,10 +25,17 @@ aru::standard::Result<T, E>
 Result(const T& value);
 Result(T&& value) noexcept(std::is_nothrow_move_constructible_v<T>);
 Result(const E& error);
-Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<T>);
+Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<E>);
 ```
 
 Constructs a result holding either the value or the error. Construction from a `T` marks the result as "ok"; construction from an `E` marks it as "error".
+
+Two in-place tags are also available for types with deleted copy/move constructors:
+
+```cpp
+Result(std::in_place, Args&&... args);                 // construct T in the union
+Result(aru::standard::errorInPlace, Args&&... args);   // construct E in the union
+```
 
 ### `bool isOkOrErr() const noexcept`
 
@@ -45,15 +52,26 @@ if (r) {
 }
 ```
 
-### `template<std::invocable<const E&> Func> T valueOrUnexpected(Func&& fn)`
+### `template<typename Func> requires std::invocable<Func&&, E&&> T valueOrUnexpected(Func&& fn)`
 
-Returns the stored value with move semantics when the result is ok. Otherwise, invokes `fn` with the error and returns its result:
+Returns the stored value when the result is ok. If `T` has a `move()` member (as `String`, `Vector`, and `Window` do), it is used to return a prvalue so a deleted move constructor is not required; otherwise `std::move` is used.
+
+On error, the callback is invoked with `E&&` (so lambdas taking either `E&&` or `const E&` work). If the callback returns a `T`, that value is returned:
 
 ```cpp
-auto value = result.valueOrUnexpected([](const std::string& err) {
+auto value = result.valueOrUnexpected([](std::string&& err) {
     std::println(stderr, "failed: {}", err);
     return -1;
 });
+```
+
+If the callback returns `void`, it is treated as a terminal error handler: after it runs, `std::terminate()` is called (no `T` exists to return). This is the form used in `main.cpp`:
+
+```cpp
+auto window = Window::create("Arunimesta", 800, 600)
+    .valueOrUnexpected([](aru::window::Error&& err) {
+        aru::standard::println("Error! : {}", err);
+    });
 ```
 
 ## Example

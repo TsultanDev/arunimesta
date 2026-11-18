@@ -2,104 +2,118 @@
 
 Reference for the `Window` class exported by module `aru.window`.
 
-> **Status: paused.** `aru.window` is currently disabled in the build (commented out in the root `CMakeLists.txt` and in the `aru` facade) while the `Window` class is refactored. This document describes the in-progress source; expect changes. `import aru;` no longer re-exports it.
-
 ```cpp
-import aru.window;
-
-aru::window::Window
+import aru;          // re-exports aru.window
+// or: import aru.window;
+// or: import aru.window:window;
 ```
 
 ## Overview
 
-`Window` represents a Win32 window and its message loop. Instances are created through the `create_window()` factory and are *move-only*.
+`Window` represents a Win32 window. Instances are created through the `create()` factories, which return `aru::standard::Result<Window, Error>`. The title is stored as `aru::standard::String<char16_t>` and passed directly to the Unicode Win32 APIs.
 
-Implementation details are stored in `Window_T` (not exported) and owned through `std::unique_ptr`. The type is created with the Unicode Win32 APIs (`RegisterClassExW`, `CreateWindowExW`, `DefWindowProcW`, `PeekMessageW`, `DispatchMessageW`).
+Copy and move **constructors are deleted**. Copying and moving are done through assignment or the `copy()` / `move()` member functions. Creating another real OS window is a separate operation: `createFromWindow()`.
+
+## Error type
+
+```cpp
+enum class aru::window::Error {
+    None = 0,
+    ClassRegistrationFailed = 1,
+    WindowCreationFailed = 2,
+};
+```
+
+A `std::formatter<Error>` is exported, so `Error` can be printed directly:
+
+```cpp
+aru::standard::println("Error! : {}", err);
+```
 
 ## API
 
-### `static std::expected<Window, WindowError> create_window(std::string title, uint32_t width, uint32_t height)`
+### `static Result<Window, Error> create(const char* title, uint32_t width, uint32_t height)`
 
-Creates, shows, and returns a window.
-
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
-| `title` | `std::string` | UTF-8 window title. Converted to UTF-16 internally, so non-ASCII text is supported. |
-| `width` | `uint32_t` | Window width in pixels. |
-| `height` | `uint32_t` | Window height in pixels. |
-
-Returns:
-
-- A `std::expected` containing a `Window` on success.
-- `std::unexpected(WindowError::...)` if the module handle, window class registration, or window creation fails.
-
-Side effects (debug builds only):
-
-- Prints `Aru: Window(created!!), title: <title>` to `stderr`.
-
-The window class `ArunimestaClass` is registered on first use. Registration is idempotent: `ERROR_CLASS_ALREADY_EXISTS` is ignored, so the factory can be called more than once in a process.
-
-Example:
+UTF-8 overload. The narrow title is converted to UTF-16 with `String<char8_t>` → `String<char16_t>` before being passed to `CreateWindowExW`.
 
 ```cpp
-auto window = aru::window::Window::create_window("Arunimesta — 世界", 800, 600);
-if (!window) {
-    return 1;
-}
+auto window = aru::window::Window::create("Arunimesta", 800, 600)
+    .valueOrUnexpected([](aru::window::Error&& err) {
+        aru::standard::println("Error! : {}", err);
+    });
 ```
 
-### `bool event_loop()`
+### `static Result<Window, Error> create(const char16_t* title, uint32_t width, uint32_t height)`
 
-Pumps all pending Win32 messages without blocking and returns whether the loop should continue.
+UTF-16 overload; the title is used as-is.
 
-- Returns `false` after `WM_QUIT`, which is posted by `WM_DESTROY` when the window is closed.
-- Returns `true` otherwise, including when there are no pending messages.
+### `static Result<Window, Error> createFromWindow(const Window& source)`
 
-Call it in a loop:
+Creates a **new OS window** using the source window's title, width, and height. This is different from copy assignment or `copy()`: it calls WinAPI again and produces a distinct `HWND`.
 
 ```cpp
-while (window->event_loop()) {
-}
+auto second = aru::window::Window::createFromWindow(window)
+    .valueOrUnexpected([](aru::window::Error&& err) {
+        aru::standard::println("Error! : {}", err);
+    });
+// second.handle() != window.handle()
 ```
+
+### `Window& operator=(const Window& source)` and `Window copy() const`
+
+Copy assignment / `copy()` deep-copy the metadata and the title `String`. The source is unchanged. They deliberately do **not** copy the `HWND`: a copied object has the same configuration but no OS window. Use `createFromWindow()` when a real second window is needed.
+
+### `Window& operator=(Window&& source) noexcept` and `Window move() noexcept`
+
+Move assignment / `move()` steal the `HWND`, `HINSTANCE`, title, width, and height. The source window becomes empty (`handle() == nullptr`).
+
+```cpp
+auto moved = window.move();   // window is now empty
+```
+
+### `void event_loop() const`
+
+Runs the blocking Win32 message loop (`GetMessageW` / `TranslateMessage` / `DispatchMessageW`). `WM_DESTROY` posts `WM_QUIT`, which ends the loop.
+
+```cpp
+window.event_loop();
+```
+
+### Accessors
+
+| Function | Description |
+| :--- | :--- |
+| `HWND handle() const noexcept` | Native window handle, or `nullptr` when empty. |
+| `const String<char16_t>& windowTitle() const noexcept` | UTF-16 title. |
+| `uint32_t windowWidth() / windowHeight() const noexcept` | Configured size. |
+| `bool empty() const noexcept` | `true` when `handle() == nullptr`. |
 
 ## Lifetime and Ownership
 
 | Operation | Status | Notes |
 | :--- | :--- | :--- |
-| Constructor | Private | Use `create_window()` |
-| Copy constructor | `= delete` | Cannot be copied |
-| Copy assignment | `= delete` | Cannot be assigned |
-| Move constructor | `noexcept = default` | Can be moved |
-| Move assignment | `noexcept = default` | Can be moved |
-| Destructor | Implicit | Does not call `DestroyWindow`; cleanup relies on process exit |
+| Constructor | Private | Use `create()` / `createFromWindow()` |
+| Copy constructor | Deleted | Use `b = a;` or `b = a.copy()` |
+| Move constructor | Deleted | Use `b = std::move(a);` or `b = a.move()` |
+| Copy assignment | Public | Copies title/metadata; does not duplicate the OS window |
+| Move assignment | `noexcept` | Steals the handle; source becomes empty |
+| Destructor | Public | `DestroyWindow` is called only when `hwnd != nullptr` |
 
-`Window_T` currently holds only the `HINSTANCE` and `HWND`:
+The title is a `String<char16_t>` value member. It is RAII: when it is non-empty, clearing/replacing it releases its internal buffer, and the `String` destructor frees the remaining storage. No manual `delete` on the title is performed.
 
-```cpp
-struct aru::window::Window_T {
-    HINSTANCE instance = nullptr;
-    HWND hwnd = nullptr;
-};
-```
-
-## Unicode Titles
-
-- C++ string literals are UTF-8 with Clang.
-- `create_window()` converts the title with `MultiByteToWideChar(CP_UTF8, ...)` before passing it to `CreateWindowExW`.
-- Do not pass ANSI/`...A` pointers to `...W` APIs. Doing so reinterprets bytes as UTF-16; for example, `"Arunimesta"` can appear as CJK characters (`U+7241 U+6E75 U+6D69 U+7365 U+6174`).
+The window class `ArunimestaWindowClass` is registered on first use. Registration is idempotent: `ERROR_CLASS_ALREADY_EXISTS` is ignored.
 
 ## Current Limitations
 
-- No keyboard, mouse, or other input events are exposed.
-- No resize handling (`WM_SIZE`).
-- `DestroyWindow` is not called explicitly; the window is cleaned up when the process exits.
-- The window class name is fixed to `ArunimestaClass`.
-- The error type is `WindowError` and does not yet carry the Win32 error code.
+- No keyboard, mouse, resize, or other input events are exposed.
+- `event_loop()` blocks until `WM_QUIT`; there is no polling variant.
+- The window class name is fixed to `ArunimestaWindowClass`.
+- `Error` does not yet carry the Win32 error code.
 - No thread-safety guarantees.
 
 ## Compatibility
 
 - Windows x64 with Win32 (`user32`, `gdi32`).
-- Requires C++23.
-- Imported via `import aru.window;` (not currently re-exported by `import aru;`, and the module is disabled in the build).
+- Requires C++23 (named modules, `std::format`).
+- Imported via `import aru;`, `import aru.window;`, or `import aru.window:window;`.
 - No API stability guarantee yet; see [roadmap](../roadmap.md).

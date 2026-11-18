@@ -2,12 +2,10 @@ module;
 
 #include <concepts>
 #include <cstddef>
-#include <cstdint>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <memory>
-#include <new>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -22,8 +20,6 @@ export namespace aru{
         template<typename T>
         class VectorIntoIter;
 
-        // Sentinel untuk range-for atas VectorIntoIter:
-        // for (auto v : vec.intoIter()) { ... }
         struct IntoIterEnd {};
 
         template<typename T>
@@ -41,9 +37,6 @@ export namespace aru{
         template<typename T>
         class Vector;
 
-        // Sumber container yang diterima Vector<T>::create(source).
-        // Integral sengaja dikecualikan agar create(5) tetap berarti
-        // "alokasi capacity 5", bukan "isi dari rentang angka 5".
         template<typename T, typename Source>
         concept vectorSource =
             std::ranges::forward_range<Source> &&
@@ -61,7 +54,6 @@ class aru::standard::VectorIterator{
         VectorIterator operator++(int) noexcept;
         bool operator==(const VectorIterator&) const noexcept;
 
-        // Mendukung range-for: for (auto& x : vec.iter()) { ... }
         VectorIterator begin() const noexcept;
         VectorIterator end() const noexcept;
 

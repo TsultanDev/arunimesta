@@ -11,11 +11,11 @@ Currently there are three modules:
 ```text
 modules/
 ├── aru/            # executable + module aru
-├── aru_std/        # static library aru.standard (String, Result, print)
+├── aru_std/        # static library aru.standard (String, Vector, Result, print)
 └── aru_window/     # static library aru.window (Win32 windowing)
 ```
 
-The `aru_window` target is **temporarily disabled in the build** (commented out in the root `CMakeLists.txt` and in the `aru` facade) while the `Window` class is being refactored. The source and its reference documentation are kept in the repository; re-enable it by restoring the `add_subdirectory` line and the `export import aru.window;` line.
+All three targets are active. The root `CMakeLists.txt` registers `aru_std`, `aru_window`, and `aru`, and the `aru` facade re-exports both `aru.standard` and `aru.window`.
 
 The Vulkan renderer **does not exist yet** in the repository. Its planned architecture is discussed in [roadmap.md](roadmap.md).
 
@@ -42,8 +42,8 @@ The Vulkan renderer **does not exist yet** in the repository. Its planned archit
     │ Application_T        │  │                     println  copy/move    │
     └──────────────────────┘  └───────────────────────────────────────────┘
 
-    module aru.window (paused; disabled in build)
-    └── :window — Window::create_window, Window::event_loop
+    module aru.window (active)
+    └── :window — Window::create / createFromWindow, event_loop
 ```
 
 ### Module `aru`
@@ -51,14 +51,12 @@ The Vulkan renderer **does not exist yet** in the repository. Its planned archit
 - `modules/aru/src/lib.cppm` is the **facade**:
   ```cpp
   export module aru;
-  export import :application;
   export import aru.standard;
-
-  // export import aru.window;  // paused
+  export import aru.window;
   ```
-- `modules/aru/src/application.cppm` is the **partition** `aru:application`.
-- `main.cpp` only needs to do `import aru;` and gets `Application` plus everything from `aru.standard`.
-- The executable links the `aru_std` static library: `target_link_libraries(aru PRIVATE aru_std)`.
+- `modules/aru/src/application.cppm` is the **partition** `aru:application` (kept in the target but not imported by the facade yet).
+- `main.cpp` only needs to do `import aru;` and gets `aru.standard` plus `aru.window`.
+- The executable links both static libraries: `target_link_libraries(aru PRIVATE aru_window aru_std)`.
 
 The facade/partition split is useful as the module grows: consumers keep importing a single name (`aru`), while the implementation is split into multiple partitions.
 
@@ -96,24 +94,26 @@ Both types follow the same policy — initialization happens through factory fun
 - Different instantiations of `String<T>` are unrelated classes; the mutual `template<character U> friend class String;` declaration lets `from()` read the private data of `String<SourceT>`.
 - `from(const String<SourceT>&)` with `SourceT == T` copies the storage directly (terminator included, no extra push).
 
-### Module `aru.window` (paused)
+### Module `aru.window` (active)
 
 - The static library target `aru_window` has a `CMakeLists.txt`, is registered in the root `CMakeLists.txt`, and is linked into the `aru` executable.
-- `src/window.cppm` is the partition `aru.window:window`. It implements `Window::create_window()` and `Window::event_loop()`.
+- `src/window.cppm` is the partition `aru.window:window`. It implements `Window::create()`, `createFromWindow()`, `copy()`, `move()`, and `event_loop()`.
 - `src/lib.cppm` is the facade and re-exports the partition:
   ```cpp
   export module aru.window;
   export import :window;
   ```
 - `modules/aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
-- The implementation uses the Win32 Unicode APIs: `RegisterClassExW`, `CreateWindowExW`, `DefWindowProcW`, `PeekMessageW`, and `DispatchMessageW`.
-- The window class name is `ArunimestaClass`; registration is idempotent, so `ERROR_CLASS_ALREADY_EXISTS` is ignored.
+- The implementation uses the Win32 Unicode APIs: `RegisterClassW`, `CreateWindowExW`, `DefWindowProcW`, `GetMessageW`, and `DispatchMessageW`.
+- `Window::create()` returns `aru::standard::Result<Window, Error>`. `Error` is formattable, so it can be printed directly with `println`.
+- Copy/move constructors are deleted. Copy assignment / `copy()` copy the title and metadata but not the `HWND`; move assignment / `move()` steal the handle and empty the source. `createFromWindow()` creates a genuinely new OS window.
+- The window class name is `ArunimestaWindowClass`; registration is idempotent, so `ERROR_CLASS_ALREADY_EXISTS` is ignored. The destructor calls `DestroyWindow` only when `hwnd != nullptr`; the `String<char16_t>` title is RAII-cleaned when non-empty.
 
 ### Unicode and String Handling
 
 - The public API takes UTF-8 text. With Clang, the source and execution character sets are UTF-8.
 - `aru::standard::String<T>` stores text as `char8_t` (UTF-8), `char16_t` (UTF-16), or `char32_t` (UTF-32); see [the `String` reference](api/string.md). Conversion between the three encodings goes through the `String::from()` factory.
-- Win32 `...W` APIs take UTF-16. The internal `toWide()` helper in `aru.window` converts UTF-8 titles with `MultiByteToWideChar(CP_UTF8, ...)` before calling `CreateWindowExW`. (Currently not compiled while `aru.window` is disabled.)
+- Win32 `...W` APIs take UTF-16. The `const char*` overload of `Window::create()` converts UTF-8 titles with `String<char8_t>` → `String<char16_t>` before calling `CreateWindowExW`; there is also a direct `const char16_t*` overload.
 - `UNICODE` and `_UNICODE` are defined for the `aru_window` target in `modules/aru_window/CMakeLists.txt`.
 - **Never mix ANSI (`...A`) and Unicode (`...W`) Win32 APIs for the same window.** Doing so corrupts text: an earlier version created the window with `CreateWindowExA`, but the window procedure called `DefWindowProcW`. `DefWindowProcW` re-read the ANSI title pointer as UTF-16, so the bytes of `"Arunimesta"` were displayed as CJK characters (`U+7241 U+6E75 ...`). Using the `W` APIs consistently fixes this.
 
@@ -182,16 +182,16 @@ main()
   │    ├─ make_unique<Application_T>
   │    ├─ (debug) println log
   │    └─ return std::expected<Application, ApplicationError>
-  │         ├─ printInfo()
-  │         └─ window::Window::create_window(title, width, height)
-  │              ├─ toWide(title)  (UTF-8 → UTF-16)
-  │              ├─ CreateWindowExW + ShowWindow
-  │              └─ while (window.event_loop()) { ... }
-  │                   └─ WM_DESTROY → PostQuitMessage → WM_QUIT → return false
-  └─ current main.cpp: String::from(u8"Hello") → String<char32_t>::from(string)
+  └─ current main.cpp:
+       └─ Window::create("Arunimesta", 800, 600) → Result<Window, Error>
+            ├─ valueOrUnexpected([](Error&& err) { println(...); })
+            ├─ UTF-8 → UTF-16 via String<char8_t> → String<char16_t>
+            └─ CreateWindowExW + ShowWindow
+                 └─ window.event_loop()
+                      └─ WM_DESTROY → PostQuitMessage → WM_QUIT → loop ends
 ```
 
-There is no `Application::run()` in this iteration of the code yet. `main.cpp` currently only exercises the `String` API; the `Application`/window flow is kept ready for when `aru.window` is re-enabled.
+There is no `Application::run()` in this iteration yet. `main.cpp` currently exercises the window creation + `Result` flow; `Application` remains available through `aru:application` but is not imported by the facade.
 
 ## Error Handling
 
@@ -210,11 +210,11 @@ There is no `Application::run()` in this iteration of the code yet. `main.cpp` c
 
 ## Build and Module Boundaries
 
-- The root `CMakeLists.txt` adds `modules/aru` and `modules/aru_std`; `modules/aru_window` is currently commented out.
+- The root `CMakeLists.txt` adds `modules/aru_std`, `modules/aru_window`, and `modules/aru`.
 - Each module registers its `.cppm` files through `FILE_SET CXX_MODULES`.
 - Standard headers are included in the **global module fragment** (`module;` ... `export module ...;`) so they do not leak to consumers.
-- `aru` depends on `aru_std` through `target_link_libraries(aru PRIVATE aru_std)`.
-- The `aru` facade re-exports `aru.standard`, so `import aru;` provides `String`, `Result`, `println`, and `Application`.
+- `aru` depends on both libraries: `target_link_libraries(aru PRIVATE aru_window aru_std)`.
+- The `aru` facade re-exports `aru.standard` and `aru.window`, so `import aru;` provides `String`, `Vector`, `Result`, `println`, and `Window`.
 
 ## Adding a New Module
 
@@ -231,13 +231,13 @@ General steps:
 
 | Item | Impact | Plan |
 | :--- | :--- | :--- |
-| `aru.window` is disabled in the build | Windowing is unavailable; the WIP `Window` refactor has a broken copy `operator=` | Finish the refactor, fix `operator=`, then re-enable `add_subdirectory` and `export import aru.window` |
-| Window teardown is implicit | `DestroyWindow` is not called; cleanup relies on process exit | Add RAII teardown in `Window_T` or `Window` |
+| `Window` copy does not duplicate the OS window | `copy()` / copy assignment copy metadata only; `handle()` is null on the copy | Use `createFromWindow()` when a real second window is needed |
+| `event_loop()` blocks | It uses `GetMessageW` until `WM_QUIT`; no polling variant exists | Add a non-blocking `pollEvents()` if the renderer needs one |
 | No input handling | Keyboard and mouse messages are ignored | Handle `WM_KEYDOWN` / `WM_MOUSEMOVE` and expose events |
 | No resize handling | `WM_SIZE` is not processed | Handle resize before the RHI needs it |
 | `ApplicationError` is minimal | Only `Unknown`; no failure context | Expand the error enum/struct as failure paths appear |
 | `String` is read-mostly | No `append`/`+`/`+=`, no `std::formatter`/`std::hash` support | Add concatenation, formatting, and hashing |
 | `Vector` is basic | No `insert`/`erase`/`clear`, no bounds checking, no `std::formatter`/`std::hash` | Add the missing operations when needed |
-| `Result` has no accessors | No `value()`/`error()`; only `value_or_unexpected()` | Add checked accessors |
+| `Result` has no accessors | No `value()`/`error()`; only `valueOrUnexpected()` | Add checked accessors |
 | No tests yet | Regressions go undetected | Fill the `test/` folder with unit tests |
 | Duplicate logs in `init()` | Repeated debug output | Clean up during refactor |

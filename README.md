@@ -12,7 +12,7 @@
 
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** The build system, the application module, and the standard library module (`aru.standard` with `String`, `Result`, and `println`) are working. The `aru.window` module is being refactored and is temporarily disabled in the build. The Vulkan renderer has not been implemented.
+> **Status: early development.** The build system, the application module, the standard library module (`aru.standard` with `String`, `Vector`, `Result`, and `println`), and the Win32 windowing module (`aru.window`) are working. The Vulkan renderer has not been implemented.
 
 ---
 
@@ -23,7 +23,7 @@
 | Build system (CMake + Clang + Ninja) | ✅ Working |
 | Module `aru` (facade + `Application`) | ✅ Working |
 | Module `aru.standard` (`String`, `Result`, `println`) | ✅ Working |
-| Module `aru.window` | ⏸ Paused (refactoring; disabled in build) |
+| Module `aru.window` | ✅ Active (Win32 window + blocking event loop) |
 | Vulkan renderer (RHI) | ⬜ Not started |
 
 The `aru` executable currently demonstrates `aru::standard::String`: it creates a UTF-8 string and converts it to a new UTF-32 string through the `String::from()` factory.
@@ -41,8 +41,8 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 - **Heap allocation blocked**: `operator new` is deleted so objects can only be created through the factory and cannot be freely allocated on the heap.
 - **RAII**: `Application_T` is cleaned up automatically by `std::unique_ptr`.
 - **Debug logging**: `std::println` output is only active in debug builds (`#ifndef NDEBUG`).
-- **Win32 windowing**: `aru.window` creates and shows a window, runs a polling event loop, and exits the loop when the window is destroyed.
-- **Unicode window titles**: titles are passed as UTF-8 `std::string` and converted to UTF-16 with `MultiByteToWideChar`, so non-ASCII titles render correctly.
+- **Win32 windowing**: `aru.window` creates and shows a window via `Window::create()`, runs a blocking event loop with `event_loop()`, and exits when the window is destroyed.
+- **Unicode window titles**: narrow UTF-8 titles are converted to UTF-16 with `String<char8_t>` → `String<char16_t>`; a `const char16_t*` overload is available too.
 - **CMake Presets**: Clang LLVM x64 presets for Debug and Release, complete with `compile_commands.json` for clangd.
 - **Modular structure**: each module lives in `modules/<module_name>` with its own `CMakeLists.txt`.
 
@@ -58,7 +58,7 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 | **Standard Features** | `std::expected`, `std::print` / `std::println`, `std::unique_ptr` |
 | **Target Platform** | Windows x64 (matching the available presets) |
 | **Standard Library** | `aru.standard` — `String` (UTF-8/16/32), `Vector`, `Result`, debug `println`/`eprintln` |
-| **Windowing** | `aru.window` — Win32 Unicode APIs, window + event loop (*paused*) |
+| **Windowing** | `aru.window` — Win32 Unicode APIs, window + blocking event loop |
 | **Rendering** | Vulkan — *planned* |
 
 ---
@@ -173,7 +173,7 @@ arunimesta/
 │   │       ├── result.cppm          # Result<T, E> discriminated union
 │   │       └── print.cppm           # println / eprintln (debug builds)
 │   │
-│   └── aru_window/                  # Static library — windowing (Win32, paused)
+│   └── aru_window/                  # Static library — windowing (Win32)
 │       ├── CMakeLists.txt
 │       └── src/
 │           ├── lib.cppm             # export module aru.window; (facade)
@@ -195,9 +195,9 @@ arunimesta/
 | `aru.standard:vector` | Module partition | ✅ | `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()`. |
 | `aru.standard:result` | Module partition | ✅ | `Result<T, E>` discriminated union. |
 | `aru.standard:print` | Module partition | ✅ | Debug-gated `println` / `eprintln` wrappers. |
-| `aru.window` | Static library | ⏸ | Win32 window creation and event loop; temporarily disabled in the build. |
+| `aru.window` | Static library | ✅ | Win32 window creation, `Result`-based errors, copy/move by assignment, `createFromWindow()`, and event loop. |
 
-> `modules/aru` links the `aru_std` static library (`target_link_libraries(aru PRIVATE aru_std)`). `modules/aru_window` is registered in the root `CMakeLists.txt` but is currently commented out while it is being refactored.
+> `modules/aru` links both `aru_std` and `aru_window` (`target_link_libraries(aru PRIVATE aru_window aru_std)`). The `aru` facade re-exports `aru.standard` and `aru.window`.
 
 ---
 
@@ -273,21 +273,20 @@ int main() {
 }
 ```
 
-Window creation with explicit error handling (`aru.window` is currently disabled in the build):
+Window creation with explicit error handling:
 
 ```cpp
-auto window = aru::window::Window::create_window("Arunimesta — 世界", 800, 600);
-if (!window) {
-    return 1;
-}
+auto window = aru::window::Window::create("Arunimesta — 世界", 800, 600)
+    .valueOrUnexpected([](aru::window::Error&& err) {
+        aru::standard::println("Error! : {}", err);
+    });
 
-while (window->event_loop()) {
-}
+window.event_loop();
 ```
 
-Titles are UTF-8, so non-ASCII text such as `世界` is supported.
+Narrow titles are UTF-8, so non-ASCII text such as `世界` is supported. Copy/move constructors are deleted; use `window.copy()`, `window.move()`, or assignment. To make a real second OS window, use `Window::createFromWindow(window)`.
 
-References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), and [`docs/api/print.md`](docs/api/print.md).
+References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), [`docs/api/print.md`](docs/api/print.md), and [`docs/api/window.md`](docs/api/window.md).
 
 ---
 
@@ -303,7 +302,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 | [docs/api/vector.md](docs/api/vector.md) | `aru::standard::Vector` API (factory-only allocation) |
 | [docs/api/result.md](docs/api/result.md) | `aru::standard::Result` API |
 | [docs/api/print.md](docs/api/print.md) | `aru::standard::println` / `eprintln` API |
-| [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API (paused) |
+| [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API (Win32, active) |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones and future plans |
 
 ---
@@ -314,7 +313,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 - [x] C++23 named modules and module partitions
 - [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
 - [x] `aru.standard`: `String` (UTF-8/16/32 with transcoding), `Vector`, `Result`, debug `println`
-- [ ] Finish and re-enable `aru.window`: RAII window creation and polling event loop
+- [x] Re-enable and implement `aru.window`: RAII window creation, copy/move by assignment, and blocking event loop
 - [ ] Vulkan RHI: instance, surface, adapter/device, swapchain
 - [ ] Render pass, pipeline, command buffer, and render loop
 - [ ] Event handling and resize
@@ -328,7 +327,7 @@ Details: [`docs/roadmap.md`](docs/roadmap.md).
 
 - This project is **under active development**; the API and structure may change without backward compatibility.
 - The current build presets are specific to **Windows x64 + Clang**.
-- The `aru.window` module is **temporarily disabled in the build** while it is refactored; the API shown in [its reference](docs/api/window.md) may change.
+- The `aru.window` module is active on Windows x64; see [its reference](docs/api/window.md) for the current API.
 - Window titles are UTF-8 and may contain non-ASCII characters.
 - No license has been chosen yet.
 

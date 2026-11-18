@@ -14,7 +14,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [api/vector.md](api/vector.md) | `aru::standard::Vector<T>` API reference. |
 | [api/result.md](api/result.md) | `aru::standard::Result<T, E>` API reference. |
 | [api/print.md](api/print.md) | `aru::standard::println` / `eprintln` API reference. |
-| [api/window.md](api/window.md) | `aru::window::Window` API reference (currently paused). |
+| [api/window.md](api/window.md) | `aru::window::Window` API reference (active). |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
 ## Documentation Principles
