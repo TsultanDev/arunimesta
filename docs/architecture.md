@@ -83,7 +83,7 @@ The facade/partition split is useful as the module grows: consumers keep importi
 Both types follow the same policy — initialization happens through factory functions, copy/move constructors are deleted, and copy/move happen through assignment or explicit member functions:
 
 - `String<T>`: allocation via `String<T>::from(...)` (pointer or another string, cross-type converts and copies). Moving out via `s.move()` (same encoding only).
-- `Vector<T>`: allocation via `Vector<T>::create(capacity)`. Copy via assignment `=` or `v.copy()`; move via move assignment or `v.move()`; literal assignment via `v = {1, 2, 3}`.
+- `Vector<T>`: allocation via `Vector<T>::create(capacity)` or literal construction `Vector<int> t = {1, 2, 3}`. Copy via assignment `=` or `v.copy()`; move via move assignment or `v.move()`; literal assignment via `v = {1, 2, 3}`.
 - Default constructors are private; copy/move constructors are deleted; destructors stay public (stack objects must be destructible).
 
 #### `String` design

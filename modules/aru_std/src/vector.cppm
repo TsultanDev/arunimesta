@@ -43,8 +43,8 @@ class aru::standard::VectorIterator{
 
         VectorIterator(E* ptr, E* stop) noexcept;
 
-        E* ptr = nullptr;   // posisi sekarang
-        E* stop = nullptr;  // satu elemen setelah elemen terakhir
+        E* ptr = nullptr;
+        E* stop = nullptr;
 };
 
 template<typename T>
@@ -83,6 +83,7 @@ class aru::standard::Vector{
         using value_type = T;
 
         static Vector create(std::size_t capacity);
+        Vector(std::initializer_list<T> values);
 
         Vector& operator=(const Vector&);
         Vector& operator=(Vector&&) noexcept;
@@ -143,12 +144,41 @@ aru::standard::Vector<T>::Vector(std::size_t capacity) :
 {}
 
 template<typename T>
+aru::standard::Vector<T>::Vector(std::initializer_list<T> values) :
+    data(values.size() > 0 ? std::allocator<T>{}.allocate(values.size()) : nullptr),
+    count(0),
+    cap(values.size())
+{
+    try {
+        for (const T& value : values) {
+            ::new (static_cast<void*>(this->data + this->count)) T(value);
+            ++this->count;
+        }
+    } catch (...) {
+        std::destroy_n(this->data, this->count);
+        std::allocator<T>{}.deallocate(this->data, this->cap);
+        this->data = nullptr;
+        this->count = 0;
+        this->cap = 0;
+        throw;
+    }
+}
+
+template<typename T>
 aru::standard::Vector<T>::Vector(const Vector& other, CopyTag) :
     data(other.count > 0 ? std::allocator<T>{}.allocate(other.count) : nullptr),
     count(0),
     cap(other.count)
 {
-    this->cloneFrom(other);
+    try {
+        this->cloneFrom(other);
+    } catch (...) {
+        std::allocator<T>{}.deallocate(this->data, this->cap);
+        this->data = nullptr;
+        this->count = 0;
+        this->cap = 0;
+        throw;
+    }
 }
 
 template<typename T>

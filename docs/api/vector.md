@@ -18,6 +18,7 @@ aru::standard::Vector<T>
 | Task | How |
 | :--- | :--- |
 | New allocation | `Vector<T>::create(std::size_t capacity)` |
+| Literal list construction | `Vector<int> t = {1, 2, 3};` (requires copy-constructible `T`) |
 | Copy of another vector | `b = a;` (copy assignment) or `b = a.copy()` |
 | Move from another vector | `b = std::move(a);` (move assignment) or `b = a.move()` |
 | Assign a literal list | `v = {1, 2, 3};` (initializer-list assignment) |
@@ -103,16 +104,26 @@ while (!consume.done()) {
 
 `using value_type = T;` is provided for generic code.
 
-## Lifetime and Ownership
+### Constructors and literal lists
 
 | Operation | Status | Notes |
 | :--- | :--- | :--- |
-| Default constructor | Private | Hidden; use `create()`. |
 | `Vector(std::size_t capacity)` | Private | Hidden; use `create()`. |
+| `Vector(std::initializer_list<T>)` | Public | `Vector<int> t = {1, 2, 3};` — needs copy-constructible `T` (`initializer_list` elements are `const`). |
 | Copy constructor | Deleted | Use `b = a;` or `b = a.copy()`. |
 | Move constructor | Deleted | Use `b = std::move(a);` or `b = a.move()`. |
 | Copy/move assignment | Public | The only direct copy/move paths. |
+| Default constructor | Private | Hidden; use `create()`. |
 | Destructor | Public | Must stay public: stack objects must be destructible. |
+
+### `Vector(std::initializer_list<T>)`
+
+Constructs a vector directly from a literal list: `Vector<int> t = {1, 2, 3};`. It allocates exactly `list.size()` and copy-constructs each element (guaranteed copy elision applies, so no copy/move constructor of `Vector` itself is involved).
+
+Limitations inherited from `std::initializer_list` (its elements are always `const`):
+
+- `T` must be copy-constructible. Non-copyable element types (for example a nested `aru` `Vector`, or `aru::standard::String`) cannot be list-constructed; build them with `create()` + `push()`/assignment instead.
+- `push()` likewise requires a copy- or move-constructible `T`.
 
 ## Current Limitations
 
