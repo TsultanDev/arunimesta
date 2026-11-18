@@ -34,7 +34,7 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 
 - **C++23 Named Modules**: the main module `aru` with the module partition `aru:application` and the facade `lib.cppm`.
 - **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. A new string of any target type is created from an existing string with the static `String::from()` factory, which transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`. Moving within the same encoding is done with `s.move()`.
-- **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation is factory-only (`Vector<T>::create()`) or through a literal list (`Vector<int> t = {1, 2, 3};`), copying goes through assignment or `copy()`, moving through move assignment or `move()`, and literal assignment through `v = {1, 2, 3}`. Copy/move constructors are deleted.
+- **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation goes through `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any `std::array`/`std::vector`/forward range with convertible elements. Literal construction (`Vector<int> t = {1, 2, 3};`) is also supported. Copying goes through assignment or `copy()`, moving through move assignment or `move()`. Copy/move constructors are deleted.
 - **Result Type**: `aru::standard::Result<T, E>` is a lightweight discriminated union for explicit success/failure values without exceptions.
 - **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, ApplicationError>` without throwing exceptions.
 - **Pimpl with `std::unique_ptr`**: implementation details are hidden in `Application_T`; the object is *move-only*.
@@ -238,10 +238,20 @@ auto s8b = u8s.move();   // UTF-8 -> UTF-8, same type only
 Vectors are allocated through the `create()` factory, filled by assignment, and copied/moved via assignment or `copy()`/`move()`:
 
 ```cpp
-auto vec = aru::standard::Vector<int>::create(16);
+auto vec = aru::standard::Vector<int>::create(16);       // capacity
+auto vals = aru::standard::Vector<int>::create({1, 3, 4}); // literal list
+
+std::array<int, 3> src = {1, 3, 4};
+auto fromArray = aru::standard::Vector<int>::create(src); // any forward range
+
 vec = {1, 3, 4};
 auto copy = vec.copy();
 auto moved = vec.move();   // vec is now empty
+
+// Three iteration styles:
+for (auto value : vec)          { /* copy */ }
+for (auto& value : vec.iter())  { /* reference */ }
+for (auto value : vec.intoIter()) { /* move out; vec becomes empty */ }
 ```
 
 Literal construction works too: `Vector<int> t = {1, 2, 3};` (requires a copy-constructible element type).

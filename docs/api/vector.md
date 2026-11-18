@@ -18,7 +18,8 @@ aru::standard::Vector<T>
 | Task | How |
 | :--- | :--- |
 | New allocation | `Vector<T>::create(std::size_t capacity)` |
-| Literal list construction | `Vector<int> t = {1, 2, 3};` (requires copy-constructible `T`) |
+| From a literal list | `Vector<T>::create({1, 2, 3})` or `Vector<int> t = {1, 2, 3};` |
+| From a container/range | `Vector<T>::create(source)` for `std::array`, `std::vector`, `std::list`, ... |
 | Copy of another vector | `b = a;` (copy assignment) or `b = a.copy()` |
 | Move from another vector | `b = std::move(a);` (move assignment) or `b = a.move()` |
 | Assign a literal list | `v = {1, 2, 3};` (initializer-list assignment) |
@@ -34,6 +35,35 @@ Allocates a new vector with room for `capacity` elements (zero elements initiall
 ```cpp
 auto v = aru::standard::Vector<int>::create(4);
 ```
+
+### `static Vector create(std::initializer_list<T> values)`
+
+Allocates a new vector containing the literal list.
+
+```cpp
+auto v = aru::standard::Vector<int>::create({1, 2, 3});
+```
+
+This is equivalent to the literal constructor `Vector<int> t = {1, 2, 3};` (both require copy-constructible `T`, because `initializer_list` elements are `const`).
+
+### `template<aru::standard::vectorSource<T> Source> static Vector create(const Source& source)`
+
+Allocates a new vector and copies every element from any forward range whose elements are convertible to `T`. The capacity is exactly the number of source elements.
+
+```cpp
+std::array<int, 4> arr = {1, 2, 3, 4};
+auto a = aru::standard::Vector<int>::create(arr);
+
+std::vector<int> stdv = {5, 6, 7};
+auto b = aru::standard::Vector<int>::create(stdv);
+
+std::array<const char*, 2> words = {"halo", "dunia"};
+auto c = aru::standard::Vector<std::string>::create(words);  // conversion included
+```
+
+`vectorSource<T, Source>` requires `std::ranges::forward_range<Source>` and convertible elements, but deliberately excludes integral types and another `Vector<T>`. Therefore `create(5)` still means "allocate capacity 5" and copying a vector stays on the assignment/`copy()` path.
+
+Element construction is exception-safe: if copying throws, already-built elements are destroyed and the raw buffer is freed.
 
 ### `Vector copy() const`
 
@@ -79,6 +109,16 @@ Number of active elements, allocated capacity, and emptiness check.
 
 Pre-grows the capacity; does nothing when `newCapacity <= capacity()`.
 
+### `begin() / end()` — direct range-for
+
+`Vector` is directly iterable. `begin()`/`end()` (const and non-const overloads) return the same non-owning iterator as `iter()`, so all three forms work:
+
+```cpp
+for (auto value : v)          { sum += value; }  // copy of each element
+for (auto& value : v)         { value += 1; }    // reference; modifies the vector
+for (const auto& value : cv)  { sum += value; }  // const vector
+```
+
 ### `VectorIterator<T> iter() noexcept` / `VectorIterator<const T> iter() const noexcept`
 
 Returns a non-owning iterator over the elements. The iterator has `operator*`, prefix/postfix `operator++`, and `operator==`; member `begin()/end()` make range-based `for` work. `iter()` on a const vector yields read-only elements.
@@ -92,13 +132,22 @@ for (const int& value : cv.iter()) { sum += value; }
 
 Consuming iterator: takes ownership of the buffer and empties the vector. `operator*` returns `T&&` (elements are moved out), `done()` reports exhaustion, and `operator++` advances. Remaining elements (including skipped ones) are destroyed when the iterator is exhausted or destroyed.
 
+It also supports range-based `for` directly. Because `VectorIntoIter` is move-only, `aru::standard::begin()` moves it into the loop's begin iterator and `end()` returns the lightweight `IntoIterEnd` sentinel:
+
 ```cpp
-auto consume = v.intoIter();   // v is now empty
+for (auto value : v.intoIter()) {   // v is now empty; value is moved out
+    sum += value;
+}
+
+// Manual form is still available:
+auto consume = v.intoIter();
 while (!consume.done()) {
     int value = *consume;
     ++consume;
 }
 ```
+
+An empty vector with reserved capacity is handled correctly: `done()` is true when there are no constructed elements, even if a buffer is allocated.
 
 ### `value_type`
 

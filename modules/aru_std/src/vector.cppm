@@ -1,11 +1,15 @@
 module;
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <new>
+#include <ranges>
+#include <type_traits>
 #include <utility>
 
 export module aru.standard:vector;
@@ -18,8 +22,34 @@ export namespace aru{
         template<typename T>
         class VectorIntoIter;
 
+        // Sentinel untuk range-for atas VectorIntoIter:
+        // for (auto v : vec.intoIter()) { ... }
+        struct IntoIterEnd {};
+
+        template<typename T>
+        VectorIntoIter<T> begin(VectorIntoIter<T>& iterator) noexcept;
+
+        template<typename T>
+        IntoIterEnd end(VectorIntoIter<T>&) noexcept;
+
+        template<typename T>
+        bool operator==(const VectorIntoIter<T>& iterator, IntoIterEnd) noexcept;
+
+        template<typename T>
+        bool operator!=(const VectorIntoIter<T>& iterator, IntoIterEnd sentinel) noexcept;
+
         template<typename T>
         class Vector;
+
+        // Sumber container yang diterima Vector<T>::create(source).
+        // Integral sengaja dikecualikan agar create(5) tetap berarti
+        // "alokasi capacity 5", bukan "isi dari rentang angka 5".
+        template<typename T, typename Source>
+        concept vectorSource =
+            std::ranges::forward_range<Source> &&
+            (!std::same_as<std::remove_cvref_t<Source>, Vector<T>>) &&
+            (!std::integral<std::remove_cvref_t<Source>>) &&
+            std::convertible_to<std::ranges::range_reference_t<Source>, T>;
     }
 }
 
@@ -82,7 +112,14 @@ class aru::standard::Vector{
     public:
         using value_type = T;
 
+        // Alokasi baru: capacity(), daftar literal, atau container/range lain.
         static Vector create(std::size_t capacity);
+        static Vector create(std::initializer_list<T> values);
+
+        template<typename Source>
+            requires vectorSource<T, Source>
+        static Vector create(const Source& source);
+
         Vector(std::initializer_list<T> values);
 
         Vector& operator=(const Vector&);
@@ -105,6 +142,12 @@ class aru::standard::Vector{
         bool empty() const noexcept;
         void reserve(std::size_t newCapacity);
 
+        // Range-for langsung: for (auto v : vec) { ... }
+        VectorIterator<T> begin() noexcept;
+        VectorIterator<const T> begin() const noexcept;
+        VectorIterator<T> end() noexcept;
+        VectorIterator<const T> end() const noexcept;
+
         VectorIterator<T> iter() noexcept;
         VectorIterator<const T> iter() const noexcept;
 
@@ -114,11 +157,19 @@ class aru::standard::Vector{
 
     private:
         struct CopyTag {};
+        struct RangeTag {};
 
         Vector() = default;
         explicit Vector(std::size_t capacity);
         explicit Vector(const Vector& other, CopyTag cloneTag);
         explicit Vector(T* data, std::size_t count, std::size_t capacity) noexcept;
+
+        template<typename Source>
+            requires vectorSource<T, Source>
+        explicit Vector(const Source& source, RangeTag);
+
+        template<typename Source>
+        Vector(std::size_t capacity, RangeTag, const Source& source);
 
         void cloneFrom(const Vector& other);
         void makeRoom();
@@ -137,6 +188,18 @@ aru::standard::Vector<T> aru::standard::Vector<T>::create(std::size_t capacity){
 }
 
 template<typename T>
+aru::standard::Vector<T> aru::standard::Vector<T>::create(std::initializer_list<T> values){
+    return Vector<T>(values);
+}
+
+template<typename T>
+template<typename Source>
+    requires aru::standard::vectorSource<T, Source>
+aru::standard::Vector<T> aru::standard::Vector<T>::create(const Source& source){
+    return Vector<T>(source, RangeTag{});
+}
+
+template<typename T>
 aru::standard::Vector<T>::Vector(std::size_t capacity) :
     data(capacity > 0 ? std::allocator<T>{}.allocate(capacity) : nullptr),
     count(0),
@@ -145,12 +208,26 @@ aru::standard::Vector<T>::Vector(std::size_t capacity) :
 
 template<typename T>
 aru::standard::Vector<T>::Vector(std::initializer_list<T> values) :
-    data(values.size() > 0 ? std::allocator<T>{}.allocate(values.size()) : nullptr),
+    Vector(values, RangeTag{})
+{}
+
+// Rentang/container lain: alokasi tepat sejumlah elemen lalu salin.
+template<typename T>
+template<typename Source>
+    requires aru::standard::vectorSource<T, Source>
+aru::standard::Vector<T>::Vector(const Source& source, RangeTag) :
+    Vector(static_cast<std::size_t>(std::ranges::distance(source)), RangeTag{}, source)
+{}
+
+template<typename T>
+template<typename Source>
+aru::standard::Vector<T>::Vector(std::size_t capacity, RangeTag, const Source& source) :
+    data(capacity > 0 ? std::allocator<T>{}.allocate(capacity) : nullptr),
     count(0),
-    cap(values.size())
+    cap(capacity)
 {
     try {
-        for (const T& value : values) {
+        for (const auto& value : source) {
             ::new (static_cast<void*>(this->data + this->count)) T(value);
             ++this->count;
         }
@@ -338,13 +415,37 @@ void aru::standard::Vector<T>::reserve(std::size_t newCapacity){
 }
 
 template<typename T>
+aru::standard::VectorIterator<T> aru::standard::Vector<T>::begin() noexcept{
+    return this->iter();
+}
+
+template<typename T>
+aru::standard::VectorIterator<const T> aru::standard::Vector<T>::begin() const noexcept{
+    return this->iter();
+}
+
+template<typename T>
+aru::standard::VectorIterator<T> aru::standard::Vector<T>::end() noexcept{
+    T* stop = this->data != nullptr ? this->data + this->count : nullptr;
+    return VectorIterator<T>(stop, stop);
+}
+
+template<typename T>
+aru::standard::VectorIterator<const T> aru::standard::Vector<T>::end() const noexcept{
+    const T* stop = this->data != nullptr ? this->data + this->count : nullptr;
+    return VectorIterator<const T>(stop, stop);
+}
+
+template<typename T>
 aru::standard::VectorIterator<T> aru::standard::Vector<T>::iter() noexcept{
-    return VectorIterator<T>(this->data, this->data + this->count);
+    T* stop = this->data != nullptr ? this->data + this->count : nullptr;
+    return VectorIterator<T>(this->data, stop);
 }
 
 template<typename T>
 aru::standard::VectorIterator<const T> aru::standard::Vector<T>::iter() const noexcept{
-    return VectorIterator<const T>(this->data, this->data + this->count);
+    const T* stop = this->data != nullptr ? this->data + this->count : nullptr;
+    return VectorIterator<const T>(this->data, stop);
 }
 
 template<typename T>
@@ -475,7 +576,9 @@ bool aru::standard::VectorIntoIter<T>::operator==(const VectorIntoIter& other) c
 
 template<typename T>
 bool aru::standard::VectorIntoIter<T>::done() const noexcept{
-    return this->data == nullptr;
+    // Vector kosong yang punya kapasitas (data != nullptr, count == 0)
+    // juga harus dianggap selesai.
+    return this->data == nullptr || this->current >= this->endIndex;
 }
 
 template<typename T>
@@ -524,4 +627,26 @@ void aru::standard::VectorIntoIter<T>::release() noexcept{
     this->cap = 0;
     this->current = 0;
     this->endIndex = 0;
+}
+
+// Range-for untuk IntoIter: __begin dipindah dari __range karena
+// VectorIntoIter sengaja move-only (copy constructor dihapus).
+template<typename T>
+aru::standard::VectorIntoIter<T> aru::standard::begin(VectorIntoIter<T>& iterator) noexcept{
+    return std::move(iterator);
+}
+
+template<typename T>
+aru::standard::IntoIterEnd aru::standard::end(VectorIntoIter<T>&) noexcept{
+    return IntoIterEnd{};
+}
+
+template<typename T>
+bool aru::standard::operator==(const VectorIntoIter<T>& iterator, IntoIterEnd) noexcept{
+    return iterator.done();
+}
+
+template<typename T>
+bool aru::standard::operator!=(const VectorIntoIter<T>& iterator, IntoIterEnd sentinel) noexcept{
+    return !(iterator == sentinel);
 }
