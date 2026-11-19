@@ -35,13 +35,26 @@ concept character = (
 
 ### `static String from(const T* str)`
 
-Creates a `String<T>` from a null-terminated C string of the same element type.
-
-Example:
+Creates a `String<T>` from a null-terminated C string of the same element type. This is the direct/no-transcode path.
 
 ```cpp
 auto s = aru::standard::String<char8_t>::from(u8"Hello");
 ```
+
+### `static String from(const char* str)` and `template<character SourceT> static String from(const SourceT* str)`
+
+Creates a `String<T>` from a C string of a **different** character type. The source is decoded as UTF-8 (`char`, `char8_t`), UTF-16 (`char16_t`), or UTF-32 (`char32_t`), then re-encoded into the target `T`.
+
+```cpp
+using aru::standard::String;
+
+auto a = String<char8_t>::from("narrow char* is UTF-8");   // char -> UTF-8
+auto b = String<char16_t>::from("narrow char* -> UTF-16"); // char -> UTF-16
+auto c = String<char32_t>::from(u"UTF-16 -> UTF-32");      // char16_t -> UTF-32
+auto d = String<char8_t>::from(U"UTF-32 -> UTF-8");        // char32_t -> UTF-8
+```
+
+Narrow `char*` input is interpreted as UTF-8; invalid sequences decode to `U+FFFD`. When `SourceT == T`, the non-template overload is selected and no transcoding happens.
 
 ### `template<character SourceT> static String from(const String<SourceT>& str)`
 
@@ -127,13 +140,24 @@ auto s8b = s8.move();      // s8 is now empty, s8b owns the buffer
 ## Internal Notes
 
 - Different instantiations (`String<char8_t>`, `String<char16_t>`, ...) are unrelated classes; they are mutually friendly (`template<character U> friend class String;`) so `from()` can read the private storage of another instantiation.
-- Encoding/decoding helpers live in the unexported `aru::standard::detail` namespace: `decodeUtf8`, `decodeUtf16`, `decodeUtf32`, `encodeCodepoint`, and `cstrLength`.
+- Encoding/decoding helpers live in the unexported `aru::standard::detail` namespace: `decodeUtf8`, `decodeUtf16`, `decodeUtf32`, `encodeCodepoint`, `cstrLength`, and `toUtf8`.
 - The UTF-8 decoder rejects overlong encodings, code points above `U+10FFFF`, and surrogates (`U+D800–U+DFFF`).
+
+### Formatting with `println()`
+
+`std::formatter<aru::standard::String<T>, char>` is exported, so any `String<T>` can be passed directly to `println()` / `eprintln()`. The formatter transcodes the content to UTF-8 bytes and forwards the result to `std::formatter<std::string_view>`.
+
+```cpp
+auto s8  = aru::standard::String<char8_t>::from(u8"halo");
+auto s16 = aru::standard::String<char16_t>::from(u"dunia 🌍");
+aru::standard::println("{} | {}", s8, s16);
+```
 
 ## Current Limitations
 
 - No concatenation yet (`append`, `+`, `+=`).
-- No `std::formatter` or `std::hash` support yet.
+- Formatting is provided for the `char` format context only (the context used by `println()`); wide/UTF-16 stream formatting is not specialized yet.
+- No `std::hash` support yet.
 - `length()`/`byte_size()` are `uint32_t`; strings longer than ~4 billion units are out of scope.
 - No allocator customization.
 

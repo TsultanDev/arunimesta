@@ -33,7 +33,7 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 ## Current Features
 
 - **C++23 Named Modules**: the main module `aru` with the module partition `aru:application` and the facade `lib.cppm`.
-- **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. A new string of any target type is created from an existing string with the static `String::from()` factory, which transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`. Moving within the same encoding is done with `s.move()`.
+- **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. Use the static `String::from()` factory to build one from a C string of any character type (`char` is treated as UTF-8) or from another `String<T>`; it transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`. Any `String<T>` can be printed directly with `println()` thanks to its `std::formatter` specialization. Moving within the same encoding is done with `s.move()`.
 - **Array Type**: `aru::standard::Array<T>` is a fixed-size array. Allocate with `Array<T>::create(size)` or `create({...})`; copy/move through constructors, assignment, or `copy()`/`move()`. Rule of Five is implemented (deep copy / steal).
 - **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation goes through `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any `std::array`/`std::vector`/forward range with convertible elements. Literal construction (`Vector<int> t = {1, 2, 3};`) is also supported. Copy/move constructors, assignment, `copy()`, and `move()` are all available (Rule of Five).
 - **Result Type**: `aru::standard::Result<T, E>` is a lightweight discriminated union for explicit success/failure values without exceptions.
@@ -192,7 +192,7 @@ arunimesta/
 | `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `aru.standard`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
 | `aru.standard` | Static library | ✅ | Facade `lib.cppm` over the `:array`, `:string`, `:vector`, `:result`, and `:print` partitions. |
-| `aru.standard:string` | Module partition | ✅ | `String<T>` for `char8_t`/`char16_t`/`char32_t` with transcoding `from()` and `move()`. |
+| `aru.standard:string` | Module partition | ✅ | `String<T>` for `char8_t`/`char16_t`/`char32_t` with transcoding `from()` (any char pointer or `String`), `move()`, and `std::formatter`. |
 | `aru.standard:array` | Module partition | ✅ | `Array<T>` fixed-size array with `copy()`/`move()` + assignment. |
 | `aru.standard:vector` | Module partition | ✅ | `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()`. |
 | `aru.standard:result` | Module partition | ✅ | `Result<T, E>` discriminated union. |

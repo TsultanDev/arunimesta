@@ -94,7 +94,8 @@ New allocations go through factory functions. All these types implement the Rule
 - `String<T>` is constrained by the exported `character` concept (`char8_t`, `char16_t`, `char32_t`).
 - Storage is a `std::vector<T>` that always ends with a null terminator, so `stringData()` can hand out a C-string of the element type.
 - `charSize` counts code units (excluding the terminator); `size` counts bytes (`charSize * sizeof(T)`).
-- Conversion between encodings is **not** a mutating `encode()` method. A new string is created with the static `String<TargetT>::from(const String<SourceT>&)` factory, which decodes each code point from the source and re-encodes it into the target (see the transcoders in `aru::standard::detail`). Moving within the same encoding is done with `s.move()`.
+- Conversion between encodings is **not** a mutating `encode()` method. A new string is created with the static `String<TargetT>::from(...)` factory, which accepts a C string of any character type (`char` is treated as UTF-8) or another `String<SourceT>`; it decodes each code point from the source and re-encodes it into the target (see the transcoders in `aru::standard::detail`). Moving within the same encoding is done with `s.move()`.
+- `std::formatter<aru::standard::String<T>, char>` is exported so `println()` accepts any `String<T>`; the formatter converts the content to UTF-8 bytes and forwards to `std::formatter<std::string_view>`.
 - Invalid sequences decode to the replacement character `U+FFFD` (no exceptions).
 - Different instantiations of `String<T>` are unrelated classes; the mutual `template<character U> friend class String;` declaration lets `from()` read the private data of `String<SourceT>`.
 - `from(const String<SourceT>&)` with `SourceT == T` copies the storage directly (terminator included, no extra push).
@@ -241,7 +242,7 @@ General steps:
 | No input handling | Keyboard and mouse messages are ignored | Handle `WM_KEYDOWN` / `WM_MOUSEMOVE` and expose events |
 | No resize handling | `WM_SIZE` is not processed | Handle resize before the RHI needs it |
 | `ApplicationError` is minimal | Only `Unknown`; no failure context | Expand the error enum/struct as failure paths appear |
-| `String` is read-mostly | No `append`/`+`/`+=`, no `std::formatter`/`std::hash` support | Add concatenation, formatting, and hashing |
+| `String` is read-mostly | No `append`/`+`/`+=`, no `std::hash`, formatter is `char`-context only | Add concatenation, hashing, and wide/UTF-16 formatter contexts |
 | `Vector` is basic | No `insert`/`erase`/`clear`, no bounds checking, no `std::formatter`/`std::hash` | Add the missing operations when needed |
 | `Result` has no accessors | No `value()`/`error()`; only `valueOrUnexpected()` | Add checked accessors |
 | No tests yet | Regressions go undetected | Fill the `test/` folder with unit tests |

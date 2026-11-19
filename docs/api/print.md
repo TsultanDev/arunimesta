@@ -25,7 +25,7 @@ Thin wrappers around `std::println` with a consistent, no-`std::`-prefix entry p
 
 ### `template<typename... Args> void println(std::format_string<Args...> fmt, Args&&... args)`
 
-Prints a formatted line to `stdout`, forwarding to `std::println(stdout, fmt, args...)`.
+Prints a formatted line to `stdout`, forwarding to `std::println(stdout, fmt, args...)`. Besides the standard formattable types, any `aru::standard::String<T>` (`char8_t`, `char16_t`, `char32_t`) can be passed: its `std::formatter<String<T>, char>` specialization transcodes the content to UTF-8 before printing.
 
 - Compiled and executed **only in debug builds** (`#ifndef NDEBUG`); in Release builds it is a no-op that still compiles.
 - Format string follows `std::format` syntax.

@@ -3,6 +3,9 @@ module;
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <format>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -167,6 +170,13 @@ class aru::standard::String{
 
         static String from(const T* str);
 
+        // Dari C-string code unit lain: char (UTF-8), char8_t, char16_t, char32_t.
+        // Semua didekode jadi code point lalu dienkripsi ulang ke T.
+        static String from(const char* str);
+
+        template<character SourceT>
+        static String from(const SourceT* str);
+
         // Konversi antar encoding; SourceT == T berarti salinan (otomatis mengcopy).
         template<character SourceT>
         static String from(const String<SourceT>& str);
@@ -266,6 +276,53 @@ aru::standard::String<T> aru::standard::String<T>::from(const T* str){
     return String<T>(str);
 }
 
+// C-string sempit (char) dianggap UTF-8, lalu ditranscode ke T.
+template<aru::standard::character T>
+aru::standard::String<T> aru::standard::String<T>::from(const char* str){
+    std::vector<char8_t> source;
+    for (const char* cursor = str; *cursor != '\0'; ++cursor){
+        source.push_back(static_cast<char8_t>(static_cast<unsigned char>(*cursor)));
+    }
+
+    std::vector<T> out;
+    out.reserve(source.size());
+    std::size_t index = 0;
+    while (index < source.size()){
+        detail::encodeCodepoint(out, detail::decodeUtf8(source, index));
+    }
+    out.push_back(T{});
+    return String<T>(std::move(out));
+}
+
+// C-string UTF-8/16/32 lain: dekode per encoding sumber, enkode ulang ke T.
+template<aru::standard::character T>
+template<aru::standard::character SourceT>
+aru::standard::String<T> aru::standard::String<T>::from(const SourceT* str){
+    if constexpr (std::same_as<SourceT, T>){
+        return String<T>(str);
+    }else{
+        const std::size_t sourceLength = detail::cstrLength(str);
+        std::vector<SourceT> source(str, str + sourceLength);
+
+        std::vector<T> out;
+        out.reserve(sourceLength);
+        std::size_t index = 0;
+        while (index < sourceLength){
+            std::uint32_t codepoint = 0;
+            if constexpr (std::same_as<SourceT, char8_t>){
+                codepoint = detail::decodeUtf8(source, index);
+            }else if constexpr (std::same_as<SourceT, char16_t>){
+                codepoint = detail::decodeUtf16(source, index);
+            }else{
+                codepoint = detail::decodeUtf32(source, index);
+            }
+            detail::encodeCodepoint(out, codepoint);
+        }
+        out.push_back(T{});
+        return String<T>(std::move(out));
+    }
+}
+
 template<aru::standard::character T>
 template<aru::standard::character SourceT>
 aru::standard::String<T> aru::standard::String<T>::from(const String<SourceT>& str){
@@ -342,10 +399,56 @@ auto aru::standard::String<T>::begin() const noexcept -> typename std::vector<T>
 
 template<aru::standard::character T>
 auto aru::standard::String<T>::end() const noexcept -> typename std::vector<T>::const_iterator{
-    return this->data.cend() - 1;
+    // String hasil move() bisa punya vector kosong (tanpa terminator).
+    return this->data.empty() ? this->data.cend() : this->data.cend() - 1;
 }
 
 template<aru::standard::character T>
 bool aru::standard::String<T>::operator==(const String& other) const noexcept{
     return this->data == other.data;
+}
+
+// Dipakai formatter: ubah code unit T menjadi byte UTF-8.
+namespace aru::standard::detail{
+    template<aru::standard::character T>
+    std::vector<char8_t> toUtf8(const aru::standard::String<T>& value){
+        std::vector<T> units;
+        units.reserve(value.length());
+        for (std::uint32_t i = 0; i < value.length(); ++i){
+            units.push_back(value[i]);
+        }
+        std::vector<char8_t> out;
+        out.reserve(units.size());
+        std::size_t index = 0;
+        while (index < units.size()){
+            std::uint32_t codepoint = 0;
+            if constexpr (std::same_as<T, char8_t>){
+                codepoint = decodeUtf8(units, index);
+            }else if constexpr (std::same_as<T, char16_t>){
+                codepoint = decodeUtf16(units, index);
+            }else{
+                codepoint = decodeUtf32(units, index);
+            }
+            encodeCodepoint(out, codepoint);
+        }
+        return out;
+    }
+}
+
+// Supaya println("{}", string) bekerja untuk String<char8_t>,
+// String<char16_t>, dan String<char32_t> lewat konteks format char.
+export namespace std {
+    template<aru::standard::character T>
+    struct formatter<aru::standard::String<T>, char> : formatter<string_view> {
+        template<typename FormatContext>
+        auto format(const aru::standard::String<T>& value, FormatContext& ctx) const {
+            const std::vector<char8_t> bytes = aru::standard::detail::toUtf8(value);
+            std::string text;
+            text.reserve(bytes.size());
+            for (char8_t unit : bytes){
+                text.push_back(static_cast<char>(unit));
+            }
+            return formatter<string_view>::format(string_view(text), ctx);
+        }
+    };
 }
