@@ -171,6 +171,10 @@ class aru::standard::String{
         template<character SourceT>
         static String from(const String<SourceT>& str);
 
+        // Rule of Five: copy/move constructor tersedia (tidak dihapus).
+        String(const String& other);
+        String(String&& other) noexcept;
+
         // Pindahkan isi string keluar; string asal menjadi kosong.
         // Tipe hasil selalu sama dengan string asal (aturan UTF8/16/32).
         String move() noexcept;
@@ -232,10 +236,27 @@ aru::standard::String<T>::String(std::vector<T> strData) :
 {}
 
 template<aru::standard::character T>
+aru::standard::String<T>::String(const String& other) = default;
+
+template<aru::standard::character T>
+aru::standard::String<T>::String(String&& other) noexcept :
+    charSize(std::exchange(other.charSize, std::uint32_t{0})),
+    size(std::exchange(other.size, std::uint32_t{0})),
+    data(std::exchange(other.data, std::vector<T>{}))
+{}
+
+template<aru::standard::character T>
 aru::standard::String<T>& aru::standard::String<T>::operator=(const String&) = default;
 
 template<aru::standard::character T>
-aru::standard::String<T>& aru::standard::String<T>::operator=(String&&) noexcept = default;
+aru::standard::String<T>& aru::standard::String<T>::operator=(String&& other) noexcept{
+    if (this != &other){
+        this->charSize = std::exchange(other.charSize, std::uint32_t{0});
+        this->size = std::exchange(other.size, std::uint32_t{0});
+        this->data = std::exchange(other.data, std::vector<T>{});
+    }
+    return *this;
+}
 
 template<aru::standard::character T>
 aru::standard::String<T>::~String<T>() = default;

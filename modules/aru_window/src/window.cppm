@@ -56,9 +56,9 @@ class aru::window::Window{
         // Ini bukan copy objek: HWND baru dibuat melalui WinAPI.
         static ResultType createFromWindow(const Window& source);
 
-        // Copy/move constructor sengaja dihapus.
-        Window(const Window&) = delete;
-        Window(Window&&) = delete;
+        // Rule of Five: copy menyalin metadata (bukan HWND), move memindahkan handle.
+        Window(const Window& other);
+        Window(Window&& other) noexcept;
         Window& operator=(const Window& source);
         Window& operator=(Window&& source) noexcept;
 
@@ -100,6 +100,14 @@ class aru::window::Window{
         std::uint32_t width = 0;
         std::uint32_t height = 0;
 };
+
+aru::window::Window::Window(const Window& other) :
+    Window(other, CopyTag{})
+{}
+
+aru::window::Window::Window(Window&& other) noexcept :
+    Window(std::move(other), MoveTag{})
+{}
 
 aru::window::Window::ResultType aru::window::Window::create(const char* title, std::uint32_t width, std::uint32_t height){
     if (title == nullptr) {
@@ -163,15 +171,13 @@ aru::window::Window& aru::window::Window::operator=(const Window& source){
         return *this;
     }
 
-    // Lepaskan milik lama; pointer/HWND dicek dulu sebelum dipakai.
     this->release();
 
     this->instance = source.instance;
-    this->title = aru::standard::String<char16_t>::from(source.title); // salin String
+    this->title = aru::standard::String<char16_t>::from(source.title);
     this->width = source.width;
     this->height = source.height;
-    // HWND sengaja tidak disalin: copy = data, bukan kepemilikan OS window.
-    // Untuk membuat OS window baru, pakai createFromWindow().
+
     return *this;
 }
 

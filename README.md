@@ -12,7 +12,7 @@
 
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** The build system, the application module, the standard library module (`aru.standard` with `String`, `Vector`, `Result`, and `println`), and the Win32 windowing module (`aru.window`) are working. The Vulkan renderer has not been implemented.
+> **Status: early development.** The build system, the application module, the standard library module (`aru.standard` with `Array`, `String`, `Vector`, `Result`, and `println`), and the Win32 windowing module (`aru.window`) are working. The Vulkan renderer has not been implemented.
 
 ---
 
@@ -34,7 +34,8 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 
 - **C++23 Named Modules**: the main module `aru` with the module partition `aru:application` and the facade `lib.cppm`.
 - **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. A new string of any target type is created from an existing string with the static `String::from()` factory, which transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`. Moving within the same encoding is done with `s.move()`.
-- **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation goes through `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any `std::array`/`std::vector`/forward range with convertible elements. Literal construction (`Vector<int> t = {1, 2, 3};`) is also supported. Copying goes through assignment or `copy()`, moving through move assignment or `move()`. Copy/move constructors are deleted.
+- **Array Type**: `aru::standard::Array<T>` is a fixed-size array. Allocate with `Array<T>::create(size)` or `create({...})`; copy/move through constructors, assignment, or `copy()`/`move()`. Rule of Five is implemented (deep copy / steal).
+- **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation goes through `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any `std::array`/`std::vector`/forward range with convertible elements. Literal construction (`Vector<int> t = {1, 2, 3};`) is also supported. Copy/move constructors, assignment, `copy()`, and `move()` are all available (Rule of Five).
 - **Result Type**: `aru::standard::Result<T, E>` is a lightweight discriminated union for explicit success/failure values without exceptions.
 - **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, ApplicationError>` without throwing exceptions.
 - **Pimpl with `std::unique_ptr`**: implementation details are hidden in `Application_T`; the object is *move-only*.
@@ -190,8 +191,9 @@ arunimesta/
 | :--- | :--- | :--- | :--- |
 | `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `aru.standard`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
-| `aru.standard` | Static library | ✅ | Facade `lib.cppm` over the `:string`, `:vector`, `:result`, and `:print` partitions. |
+| `aru.standard` | Static library | ✅ | Facade `lib.cppm` over the `:array`, `:string`, `:vector`, `:result`, and `:print` partitions. |
 | `aru.standard:string` | Module partition | ✅ | `String<T>` for `char8_t`/`char16_t`/`char32_t` with transcoding `from()` and `move()`. |
+| `aru.standard:array` | Module partition | ✅ | `Array<T>` fixed-size array with `copy()`/`move()` + assignment. |
 | `aru.standard:vector` | Module partition | ✅ | `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()`. |
 | `aru.standard:result` | Module partition | ✅ | `Result<T, E>` discriminated union. |
 | `aru.standard:print` | Module partition | ✅ | Debug-gated `println` / `eprintln` wrappers. |
@@ -284,7 +286,7 @@ auto window = aru::window::Window::create("Arunimesta — 世界", 800, 600)
 window.event_loop();
 ```
 
-Narrow titles are UTF-8, so non-ASCII text such as `世界` is supported. Copy/move constructors are deleted; use `window.copy()`, `window.move()`, or assignment. To make a real second OS window, use `Window::createFromWindow(window)`.
+Narrow titles are UTF-8, so non-ASCII text such as `世界` is supported. Rule of Five is implemented: copy duplicates the title/metadata (not the `HWND`), move transfers the handle. `window.copy()`, `window.move()`, and assignment are also available. To make a real second OS window, use `Window::createFromWindow(window)`.
 
 References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), [`docs/api/print.md`](docs/api/print.md), and [`docs/api/window.md`](docs/api/window.md).
 
@@ -298,6 +300,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 | [docs/building.md](docs/building.md) | Prerequisites, presets, manual build, troubleshooting |
 | [docs/coding-style.md](docs/coding-style.md) | Naming, `.cppm` file layout, factory/pimpl patterns |
 | [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
+| [docs/api/array.md](docs/api/array.md) | `aru::standard::Array` API (fixed-size) |
 | [docs/api/string.md](docs/api/string.md) | `aru::standard::String` API (UTF-8/16/32) |
 | [docs/api/vector.md](docs/api/vector.md) | `aru::standard::Vector` API (factory-only allocation) |
 | [docs/api/result.md](docs/api/result.md) | `aru::standard::Result` API |

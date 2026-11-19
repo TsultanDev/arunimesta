@@ -24,6 +24,7 @@ template <typename T, typename E>
 class aru::standard::Result{
     private:
         bool has_value = {};
+        bool active = false;
         union{
             T value;
             E error;
@@ -35,13 +36,24 @@ class aru::standard::Result{
         Result(const E& error);
         Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<E>);
 
-        // Bangun value/error langsung di dalam union. Berguna untuk tipe
-        // yang sengaja menghapus copy/move constructor (Window, String, ...).
+        // Bangun value/error langsung di dalam union tanpa objek antara.
         template <typename... Args>
         Result(std::in_place_t, Args&&... args);
 
         template <typename... Args>
         Result(aru::standard::errorInPlace_t, Args&&... args);
+
+        // Rule of Five: salin/pindahkan anggota union yang aktif.
+        Result(const Result& other);
+        Result(Result&& other) noexcept(
+            std::is_nothrow_move_constructible_v<T> &&
+            std::is_nothrow_move_constructible_v<E>
+        );
+        Result& operator=(const Result& other);
+        Result& operator=(Result&& other) noexcept(
+            std::is_nothrow_move_constructible_v<T> &&
+            std::is_nothrow_move_constructible_v<E>
+        );
 
         ~Result();
 
@@ -54,21 +66,22 @@ class aru::standard::Result{
 };
 
 template<typename T, typename E>
-aru::standard::Result<T, E>::Result(const T& value) : has_value(true), value(value){}
+aru::standard::Result<T, E>::Result(const T& value) : has_value(true), active(true), value(value){}
 
 template<typename T, typename E>
-aru::standard::Result<T, E>::Result(T&& value) noexcept(std::is_nothrow_move_constructible_v<T>) : has_value(true), value(std::move(value)){}
+aru::standard::Result<T, E>::Result(T&& value) noexcept(std::is_nothrow_move_constructible_v<T>) : has_value(true), active(true), value(std::move(value)){}
 
 template<typename T, typename E>
-aru::standard::Result<T, E>::Result(const E& error) : has_value(false), error(error){}
+aru::standard::Result<T, E>::Result(const E& error) : has_value(false), active(true), error(error){}
 
 template<typename T, typename E>
-aru::standard::Result<T, E>::Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<E>) : has_value(false), error(std::move(error)){}
+aru::standard::Result<T, E>::Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<E>) : has_value(false), active(true), error(std::move(error)){}
 
 template<typename T, typename E>
 template<typename... Args>
 aru::standard::Result<T, E>::Result(std::in_place_t, Args&&... args) :
     has_value(true),
+    active(true),
     value(std::forward<Args>(args)...)
 {}
 
@@ -76,15 +89,100 @@ template<typename T, typename E>
 template<typename... Args>
 aru::standard::Result<T, E>::Result(aru::standard::errorInPlace_t, Args&&... args) :
     has_value(false),
+    active(true),
     error(std::forward<Args>(args)...)
 {}
 
 template<typename T, typename E>
+aru::standard::Result<T, E>::Result(const Result& other) :
+    has_value(other.has_value),
+    active(false)
+{
+    if (other.has_value){
+        std::construct_at(&this->value, other.value);
+    }else{
+        std::construct_at(&this->error, other.error);
+    }
+    this->active = true;
+}
+
+template<typename T, typename E>
+aru::standard::Result<T, E>::Result(Result&& other) noexcept(
+    std::is_nothrow_move_constructible_v<T> &&
+    std::is_nothrow_move_constructible_v<E>
+) :
+    has_value(other.has_value),
+    active(false)
+{
+    if (other.has_value){
+        std::construct_at(&this->value, std::move(other.value));
+    }else{
+        std::construct_at(&this->error, std::move(other.error));
+    }
+    this->active = true;
+}
+
+template<typename T, typename E>
+aru::standard::Result<T, E>& aru::standard::Result<T, E>::operator=(const Result& other){
+    if (this == &other){
+        return *this;
+    }
+
+    if (this->active){
+        if (this->has_value){
+            std::destroy_at(&this->value);
+        }else{
+            std::destroy_at(&this->error);
+        }
+        this->active = false;
+    }
+
+    this->has_value = other.has_value;
+    if (other.has_value){
+        std::construct_at(&this->value, other.value);
+    }else{
+        std::construct_at(&this->error, other.error);
+    }
+    this->active = true;
+    return *this;
+}
+
+template<typename T, typename E>
+aru::standard::Result<T, E>& aru::standard::Result<T, E>::operator=(Result&& other) noexcept(
+    std::is_nothrow_move_constructible_v<T> &&
+    std::is_nothrow_move_constructible_v<E>
+){
+    if (this == &other){
+        return *this;
+    }
+
+    if (this->active){
+        if (this->has_value){
+            std::destroy_at(&this->value);
+        }else{
+            std::destroy_at(&this->error);
+        }
+        this->active = false;
+    }
+
+    this->has_value = other.has_value;
+    if (other.has_value){
+        std::construct_at(&this->value, std::move(other.value));
+    }else{
+        std::construct_at(&this->error, std::move(other.error));
+    }
+    this->active = true;
+    return *this;
+}
+
+template<typename T, typename E>
 aru::standard::Result<T, E>::~Result<T, E>() {
-    if (this->has_value) {
-        std::destroy_at(&this->value);
-    } else {
-        std::destroy_at(&this->error);
+    if (this->active){
+        if (this->has_value) {
+            std::destroy_at(&this->value);
+        } else {
+            std::destroy_at(&this->error);
+        }
     }
 }
 

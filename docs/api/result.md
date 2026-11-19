@@ -30,7 +30,7 @@ Result(E&& error) noexcept(std::is_nothrow_move_constructible_v<E>);
 
 Constructs a result holding either the value or the error. Construction from a `T` marks the result as "ok"; construction from an `E` marks it as "error".
 
-Two in-place tags are also available for types with deleted copy/move constructors:
+Two in-place tags are also available to construct `T` / `E` directly in the union without an intermediate object:
 
 ```cpp
 Result(std::in_place, Args&&... args);                 // construct T in the union
@@ -54,7 +54,7 @@ if (r) {
 
 ### `template<typename Func> requires std::invocable<Func&&, E&&> T valueOrUnexpected(Func&& fn)`
 
-Returns the stored value when the result is ok. If `T` has a `move()` member (as `String`, `Vector`, and `Window` do), it is used to return a prvalue so a deleted move constructor is not required; otherwise `std::move` is used.
+Returns the stored value when the result is ok. If `T` has a `move()` member (as `String`, `Array`, `Vector`, and `Window` do), it is used to return a prvalue; otherwise `std::move` is used.
 
 On error, the callback is invoked with `E&&` (so lambdas taking either `E&&` or `const E&` work). If the callback returns a `T`, that value is returned:
 
@@ -103,7 +103,7 @@ Destruction order:
 
 ## Current Limitations
 
-- No copy/move constructors or assignment operators for `Result` itself yet.
+- `Result` implements Rule of Five: copy/move constructors and assignments operate on the active union member. The move operations are `noexcept` only when both `T` and `E` are nothrow move-constructible.
 - No `value()` / `error()` accessors yet; use `valueOrUnexpected()`.
 - No monadic operations (`and_then`, `transform`, `or_else`).
 - Not a drop-in replacement for `std::expected` in public APIs; `std::expected` remains the engine-wide convention for factories.

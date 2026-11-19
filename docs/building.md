@@ -108,7 +108,7 @@ Then configure and build again.
 target_link_libraries(aru PRIVATE aru_window aru_std)
 ```
 
-It provides module `aru.standard` (the `:string`, `:vector`, `:result`, and `:print` partitions), and the `aru` facade re-exports it, so `import aru;` exposes `String`, `Vector`, `Result`, `println`, and `eprintln`. See the [API references](api/string.md).
+It provides module `aru.standard` (the `:array`, `:string`, `:vector`, `:result`, and `:print` partitions), and the `aru` facade re-exports it, so `import aru;` exposes `Array`, `String`, `Vector`, `Result`, `println`, and `eprintln`. See the [API references](api/array.md).
 
 ## Module `aru_window` (active)
 

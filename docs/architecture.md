@@ -11,7 +11,7 @@ Currently there are three modules:
 ```text
 modules/
 ├── aru/            # executable + module aru
-├── aru_std/        # static library aru.standard (String, Vector, Result, print)
+├── aru_std/        # static library aru.standard (Array, String, Vector, Result, print)
 └── aru_window/     # static library aru.window (Win32 windowing)
 ```
 
@@ -37,7 +37,7 @@ The Vulkan renderer **does not exist yet** in the repository. Its planned archit
                     │          │
     ┌───────────────▼──────┐  ┌▼──────────────────────────────────────────┐
     │ module               │  │ module aru.standard                       │
-    │ aru:application      │  │ :string      :result    :print   :vector  │
+    │ aru:application      │  │ :string :array :result :print :vector   │
     │ Application +        │  │ String<T>    Result<T,E>         Vector<T>│
     │ Application_T        │  │                     println  copy/move    │
     └──────────────────────┘  └───────────────────────────────────────────┘
@@ -66,23 +66,28 @@ The facade/partition split is useful as the module grows: consumers keep importi
 - `modules/aru_std/src/lib.cppm` is the facade:
   ```cpp
   export module aru.standard;
+  export import :array;
   export import :print;
   export import :result;
   export import :string;
   export import :vector;
   ```
+- `modules/aru_std/src/array.cppm` is the partition `aru.standard:array`. It exports the fixed-size `Array<T>` class template.
 - `modules/aru_std/src/string.cppm` is the partition `aru.standard:string`. It exports the `character` concept and the `String<T>` class template.
 - `modules/aru_std/src/result.cppm` is the partition `aru.standard:result`. It exports `Result<T, E>`.
 - `modules/aru_std/src/print.cppm` is the partition `aru.standard:print`. It exports `println` and `eprintln`.
 - `modules/aru_std/src/vector.cppm` is the partition `aru.standard:vector`. It exports `Vector<T>` with `VectorIterator` and `VectorIntoIter`.
 
-#### Allocation rules (`String` and `Vector`)
+#### Allocation rules (`String`, `Array`, `Vector`, `Result`, `Window`)
 
-Both types follow the same policy — initialization happens through factory functions, copy/move constructors are deleted, and copy/move happen through assignment or explicit member functions:
+New allocations go through factory functions. All these types implement the Rule of Five: copy deep-copies the owned state, move steals it and empties the source. Copy/move are also available through assignment and the `copy()` / `move()` member functions:
 
 - `String<T>`: allocation via `String<T>::from(...)` (pointer or another string, cross-type converts and copies). Moving out via `s.move()` (same encoding only).
 - `Vector<T>`: allocation via `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any forward range with convertible elements (`std::array`, `std::vector`, `std::list`, ...), plus literal construction `Vector<int> t = {1, 2, 3}`. Copy via assignment `=` or `v.copy()`; move via move assignment or `v.move()`; literal assignment via `v = {1, 2, 3}`.
-- Default constructors are private; copy/move constructors are deleted; destructors stay public (stack objects must be destructible).
+- `Array<T>`: fixed-size; `create(size)` / `create({...})`, with deep-copy and steal constructors.
+- `Result<T, E>`: copy/move operate on the active union member; an `active` flag keeps destruction correct if construction throws.
+- `Window`: the copy constructor duplicates title/metadata but not the `HWND`; the move constructor steals the handle.
+- Default constructors that allocate are private; copy/move constructors are implemented; destructors stay public (stack objects must be destructible).
 
 #### `String` design
 
@@ -106,7 +111,7 @@ Both types follow the same policy — initialization happens through factory fun
 - `modules/aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
 - The implementation uses the Win32 Unicode APIs: `RegisterClassW`, `CreateWindowExW`, `DefWindowProcW`, `GetMessageW`, and `DispatchMessageW`.
 - `Window::create()` returns `aru::standard::Result<Window, Error>`. `Error` is formattable, so it can be printed directly with `println`.
-- Copy/move constructors are deleted. Copy assignment / `copy()` copy the title and metadata but not the `HWND`; move assignment / `move()` steal the handle and empty the source. `createFromWindow()` creates a genuinely new OS window.
+- Rule of Five: the copy constructor / copy assignment / `copy()` duplicate the title and metadata but not the `HWND`; the move constructor / move assignment / `move()` steal the handle and empty the source. `createFromWindow()` creates a genuinely new OS window.
 - The window class name is `ArunimestaWindowClass`; registration is idempotent, so `ERROR_CLASS_ALREADY_EXISTS` is ignored. The destructor calls `DestroyWindow` only when `hwnd != nullptr`; the `String<char16_t>` title is RAII-cleaned when non-empty.
 
 ### Unicode and String Handling
@@ -214,7 +219,7 @@ There is no `Application::run()` in this iteration yet. `main.cpp` currently exe
 - Each module registers its `.cppm` files through `FILE_SET CXX_MODULES`.
 - Standard headers are included in the **global module fragment** (`module;` ... `export module ...;`) so they do not leak to consumers.
 - `aru` depends on both libraries: `target_link_libraries(aru PRIVATE aru_window aru_std)`.
-- The `aru` facade re-exports `aru.standard` and `aru.window`, so `import aru;` provides `String`, `Vector`, `Result`, `println`, and `Window`.
+- The `aru` facade re-exports `aru.standard` and `aru.window`, so `import aru;` provides `Array`, `String`, `Vector`, `Result`, `println`, and `Window`.
 
 ## Adding a New Module
 

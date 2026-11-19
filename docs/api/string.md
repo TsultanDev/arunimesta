@@ -113,8 +113,8 @@ auto s8b = s8.move();      // s8 is now empty, s8b owns the buffer
 | :--- | :--- | :--- |
 | `String()` | Private | Hidden; allocation goes through `from()`. |
 | `String(const T*)` | Private | Hidden; use `from(const T*)`. |
-| Copy constructor | Deleted | Copying goes through `from()` (same type = copy) or copy assignment. |
-| Move constructor | Deleted | Moving goes through `move()` or move assignment. |
+| Copy constructor | Public | Deep copy of the storage (same as `from()` with the same type or copy assignment). |
+| Move constructor | `noexcept` | Steals the storage and empties the source; same as `move()` or move assignment. |
 | Copy assignment | Public | Copies the storage. |
 | Move assignment | `noexcept` | Moves the storage (`b = a.move()`). |
 | `String(std::vector<T>)` | Private | Used internally by `from()` / `move()`; the vector must already end with a terminator. |

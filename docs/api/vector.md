@@ -13,7 +13,7 @@ aru::standard::Vector<T>
 
 `Vector<T>` is a growable dynamic array of `T`. Storage is raw memory allocated with `std::allocator<T>`; elements are constructed with placement-new and destroyed explicitly, so `T` does not need to be default-constructible.
 
-**Allocation is factory-only.** The constructors are hidden or deleted; objects are created through static/member functions:
+**New allocations are factory-only.** The default and capacity constructors are private; objects are created through static/member functions:
 
 | Task | How |
 | :--- | :--- |
@@ -24,7 +24,7 @@ aru::standard::Vector<T>
 | Move from another vector | `b = std::move(a);` (move assignment) or `b = a.move()` |
 | Assign a literal list | `v = {1, 2, 3};` (initializer-list assignment) |
 
-Copy and move **constructors are deleted**: `Vector b = a;` and `Vector b = std::move(a);` do not compile. The default constructor and the capacity constructor are private. The destructor stays public (stack objects must be destructible).
+Copy and move **constructors are implemented** (Rule of Five), so `Vector b = a;` and `Vector b = std::move(a);` compile: copy deep-copies the elements, move steals the buffer. The default constructor and the capacity constructor are private. The destructor stays public (stack objects must be destructible).
 
 ## API
 
@@ -132,7 +132,7 @@ for (const int& value : cv.iter()) { sum += value; }
 
 Consuming iterator: takes ownership of the buffer and empties the vector. `operator*` returns `T&&` (elements are moved out), `done()` reports exhaustion, and `operator++` advances. Remaining elements (including skipped ones) are destroyed when the iterator is exhausted or destroyed.
 
-It also supports range-based `for` directly. Because `VectorIntoIter` is move-only, `aru::standard::begin()` moves it into the loop's begin iterator and `end()` returns the lightweight `IntoIterEnd` sentinel:
+It also supports range-based `for` directly. `VectorIntoIter` implements copy/move (Rule of Five), but `aru::standard::begin()` still moves it into the loop's begin iterator and `end()` returns the lightweight `IntoIterEnd` sentinel:
 
 ```cpp
 for (auto value : v.intoIter()) {   // v is now empty; value is moved out
@@ -159,9 +159,9 @@ An empty vector with reserved capacity is handled correctly: `done()` is true wh
 | :--- | :--- | :--- |
 | `Vector(std::size_t capacity)` | Private | Hidden; use `create()`. |
 | `Vector(std::initializer_list<T>)` | Public | `Vector<int> t = {1, 2, 3};` — needs copy-constructible `T` (`initializer_list` elements are `const`). |
-| Copy constructor | Deleted | Use `b = a;` or `b = a.copy()`. |
-| Move constructor | Deleted | Use `b = std::move(a);` or `b = a.move()`. |
-| Copy/move assignment | Public | The only direct copy/move paths. |
+| Copy constructor | Public | Deep copy; same as `b = a;` or `b = a.copy()`. |
+| Move constructor | `noexcept` | Steals the buffer; same as `b = std::move(a);` or `b = a.move()`. |
+| Copy/move assignment | Public / `noexcept` | Copy deep-copies; move steals and empties the source. |
 | Default constructor | Private | Hidden; use `create()`. |
 | Destructor | Public | Must stay public: stack objects must be destructible. |
 

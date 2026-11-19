@@ -12,7 +12,7 @@ import aru;          // re-exports aru.window
 
 `Window` represents a Win32 window. Instances are created through the `create()` factories, which return `aru::standard::Result<Window, Error>`. The title is stored as `aru::standard::String<char16_t>` and passed directly to the Unicode Win32 APIs.
 
-Copy and move **constructors are deleted**. Copying and moving are done through assignment or the `copy()` / `move()` member functions. Creating another real OS window is a separate operation: `createFromWindow()`.
+Rule of Five: copy and move **constructors are implemented**. The copy constructor duplicates title/metadata (not the `HWND`); the move constructor steals the handle. Assignment and the `copy()` / `move()` member functions are also available. Creating another real OS window is a separate operation: `createFromWindow()`.
 
 ## Error type
 
@@ -93,8 +93,8 @@ window.event_loop();
 | Operation | Status | Notes |
 | :--- | :--- | :--- |
 | Constructor | Private | Use `create()` / `createFromWindow()` |
-| Copy constructor | Deleted | Use `b = a;` or `b = a.copy()` |
-| Move constructor | Deleted | Use `b = std::move(a);` or `b = a.move()` |
+| Copy constructor | Public | Copies title/metadata, not the `HWND`; same as `b = a;` / `b = a.copy()` |
+| Move constructor | `noexcept` | Steals the handle and empties the source; same as `b = std::move(a);` / `b = a.move()` |
 | Copy assignment | Public | Copies title/metadata; does not duplicate the OS window |
 | Move assignment | `noexcept` | Steals the handle; source becomes empty |
 | Destructor | Public | `DestroyWindow` is called only when `hwnd != nullptr` |

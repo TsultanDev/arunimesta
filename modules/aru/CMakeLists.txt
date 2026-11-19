@@ -1,6 +1,5 @@
 set(MODULES
     "src/lib.cppm"
-    "src/application.cppm"
 )
 
 add_executable(aru "src/main.cpp")

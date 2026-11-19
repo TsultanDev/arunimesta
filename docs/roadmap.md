@@ -11,6 +11,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
 | `aru.standard` (`String`) | ✅ Basic | `char8_t`/`char16_t`/`char32_t`, transcoding `from()`, `move()`, `U+FFFD` replacement |
 | `aru.standard` (`Vector`) | ✅ Basic | Factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()` |
+| `aru.standard` (`Array`) | ✅ Basic | Fixed-size factory allocation, `copy()`/`move()` + assignment |
 | `aru.standard` (`Result`) | ✅ Basic | Discriminated union, in-place construction, `valueOrUnexpected()` |
 | `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
 | Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `Result` errors, copy/move assignment, event loop |
@@ -38,8 +39,9 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] `:result` partition — `Result<T, E>` discriminated union
 - [x] `:string` partition — `String<T>` for `char8_t`/`char16_t`/`char32_t`
 - [x] Cross-encoding conversion via static `String::from()` factory (UTF-8 ⇄ UTF-16 ⇄ UTF-32, `U+FFFD` on invalid input)
+- [x] `:array` partition — fixed-size `Array<T>` with `copy()`/`move()` + assignment
 - [x] `:vector` partition — `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, initializer-list assignment, `iter()`/`intoIter()`
-- [x] Factory-only allocation policy for `String` and `Vector`; copy/move constructors deleted
+- [x] Factory-only allocation policy for `String` and `Vector`; Rule of Five implemented (copy/move constructors available)
 - [ ] String concatenation (`append`, `+`, `+=`)
 - [ ] `std::formatter` / `std::hash` support for `String` and `Vector`
 
@@ -48,7 +50,7 @@ This document contains the status, milestones, and development plan for Arunimes
 ### M1 — Windowing (done; basic)
 
 - [x] Finish the `Window` class in `aru.window:window`
-- [x] Safe copy/move assignment plus `copy()` / `move()`; copy/move constructors deleted
+- [x] Safe copy/move assignment plus `copy()` / `move()`; full Rule of Five (copy/move constructors implemented)
 - [x] Fill in the `aru.window` facade (`lib.cppm`)
 - [x] Register `modules/aru_window` in the root `CMakeLists.txt` and re-export `aru.window`
 - [x] Blocking event loop integration (`GetMessageW`)

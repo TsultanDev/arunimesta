@@ -78,10 +78,10 @@ class aru::standard::VectorIntoIter{
         bool done() const noexcept;
 
         VectorIntoIter() = default;
-        VectorIntoIter(VectorIntoIter&&) noexcept;
-        VectorIntoIter& operator=(VectorIntoIter&&) noexcept;
-        VectorIntoIter(const VectorIntoIter&) = delete;
-        VectorIntoIter& operator=(const VectorIntoIter&) = delete;
+        VectorIntoIter(const VectorIntoIter& other);
+        VectorIntoIter(VectorIntoIter&& other) noexcept;
+        VectorIntoIter& operator=(const VectorIntoIter& other);
+        VectorIntoIter& operator=(VectorIntoIter&& other) noexcept;
         ~VectorIntoIter();
 
     private:
@@ -96,9 +96,8 @@ class aru::standard::VectorIntoIter{
         std::size_t endIndex = 0;      // jumlah elemen yang dibangun
 };
 
-// Alokasi hanya melalui factory: create() untuk alokasi baru.
-// Copy melalui assignment (=) atau copy(); move melalui move assignment
-// atau move(). Copy/move constructor sengaja dihapus.
+// Alokasi baru melalui factory create(). Rule of Five lengkap: copy/move
+// constructor tersedia; copy()/move() tetap disediakan untuk prvalue.
 template<typename T>
 class aru::standard::Vector{
     public:
@@ -113,6 +112,10 @@ class aru::standard::Vector{
         static Vector create(const Source& source);
 
         Vector(std::initializer_list<T> values);
+
+        // Rule of Five: salin dalam (deep copy) atau pindahkan kepemilikan.
+        Vector(const Vector& other);
+        Vector(Vector&& other) noexcept;
 
         Vector& operator=(const Vector&);
         Vector& operator=(Vector&&) noexcept;
@@ -201,6 +204,18 @@ aru::standard::Vector<T>::Vector(std::size_t capacity) :
 template<typename T>
 aru::standard::Vector<T>::Vector(std::initializer_list<T> values) :
     Vector(values, RangeTag{})
+{}
+
+template<typename T>
+aru::standard::Vector<T>::Vector(const Vector& other) :
+    Vector(other, CopyTag{})
+{}
+
+template<typename T>
+aru::standard::Vector<T>::Vector(Vector&& other) noexcept :
+    data(std::exchange(other.data, nullptr)),
+    count(std::exchange(other.count, std::size_t{0})),
+    cap(std::exchange(other.cap, std::size_t{0}))
 {}
 
 // Rentang/container lain: alokasi tepat sejumlah elemen lalu salin.
@@ -574,6 +589,40 @@ bool aru::standard::VectorIntoIter<T>::done() const noexcept{
 }
 
 template<typename T>
+aru::standard::VectorIntoIter<T>::VectorIntoIter(const VectorIntoIter& other) :
+    data(other.data != nullptr && other.cap > 0 ? std::allocator<T>{}.allocate(other.cap) : nullptr),
+    cap(other.cap),
+    current(other.current),
+    endIndex(other.endIndex)
+{
+    std::size_t built = 0;
+    try {
+        for (; built < other.endIndex; ++built) {
+            std::construct_at(this->data + built, other.data[built]);
+        }
+    } catch (...) {
+        std::destroy_n(this->data, built);
+        if (this->data != nullptr) {
+            std::allocator<T>{}.deallocate(this->data, this->cap);
+        }
+        this->data = nullptr;
+        this->cap = 0;
+        this->current = 0;
+        this->endIndex = 0;
+        throw;
+    }
+}
+
+template<typename T>
+aru::standard::VectorIntoIter<T>& aru::standard::VectorIntoIter<T>::operator=(const VectorIntoIter& other){
+    if (this != &other){
+        VectorIntoIter fresh(other);
+        *this = std::move(fresh);
+    }
+    return *this;
+}
+
+template<typename T>
 aru::standard::VectorIntoIter<T>::VectorIntoIter(VectorIntoIter&& other) noexcept :
     data(std::exchange(other.data, nullptr)),
     cap(std::exchange(other.cap, std::size_t{0})),
@@ -621,8 +670,8 @@ void aru::standard::VectorIntoIter<T>::release() noexcept{
     this->endIndex = 0;
 }
 
-// Range-for untuk IntoIter: __begin dipindah dari __range karena
-// VectorIntoIter sengaja move-only (copy constructor dihapus).
+// Range-for untuk IntoIter: __begin dipindah dari __range supaya iterator
+// tidak perlu disalin; copy constructor tetap tersedia lewat Rule of Five.
 template<typename T>
 aru::standard::VectorIntoIter<T> aru::standard::begin(VectorIntoIter<T>& iterator) noexcept{
     return std::move(iterator);
