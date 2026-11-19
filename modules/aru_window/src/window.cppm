@@ -66,7 +66,7 @@ class aru::window::Window{
         Window copy() const;
         Window move() noexcept;
 
-        void event_loop() const;
+        void event_loop();
         ~Window();
 
         HWND handle() const noexcept;
@@ -74,6 +74,10 @@ class aru::window::Window{
         std::uint32_t windowWidth() const noexcept;
         std::uint32_t windowHeight() const noexcept;
         bool empty() const noexcept;
+
+        // Penanda untuk loop utama: true sampai WM_QUIT diterima event_loop().
+        bool isOpen() const noexcept;
+        bool shouldClose() const noexcept;
 
     private:
         struct AdoptTag {};
@@ -99,6 +103,7 @@ class aru::window::Window{
         aru::standard::String<char16_t> title = aru::standard::String<char16_t>::from(u"");
         std::uint32_t width = 0;
         std::uint32_t height = 0;
+        bool open = false;
 };
 
 aru::window::Window::Window(const Window& other) :
@@ -177,6 +182,7 @@ aru::window::Window& aru::window::Window::operator=(const Window& source){
     this->title = aru::standard::String<char16_t>::from(source.title);
     this->width = source.width;
     this->height = source.height;
+    this->open = false;  // salinan tidak memiliki HWND
 
     return *this;
 }
@@ -190,6 +196,7 @@ aru::window::Window& aru::window::Window::operator=(Window&& source) noexcept {
         this->title = source.title.move();
         this->width = std::exchange(source.width, std::uint32_t{0});
         this->height = std::exchange(source.height, std::uint32_t{0});
+        this->open = std::exchange(source.open, false);
         // source sekarang kosong.
     }
     return *this;
@@ -203,11 +210,22 @@ aru::window::Window aru::window::Window::move() noexcept{
     return Window(std::move(*this), MoveTag{});
 }
 
-void aru::window::Window::event_loop() const{
+void aru::window::Window::event_loop(){
+    if (!this->open) {
+        return;
+    }
+
     MSG message = {};
-    while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+    BOOL status = 1;
+    while (this->open && (status = GetMessageW(&message, nullptr, 0, 0)) > 0) {
         TranslateMessage(&message);
         DispatchMessageW(&message);
+    }
+
+    // GetMessageW mengembalikan 0 untuk WM_QUIT (dipost oleh windowProc
+    // saat WM_DESTROY) atau -1 saat error. Keduanya mengakhiri loop utama.
+    if (status <= 0) {
+        this->open = false;
     }
 }
 
@@ -235,6 +253,14 @@ bool aru::window::Window::empty() const noexcept{
     return this->hwnd == nullptr;
 }
 
+bool aru::window::Window::isOpen() const noexcept{
+    return this->open;
+}
+
+bool aru::window::Window::shouldClose() const noexcept{
+    return !this->open;
+}
+
 aru::window::Window::Window(HINSTANCE instance, HWND hwnd,
     const aru::standard::String<char16_t>& title,
     std::uint32_t width, std::uint32_t height, AdoptTag) :
@@ -242,7 +268,8 @@ aru::window::Window::Window(HINSTANCE instance, HWND hwnd,
     hwnd(hwnd),
     title(aru::standard::String<char16_t>::from(title)),
     width(width),
-    height(height)
+    height(height),
+    open(true)
 {}
 
 aru::window::Window::Window(const Window& source, CopyTag) :
@@ -250,7 +277,8 @@ aru::window::Window::Window(const Window& source, CopyTag) :
     hwnd(nullptr),
     title(aru::standard::String<char16_t>::from(source.title)),
     width(source.width),
-    height(source.height)
+    height(source.height),
+    open(false)
 {}
 
 aru::window::Window::Window(Window&& source, MoveTag) noexcept :
@@ -258,7 +286,8 @@ aru::window::Window::Window(Window&& source, MoveTag) noexcept :
     hwnd(std::exchange(source.hwnd, nullptr)),
     title(source.title.move()),
     width(std::exchange(source.width, std::uint32_t{0})),
-    height(std::exchange(source.height, std::uint32_t{0}))
+    height(std::exchange(source.height, std::uint32_t{0})),
+    open(std::exchange(source.open, false))
 {}
 
 bool aru::window::Window::registerClass(HINSTANCE instance) noexcept{
@@ -311,4 +340,5 @@ void aru::window::Window::release() noexcept{
     this->instance = nullptr;
     this->width = 0;
     this->height = 0;
+    this->open = false;
 }

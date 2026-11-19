@@ -71,12 +71,16 @@ Move assignment / `move()` steal the `HWND`, `HINSTANCE`, title, width, and heig
 auto moved = window.move();   // window is now empty
 ```
 
-### `void event_loop() const`
+### `void event_loop()`
 
-Runs the blocking Win32 message loop (`GetMessageW` / `TranslateMessage` / `DispatchMessageW`). `WM_DESTROY` posts `WM_QUIT`, which ends the loop.
+Runs the blocking Win32 message loop (`GetMessageW` / `TranslateMessage` / `DispatchMessageW`). `WM_DESTROY` posts `WM_QUIT`, which ends the loop and sets the internal `open` flag to `false`. Calling `event_loop()` again after that returns immediately.
+
+Use `isOpen()` / `shouldClose()` as the main-loop condition so the loop stops when the user closes the window:
 
 ```cpp
-window.event_loop();
+while (window.isOpen()) {          // or: while (!window.shouldClose())
+    window.event_loop();
+}
 ```
 
 ### Accessors
@@ -87,6 +91,8 @@ window.event_loop();
 | `const String<char16_t>& windowTitle() const noexcept` | UTF-16 title. |
 | `uint32_t windowWidth() / windowHeight() const noexcept` | Configured size. |
 | `bool empty() const noexcept` | `true` when `handle() == nullptr`. |
+| `bool isOpen() const noexcept` | `true` until `WM_QUIT` is received; `false` for copies and moved-from windows. |
+| `bool shouldClose() const noexcept` | Inverse of `isOpen()`. |
 
 ## Lifetime and Ownership
 
@@ -106,7 +112,7 @@ The window class `ArunimestaWindowClass` is registered on first use. Registratio
 ## Current Limitations
 
 - No keyboard, mouse, resize, or other input events are exposed.
-- `event_loop()` blocks until `WM_QUIT`; there is no polling variant.
+- `event_loop()` blocks until `WM_QUIT`; there is no polling variant. `isOpen()` is the close flag for the outer loop.
 - The window class name is fixed to `ArunimestaWindowClass`.
 - `Error` does not yet carry the Win32 error code.
 - No thread-safety guarantees.

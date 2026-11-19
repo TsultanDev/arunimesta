@@ -12,7 +12,7 @@ int main() {
     auto instance2 = instance.move();
     auto instance3 = instance2.copy();
 
-    while(1){
+    while (window.isOpen()) {
         window.event_loop();
     }
 
