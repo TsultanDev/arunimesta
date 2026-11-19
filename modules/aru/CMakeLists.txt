@@ -4,7 +4,7 @@ set(MODULES
 
 add_executable(aru "src/main.cpp")
 
-target_link_libraries(aru PRIVATE aru_window aru_std)
+target_link_libraries(aru PRIVATE aru_window aru_std aru_rhi)
 
 target_sources(aru
     PUBLIC FILE_SET CXX_MODULES FILES ${MODULES}

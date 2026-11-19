@@ -12,7 +12,7 @@
 
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** The build system, the application module, the standard library module (`aru.standard` with `Array`, `String`, `Vector`, `Result`, and `println`), and the Win32 windowing module (`aru.window`) are working. The Vulkan renderer has not been implemented.
+> **Status: early development.** The build system, the standard library module (`aru.standard` with `Array`, `String`, `Vector`, `Result`, and `println`), the Win32 windowing module (`aru.window`), and the basic Vulkan RHI (`aru.rhi` instance with dynamic dispatch) are working. The renderer itself has not been implemented.
 
 ---
 
@@ -24,9 +24,9 @@
 | Module `aru` (facade + `Application`) | ✅ Working |
 | Module `aru.standard` (`String`, `Result`, `println`) | ✅ Working |
 | Module `aru.window` | ✅ Active (Win32 window + blocking event loop) |
-| Vulkan renderer (RHI) | ⬜ Not started |
+| Vulkan RHI (`aru.rhi`) | ✅ Basic (instance) |
 
-The `aru` executable currently demonstrates `aru::standard::String`: it creates a UTF-8 string and converts it to a new UTF-32 string through the `String::from()` factory.
+The `aru` executable currently creates a Win32 window and runs its blocking event loop. The `aru.rhi` library is built alongside it; create a Vulkan instance with `aru::rhi::Instance::create(String<T>)`.
 
 ---
 
@@ -60,7 +60,7 @@ The `aru` executable currently demonstrates `aru::standard::String`: it creates 
 | **Target Platform** | Windows x64 (matching the available presets) |
 | **Standard Library** | `aru.standard` — `String` (UTF-8/16/32), `Vector`, `Result`, debug `println`/`eprintln` |
 | **Windowing** | `aru.window` — Win32 Unicode APIs, window + blocking event loop |
-| **Rendering** | Vulkan — *planned* |
+| **Rendering** | Vulkan-Hpp (dynamic dispatch) — basic `aru.rhi` instance |
 
 ---
 

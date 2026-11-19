@@ -15,7 +15,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `aru.standard` (`Result`) | ✅ Basic | Discriminated union, in-place construction, `valueOrUnexpected()` |
 | `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
 | Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `Result` errors, copy/move assignment, event loop |
-| Vulkan renderer | ⬜ Not started | No RHI source yet |
+| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` created from `String<T>`, version from `vkEnumerateInstanceVersion` |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 
@@ -43,7 +43,8 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] `:vector` partition — `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, initializer-list assignment, `iter()`/`intoIter()`
 - [x] Factory-only allocation policy for `String` and `Vector`; Rule of Five implemented (copy/move constructors available)
 - [ ] String concatenation (`append`, `+`, `+=`)
-- [ ] `std::formatter` / `std::hash` support for `String` and `Vector`
+- [x] `std::formatter` for `String` / `Error` (char context)
+- [ ] `std::hash` support for `String` and `Vector`
 
 **Done criteria:** strings in the three UTF encodings and `Vector<T>` can be allocated through their factories, copied/moved through assignment or `copy()`/`move()`, and converted without data loss; `aru` links `aru_std` and re-exports it through `import aru;`.
 
@@ -64,8 +65,8 @@ This document contains the status, milestones, and development plan for Arunimes
 
 ### M2 — Vulkan RHI Foundation
 
-- [ ] `aru_rhi` module (static library) and `aru.rhi` facade
-- [ ] Vulkan loader/instance
+- [x] `aru_rhi` module (static library) and `aru.rhi` facade
+- [x] Vulkan loader/instance (dynamic dispatch, `vkEnumerateInstanceVersion`)
 - [ ] Debug messenger in debug builds
 - [ ] Surface from the window
 - [ ] Physical device and queue family selection
@@ -121,7 +122,7 @@ Cleanup priorities before adding large subsystems:
 3. Carry the Win32 error code in `aru::window::Error`.
 4. Handle resize (`WM_SIZE`).
 5. Add `String` concatenation (`append`, `+`, `+=`).
-6. Add `std::formatter` / `std::hash` support for `String`.
+6. Add `std::hash` support for `String` and wide/UTF-16 formatter contexts.
 7. Add unit tests in `test/`.
 8. Clean up the duplicate logs in `Application::init()`.
 9. Add `operator new[] = delete` for consistency.

@@ -16,6 +16,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [api/result.md](api/result.md) | `aru::standard::Result<T, E>` API reference. |
 | [api/print.md](api/print.md) | `aru::standard::println` / `eprintln` API reference. |
 | [api/window.md](api/window.md) | `aru::window::Window` API reference (active). |
+| [api/instance.md](api/instance.md) | `aru::rhi::Instance` API reference (Vulkan instance, dynamic dispatch). |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
 ## Documentation Principles
