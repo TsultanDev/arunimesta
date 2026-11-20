@@ -106,13 +106,15 @@ New allocations go through factory functions. All these types implement the Rule
 - `src/lib.cppm` is the facade:
   ```cpp
   export module aru.rhi;
+  export import :error;
   export import :instance;
   export import :surface;
   export import :adapter;
   export import :device;
   export import :queue;
   ```
-- `src/instance.cppm` is the partition `aru.rhi:instance`. It exports `Error` (formattable), `QueueFlags` with `constexpr` bitwise operators, and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
+- `src/error.cppm` is the partition `aru.rhi:error`. It owns the formattable `Error` enum; other RHI partitions `export import :error;`.
+- `src/instance.cppm` is the partition `aru.rhi:instance`. It exports `QueueFlags` with `constexpr` bitwise operators and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
 - `src/surface.cppm` is the partition `aru.rhi:surface`. It exports `Surface` and defines `Instance::createSurface(const Window&)`; it imports `:instance`, `aru.standard`, and `aru.window`.
 - `src/adapter.cppm` is the partition `aru.rhi:adapter`. It exports `Adapter` and defines `Instance::requestAdapter(const Surface&)`; it selects the first graphics + present queue family.
 - `src/device.cppm` is the partition `aru.rhi:device`. It exports `Device` and defines `Adapter::createDevice(const Adapter&)`; it enables `VK_KHR_swapchain`.
@@ -130,8 +132,10 @@ New allocations go through factory functions. All these types implement the Rule
 - `src/lib.cppm` is the facade and re-exports the partition:
   ```cpp
   export module aru.window;
+  export import :error;
   export import :window;
   ```
+- `src/error.cppm` is the partition `aru.window:error`. It owns the formattable `Error` enum; `window.cppm` re-exports it.
 - `modules/aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
 - The implementation uses the Win32 Unicode APIs: `RegisterClassW`, `CreateWindowExW`, `DefWindowProcW`, `GetMessageW`, and `DispatchMessageW`.
 - `Window::create()` returns `aru::standard::Result<Window, Error>`. `Error` is formattable, so it can be printed directly with `println`.

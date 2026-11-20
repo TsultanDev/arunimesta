@@ -6,9 +6,7 @@ module;
 #include <aru_rhi/vulkan.hpp>
 
 #include <cstdint>
-#include <format>
 #include <iterator>
-#include <string_view>
 #include <utility>
 
 // === Storage utama Vulkan-Hpp dispatcher (hanya di file ini) ===
@@ -20,19 +18,9 @@ export module aru.rhi:instance;
 
 import aru.standard;
 import aru.window;
+export import :error;
 
 export namespace aru::rhi {
-    enum class Error {
-        None = 0,
-        DynamicLoaderFailed,
-        ApiVersionQueryFailed,
-        InstanceCreationFailed,
-        SurfaceCreationFailed,
-        AdapterNotFound,
-        DeviceCreationFailed,
-        QueueRequestFailed,
-    };
-
     // Dipakai Device::requestQueue(). Operator bitwise constexpr supaya
     // kombinasi seperti GRAPHICS | PRESENT bisa jadi konstanta compile-time.
     enum class QueueFlags : std::uint32_t {
@@ -74,43 +62,6 @@ export namespace aru::rhi {
     class Adapter;
     class Device;
     class Queue;
-}
-
-export namespace std {
-    template<>
-    struct formatter<aru::rhi::Error> : formatter<string_view> {
-        template<typename FormatContext>
-        auto format(const aru::rhi::Error& error, FormatContext& ctx) const {
-            string_view text = "unknown";
-            switch (error) {
-                case aru::rhi::Error::None:
-                    text = "none";
-                    break;
-                case aru::rhi::Error::DynamicLoaderFailed:
-                    text = "vulkan dynamic loader failed";
-                    break;
-                case aru::rhi::Error::ApiVersionQueryFailed:
-                    text = "vkEnumerateInstanceVersion failed";
-                    break;
-                case aru::rhi::Error::InstanceCreationFailed:
-                    text = "vk::createInstance failed";
-                    break;
-                case aru::rhi::Error::SurfaceCreationFailed:
-                    text = "vk::createWin32SurfaceKHR failed";
-                    break;
-                case aru::rhi::Error::AdapterNotFound:
-                    text = "no suitable physical device";
-                    break;
-                case aru::rhi::Error::DeviceCreationFailed:
-                    text = "vk::createDevice failed";
-                    break;
-                case aru::rhi::Error::QueueRequestFailed:
-                    text = "requested queue flags are unavailable";
-                    break;
-            }
-            return formatter<string_view>::format(text, ctx);
-        }
-    };
 }
 
 export namespace aru::rhi {

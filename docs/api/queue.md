@@ -7,7 +7,7 @@
 `QueueFlags` and its operators live in `aru.rhi:instance` (`src/instance.cppm`) so both devices and consumers can use them. The operators are `constexpr`, so combinations can be compile-time constants:
 
 ```cpp
-constexpr auto flags = aru::rhi::QueueFlags::GRAPHICS | aru::rhi::QueueFlags::PRESENT;
+constexpr auto flags = aru::rhi::QueueFlags::Graphics | aru::rhi::QueueFlags::Present;
 auto queue = device.requestQueue(flags).valueOrUnexpected([](aru::rhi::Error&& err){
     aru::standard::println("queue: {}", err);
 });
@@ -16,12 +16,12 @@ auto queue = device.requestQueue(flags).valueOrUnexpected([](aru::rhi::Error&& e
 | Name | Meaning |
 | :--- | :--- |
 | `None` | No flag. |
-| `Graphics` / `GRAPHICS` | `VK_QUEUE_GRAPHICS_BIT`. |
-| `Compute` / `COMPUTE` | `VK_QUEUE_COMPUTE_BIT`. |
-| `Transfer` / `TRANSFER` | `VK_QUEUE_TRANSFER_BIT`. |
-| `Present` / `PRESENT` | Surface presentation support (checked via `getSurfaceSupportKHR`). |
+| `Graphics` | `VK_QUEUE_GRAPHICS_BIT`. |
+| `Compute` | `VK_QUEUE_COMPUTE_BIT`. |
+| `Transfer` | `VK_QUEUE_TRANSFER_BIT`. |
+| `Present` | Surface presentation support (checked via `getSurfaceSupportKHR`). |
 
-`GRAPHICS`, `COMPUTE`, `TRANSFER`, and `PRESENT` are aliases used by `main.cpp`; the capitalized spellings are the canonical names.
+These are the spellings used by `main.cpp`.
 
 | Operator | Description |
 | :--- | :--- |

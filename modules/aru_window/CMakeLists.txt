@@ -1,5 +1,6 @@
 set(MODULES
   "src/lib.cppm"
+  "src/error.cppm"
   "src/window.cppm"
 )
 add_library(aru_window STATIC)

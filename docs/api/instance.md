@@ -46,7 +46,7 @@ auto instance = result.valueOrUnexpected([](aru::rhi::Error&& err) {
 | `DeviceCreationFailed` | `vk::createDevice` threw or the adapter was empty. |
 | `QueueRequestFailed` | The requested queue flags are unavailable on the selected family. |
 
-`Error` has a `std::formatter<Error, char>` specialization, so it can be printed with `println()`.
+`Error` lives in the `aru.rhi:error` partition (`src/error.cppm`) together with its `std::formatter<Error, char>` specialization, so it can be printed with `println()`. The `aru.rhi` facade re-exports that partition.
 
 ### Factory members returning `Result<T, Error>`
 

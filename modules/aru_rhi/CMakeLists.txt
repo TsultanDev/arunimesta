@@ -1,5 +1,6 @@
 set(MODULES
   "src/lib.cppm"
+  "src/error.cppm"
   "src/instance.cppm"
   "src/surface.cppm"
   "src/adapter.cppm"
