@@ -15,7 +15,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `aru.standard` (`Result`) | ✅ Basic | Discriminated union, in-place construction, `valueOrUnexpected()` |
 | `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
 | Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `Result` errors, copy/move assignment, event loop |
-| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` created from `String<T>`, version from `vkEnumerateInstanceVersion` |
+| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `String<T>`, Win32 `Surface`, `Adapter`, `Device`, and `Queue` |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 
@@ -69,8 +69,8 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] Vulkan loader/instance (dynamic dispatch, `vkEnumerateInstanceVersion`)
 - [ ] Debug messenger in debug builds
 - [x] Surface from the window (`Instance::createSurface(Window)`)
-- [ ] Physical device and queue family selection
-- [ ] Logical device and queue
+- [x] Physical device and queue family selection (`Instance::requestAdapter(Surface)`)
+- [x] Logical device and queue (`Adapter::createDevice()`, `Device::requestQueue(QueueFlags)` with `constexpr` bitwise operators)
 
 **Done criteria:** the instance, surface, and device are created and destroyed without validation errors.
 

@@ -51,6 +51,6 @@ Only one object owns a given `vk::SurfaceKHR`. The surface must be destroyed bef
 
 ## Limitations
 
-- No physical device, device, or swapchain yet.
+- No swapchain yet.
 - No surface capability / format queries.
 - Windows-only, matching the current `aru.window` target.

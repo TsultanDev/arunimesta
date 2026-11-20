@@ -15,6 +15,16 @@ int main() {
     auto surface = instance.createSurface(window).valueOrUnexpected([](aru::rhi::Error){
 
     });
+    auto adapter = instance.requestAdapter(surface).valueOrUnexpected([](aru::rhi::Error){
+
+    });
+    auto device = adapter.createDevice(adapter).valueOrUnexpected([](aru::rhi::Error){
+
+    });
+    auto queue = device.requestQueue(aru::rhi::QueueFlags::Graphics | aru::rhi::QueueFlags::Present).valueOrUnexpected([](aru::rhi::Error){
+
+    });
+    aru::standard::println("Aru RHI: queue ready (family {})", queue.familyIndex());
 
     while (window.isOpen()) {
         window.event_loop();

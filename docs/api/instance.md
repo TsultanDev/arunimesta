@@ -23,6 +23,7 @@ Creates the Vulkan instance.
 - The application name is stored in the resulting `Instance` as `String<char8_t>`.
 - The API version is **not** taken from the caller. `vkEnumerateInstanceVersion` is called and its result is used as `VkApplicationInfo::apiVersion`. If the loader does not expose that function (Vulkan 1.0), `VK_API_VERSION_1_0` is used.
 - After `vk::createInstance`, the instance-level dispatcher is initialized with `VULKAN_HPP_DEFAULT_DISPATCHER.init(instance)`.
+- `VK_KHR_surface` and `VK_KHR_win32_surface` are enabled so that `createSurface()` works.
 
 ```cpp
 auto name = aru::standard::String<char16_t>::from(u"Arunimesta");
@@ -40,8 +41,19 @@ auto instance = result.valueOrUnexpected([](aru::rhi::Error&& err) {
 | `DynamicLoaderFailed` | `vkGetInstanceProcAddr` could not be loaded. |
 | `ApiVersionQueryFailed` | `vkEnumerateInstanceVersion` returned a failure code. |
 | `InstanceCreationFailed` | `vk::createInstance` threw. |
+| `SurfaceCreationFailed` | `vk::createWin32SurfaceKHR` threw or the window was empty. |
+| `AdapterNotFound` | No physical device has a graphics + present queue family for the surface. |
+| `DeviceCreationFailed` | `vk::createDevice` threw or the adapter was empty. |
+| `QueueRequestFailed` | The requested queue flags are unavailable on the selected family. |
 
 `Error` has a `std::formatter<Error, char>` specialization, so it can be printed with `println()`.
+
+### Factory members returning `Result<T, Error>`
+
+| Function | Defined in | Description |
+| :--- | :--- | :--- |
+| `createSurface(const aru::window::Window&)` | `:surface` | Creates a Win32 Vulkan surface. |
+| `requestAdapter(const Surface&)` | `:adapter` | Selects a physical device with graphics + present support. |
 
 ### Accessors
 
@@ -70,5 +82,5 @@ Copy exists so that `Instance` fits containers and the `Result` copying rules. O
 ## Limitations
 
 - No debug utils messenger yet.
-- No physical device, logical device, surface, or swapchain.
+- No swapchain yet (only the instance, surface, adapter, device, and queue exist).
 - No validation-layer configuration.

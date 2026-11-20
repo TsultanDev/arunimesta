@@ -18,6 +18,9 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [api/window.md](api/window.md) | `aru::window::Window` API reference (active). |
 | [api/instance.md](api/instance.md) | `aru::rhi::Instance` API reference (Vulkan instance, dynamic dispatch). |
 | [api/surface.md](api/surface.md) | `aru::rhi::Surface` API reference (Win32 Vulkan surface). |
+| [api/adapter.md](api/adapter.md) | `aru::rhi::Adapter` API reference (physical device selection). |
+| [api/device.md](api/device.md) | `aru::rhi::Device` API reference (logical device). |
+| [api/queue.md](api/queue.md) | `aru::rhi::Queue` API reference and `QueueFlags` bitwise operators. |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
 ## Documentation Principles

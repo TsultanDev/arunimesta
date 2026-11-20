@@ -2,6 +2,9 @@ set(MODULES
   "src/lib.cppm"
   "src/instance.cppm"
   "src/surface.cppm"
+  "src/adapter.cppm"
+  "src/device.cppm"
+  "src/queue.cppm"
 )
 
 find_package(Vulkan REQUIRED)

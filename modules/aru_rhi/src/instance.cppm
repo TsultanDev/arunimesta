@@ -28,10 +28,52 @@ export namespace aru::rhi {
         ApiVersionQueryFailed,
         InstanceCreationFailed,
         SurfaceCreationFailed,
+        AdapterNotFound,
+        DeviceCreationFailed,
+        QueueRequestFailed,
     };
+
+    // Dipakai Device::requestQueue(). Operator bitwise constexpr supaya
+    // kombinasi seperti GRAPHICS | PRESENT bisa jadi konstanta compile-time.
+    enum class QueueFlags : std::uint32_t {
+        None = 0,
+        Graphics = 1u << 0,
+        Compute = 1u << 1,
+        Transfer = 1u << 2,
+        Present = 1u << 3,
+
+    };
+
+    constexpr QueueFlags operator|(QueueFlags lhs, QueueFlags rhs) noexcept{
+        return static_cast<QueueFlags>(static_cast<std::uint32_t>(lhs) | static_cast<std::uint32_t>(rhs));
+    }
+
+    constexpr QueueFlags operator&(QueueFlags lhs, QueueFlags rhs) noexcept{
+        return static_cast<QueueFlags>(static_cast<std::uint32_t>(lhs) & static_cast<std::uint32_t>(rhs));
+    }
+
+    constexpr QueueFlags operator^(QueueFlags lhs, QueueFlags rhs) noexcept{
+        return static_cast<QueueFlags>(static_cast<std::uint32_t>(lhs) ^ static_cast<std::uint32_t>(rhs));
+    }
+
+    constexpr QueueFlags operator~(QueueFlags value) noexcept{
+        return static_cast<QueueFlags>(~static_cast<std::uint32_t>(value));
+    }
+
+    constexpr QueueFlags& operator|=(QueueFlags& lhs, QueueFlags rhs) noexcept{
+        lhs = lhs | rhs;
+        return lhs;
+    }
+
+    constexpr bool hasFlag(QueueFlags value, QueueFlags flag) noexcept{
+        return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(flag)) != 0;
+    }
 
     class Instance;
     class Surface;
+    class Adapter;
+    class Device;
+    class Queue;
 }
 
 export namespace std {
@@ -56,6 +98,15 @@ export namespace std {
                 case aru::rhi::Error::SurfaceCreationFailed:
                     text = "vk::createWin32SurfaceKHR failed";
                     break;
+                case aru::rhi::Error::AdapterNotFound:
+                    text = "no suitable physical device";
+                    break;
+                case aru::rhi::Error::DeviceCreationFailed:
+                    text = "vk::createDevice failed";
+                    break;
+                case aru::rhi::Error::QueueRequestFailed:
+                    text = "requested queue flags are unavailable";
+                    break;
             }
             return formatter<string_view>::format(text, ctx);
         }
@@ -70,8 +121,9 @@ export namespace aru::rhi {
             template<aru::standard::character T>
             static ResultType create(const aru::standard::String<T>& appName);
 
-            // Didefinisikan di :surface (butuh tipe Surface yang lengkap).
+            // Didefinisikan di :surface / :adapter (butuh tipe lengkap).
             aru::standard::Result<Surface, Error> createSurface(const aru::window::Window& window);
+            aru::standard::Result<Adapter, Error> requestAdapter(const Surface& surface);
 
             Instance(const Instance& other);
             Instance(Instance&& other) noexcept;
