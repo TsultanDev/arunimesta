@@ -107,10 +107,13 @@ New allocations go through factory functions. All these types implement the Rule
   ```cpp
   export module aru.rhi;
   export import :instance;
+  export import :surface;
   ```
-- `src/instance.cppm` is the partition `aru.rhi:instance`. It exports `Error` (formattable) and `Instance`.
+- `src/instance.cppm` is the partition `aru.rhi:instance`. It exports `Error` (formattable) and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
+- `src/surface.cppm` is the partition `aru.rhi:surface`. It exports `Surface` and defines `Instance::createSurface(const Window&)`; it imports `:instance`, `aru.standard`, and `aru.window`.
 - `Instance::create(const String<T>&)` accepts any `String<T>` (`char8_t`, `char16_t`, `char32_t`), transcodes it to UTF-8, and returns `Result<Instance, Error>`.
 - The API version comes from `vkEnumerateInstanceVersion`, not from the caller; Vulkan 1.0 falls back to `VK_API_VERSION_1_0`.
+- `aru_rhi/vulkan.hpp` also defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic dispatcher has one consistent layout.
 - Vulkan-Hpp uses **dynamic dispatch** (`VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`). The dispatcher storage is defined exactly once in `src/instance.cppm`; other translation units include `aru_rhi/vulkan.hpp`, which only declares it `extern`.
 - Rule of Five: copy duplicates metadata but not the `vk::Instance` handle; move steals the handle and empties the source. The destructor destroys only an owned handle.
 

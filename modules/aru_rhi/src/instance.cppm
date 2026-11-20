@@ -7,6 +7,7 @@ module;
 
 #include <cstdint>
 #include <format>
+#include <iterator>
 #include <string_view>
 #include <utility>
 
@@ -18,6 +19,7 @@ namespace vk::detail {
 export module aru.rhi:instance;
 
 import aru.standard;
+import aru.window;
 
 export namespace aru::rhi {
     enum class Error {
@@ -25,12 +27,13 @@ export namespace aru::rhi {
         DynamicLoaderFailed,
         ApiVersionQueryFailed,
         InstanceCreationFailed,
+        SurfaceCreationFailed,
     };
 
     class Instance;
+    class Surface;
 }
 
-// Biar println("{}", err) bekerja seperti di aru.window.
 export namespace std {
     template<>
     struct formatter<aru::rhi::Error> : formatter<string_view> {
@@ -50,6 +53,9 @@ export namespace std {
                 case aru::rhi::Error::InstanceCreationFailed:
                     text = "vk::createInstance failed";
                     break;
+                case aru::rhi::Error::SurfaceCreationFailed:
+                    text = "vk::createWin32SurfaceKHR failed";
+                    break;
             }
             return formatter<string_view>::format(text, ctx);
         }
@@ -61,14 +67,12 @@ export namespace aru::rhi {
         public:
             using ResultType = aru::standard::Result<Instance, Error>;
 
-            // Factory: appName boleh String<char8_t>, String<char16_t>, atau
-            // String<char32_t>. Versi API Vulkan diambil dari
-            // vkEnumerateInstanceVersion, bukan dari argumen pemanggil.
             template<aru::standard::character T>
             static ResultType create(const aru::standard::String<T>& appName);
 
-            // Rule of Five. Copy menyalin metadata (handle ikut dikosongkan),
-            // move memindahkan handle Vulkan ke objek baru.
+            // Didefinisikan di :surface (butuh tipe Surface yang lengkap).
+            aru::standard::Result<Surface, Error> createSurface(const aru::window::Window& window);
+
             Instance(const Instance& other);
             Instance(Instance&& other) noexcept;
             Instance& operator=(const Instance& other);
@@ -132,8 +136,15 @@ aru::rhi::Instance::ResultType aru::rhi::Instance::createImpl(const aru::standar
     appInfo.setEngineVersion(VK_MAKE_VERSION(1, 0, 0));
     appInfo.setApiVersion(availableVersion);
 
+    // Dibutuhkan Surface Win32. Tanpa ini createWin32SurfaceKHR gagal.
+    const char* extensions[] = {
+        VK_KHR_SURFACE_EXTENSION_NAME,
+        VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    };
     vk::InstanceCreateInfo createInfo;
     createInfo.setPApplicationInfo(&appInfo);
+    createInfo.setEnabledExtensionCount(static_cast<std::uint32_t>(std::size(extensions)));
+    createInfo.setPpEnabledExtensionNames(extensions);
 
     vk::Instance created;
     try{

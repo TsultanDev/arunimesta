@@ -68,7 +68,7 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] `aru_rhi` module (static library) and `aru.rhi` facade
 - [x] Vulkan loader/instance (dynamic dispatch, `vkEnumerateInstanceVersion`)
 - [ ] Debug messenger in debug builds
-- [ ] Surface from the window
+- [x] Surface from the window (`Instance::createSurface(Window)`)
 - [ ] Physical device and queue family selection
 - [ ] Logical device and queue
 

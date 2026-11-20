@@ -12,8 +12,9 @@ int main() {
     auto instance = aru::rhi::Instance::create(s8).valueOrUnexpected([](aru::rhi::Error){
 
     });
-    auto instance2 = instance.move();
-    auto instance3 = instance2.copy();
+    auto surface = instance.createSurface(window).valueOrUnexpected([](aru::rhi::Error){
+
+    });
 
     while (window.isOpen()) {
         window.event_loop();
