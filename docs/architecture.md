@@ -100,7 +100,7 @@ New allocations go through factory functions. All these types implement the Rule
 - Different instantiations of `String<T>` are unrelated classes; the mutual `template<character U> friend class String;` declaration lets `from()` read the private data of `String<SourceT>`.
 - `from(const String<SourceT>&)` with `SourceT == T` copies the storage directly (terminator included, no extra push).
 
-### Module `aru.rhi` (basic)
+### Module `aru.rhi` (presentation foundation)
 
 - The static library target `aru_rhi` is registered in the root `CMakeLists.txt` and links `Vulkan::Headers`, `aru_std`, and `aru_window`.
 - `src/lib.cppm` is the facade:
@@ -112,6 +112,10 @@ New allocations go through factory functions. All these types implement the Rule
   export import :adapter;
   export import :device;
   export import :queue;
+  export import :resource;
+  export import :swapchain;
+  export import :render_pass;
+  export import :framebuffer;
   ```
 - `src/error.cppm` is the partition `aru.rhi:error`. It owns the formattable `Error` enum; other RHI partitions `export import :error;`.
 - `src/instance.cppm` is the partition `aru.rhi:instance`. It exports `QueueFlags` with `constexpr` bitwise operators and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
@@ -119,11 +123,16 @@ New allocations go through factory functions. All these types implement the Rule
 - `src/adapter.cppm` is the partition `aru.rhi:adapter`. It exports `Adapter` and defines `Instance::requestAdapter(const Surface&)`; it selects the first graphics + present queue family.
 - `src/device.cppm` is the partition `aru.rhi:device`. It exports `Device` and defines `Adapter::createDevice(const Adapter&)`; it enables `VK_KHR_swapchain`.
 - `src/queue.cppm` is the partition `aru.rhi:queue`. It exports `Queue` and defines `Device::requestQueue(QueueFlags)`, validating flags with the `constexpr` bitwise helpers.
+- `src/resource.cppm` is the partition `aru.rhi:resource`. It exports `Resource` and `ResourceKind`; `Resource` is a tagged union of `ImageData { image, view }` and `BufferData { buffer, view }`, with an ownership flag for safe copies.
+- `src/swapchain.cppm` is the partition `aru.rhi:swapchain`. It exports `Swapchain` and defines `Device::createSwapchain(width, height)` and `Device::createSwapchainImages(swapchain)`.
+- `src/render_pass.cppm` is the partition `aru.rhi:render_pass`. It exports `RenderPass` and defines `Device::createRenderPass(swapchain)`.
+- `src/framebuffer.cppm` is the partition `aru.rhi:framebuffer`. It exports `Framebuffer` and defines `Device::createFramebuffer(renderPass, image)`.
 - `Instance::create(const String<T>&)` accepts any `String<T>` (`char8_t`, `char16_t`, `char32_t`), transcodes it to UTF-8, and returns `Result<Instance, Error>`.
 - The API version comes from `vkEnumerateInstanceVersion`, not from the caller; Vulkan 1.0 falls back to `VK_API_VERSION_1_0`.
 - `aru_rhi/vulkan.hpp` also defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic dispatcher has one consistent layout.
 - Vulkan-Hpp uses **dynamic dispatch** (`VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`). The dispatcher storage is defined exactly once in `src/instance.cppm`; other translation units include `aru_rhi/vulkan.hpp`, which only declares it `extern`.
-- Rule of Five: copy duplicates metadata but not the owned Vulkan handle; move steals the handle and empties the source. Destructors destroy only owned handles (`Instance`, `Surface`, `Device`); `Adapter` and `Queue` are non-owning views.
+- Rule of Five: copy duplicates metadata but not the owned Vulkan handle; move steals the handle and empties the source. Destructors destroy only owned handles (`Instance`, `Surface`, `Device`, `Swapchain`, `RenderPass`, `Framebuffer`, and owned `Resource` views/buffers); `Adapter` and `Queue` are non-owning views. A copied `Resource` keeps its handles but is marked non-owning to avoid double destruction.
+- Presentation order in `main.cpp`: window → instance → surface → adapter → device → queue → swapchain → swapchain images → render pass → framebuffers. Reverse declaration order gives correct destruction.
 
 ### Module `aru.window` (active)
 

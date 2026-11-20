@@ -6,6 +6,10 @@ set(MODULES
   "src/adapter.cppm"
   "src/device.cppm"
   "src/queue.cppm"
+  "src/resource.cppm"
+  "src/swapchain.cppm"
+  "src/render_pass.cppm"
+  "src/framebuffer.cppm"
 )
 
 find_package(Vulkan REQUIRED)

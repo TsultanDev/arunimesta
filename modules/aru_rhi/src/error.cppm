@@ -15,6 +15,10 @@ export namespace aru::rhi {
         AdapterNotFound,
         DeviceCreationFailed,
         QueueRequestFailed,
+        SwapchainCreationFailed,
+        ResourceCreationFailed,
+        RenderPassCreationFailed,
+        FramebufferCreationFailed,
     };
 }
 
@@ -48,6 +52,18 @@ export namespace std {
                     break;
                 case aru::rhi::Error::QueueRequestFailed:
                     text = "requested queue flags are unavailable";
+                    break;
+                case aru::rhi::Error::SwapchainCreationFailed:
+                    text = "vk::createSwapchainKHR failed";
+                    break;
+                case aru::rhi::Error::ResourceCreationFailed:
+                    text = "image view / buffer creation failed";
+                    break;
+                case aru::rhi::Error::RenderPassCreationFailed:
+                    text = "vk::createRenderPass failed";
+                    break;
+                case aru::rhi::Error::FramebufferCreationFailed:
+                    text = "vk::createFramebuffer failed";
                     break;
             }
             return formatter<string_view>::format(text, ctx);

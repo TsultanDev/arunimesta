@@ -22,6 +22,10 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [api/adapter.md](api/adapter.md) | `aru::rhi::Adapter` API reference (physical device selection). |
 | [api/device.md](api/device.md) | `aru::rhi::Device` API reference (logical device). |
 | [api/queue.md](api/queue.md) | `aru::rhi::Queue` API reference and `QueueFlags` bitwise operators. |
+| [api/swapchain.md](api/swapchain.md) | `aru::rhi::Swapchain` API reference (format/extent/image selection). |
+| [api/resource.md](api/resource.md) | `aru::rhi::Resource` tagged union (image + view / buffer + view). |
+| [api/render_pass.md](api/render_pass.md) | `aru::rhi::RenderPass` API reference. |
+| [api/framebuffer.md](api/framebuffer.md) | `aru::rhi::Framebuffer` API reference and per-image creation loop. |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
 ## Community

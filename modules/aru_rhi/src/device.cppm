@@ -13,6 +13,10 @@ import :instance;
 import :adapter;
 
 export namespace aru::rhi {
+    class Resource;
+    class Swapchain;
+    class RenderPass;
+    class Framebuffer;
     class Device;
 }
 
@@ -21,8 +25,20 @@ export namespace aru::rhi {
         public:
             using ResultType = aru::standard::Result<Device, Error>;
 
-            // Didefinisikan di :queue (butuh tipe Queue yang lengkap).
+            // Didefinisikan di partisi lain (butuh tipe lengkap masing-masing).
             aru::standard::Result<Queue, Error> requestQueue(QueueFlags flags) const;
+            aru::standard::Result<Resource, Error> createImageResource(
+                vk::Image image, vk::Format format, vk::Extent2D extent) const;
+            aru::standard::Result<Resource, Error> createBufferResource(
+                vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Format format) const;
+            aru::standard::Result<Swapchain, Error> createSwapchain(
+                std::uint32_t width, std::uint32_t height) const;
+            aru::standard::Result<aru::standard::Vector<Resource>, Error> createSwapchainImages(
+                const Swapchain& swapchain) const;
+            aru::standard::Result<RenderPass, Error> createRenderPass(
+                const Swapchain& swapchain) const;
+            aru::standard::Result<Framebuffer, Error> createFramebuffer(
+                const RenderPass& renderPass, const Resource& image) const;
 
             Device(const Device& other);
             Device(Device&& other) noexcept;

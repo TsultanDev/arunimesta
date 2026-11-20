@@ -14,7 +14,7 @@
 
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** The build system, the standard library module (`aru.standard` with `Array`, `String`, `Vector`, `Result`, and `println`), the Win32 windowing module (`aru.window`), and the basic Vulkan RHI (`aru.rhi` instance, Win32 surface, adapter, device, and queue with dynamic dispatch) are working. The renderer itself has not been implemented.
+> **Status: early development.** The build system, the standard library module (`aru.standard` with `Array`, `String`, `Vector`, `Result`, and `println`), the Win32 windowing module (`aru.window`), and the Vulkan RHI presentation foundation (`aru.rhi` instance, surface, adapter, device, queue, swapchain, resource views, render pass, and framebuffers with dynamic dispatch) are working. Rendering and presentation of an actual frame have not been implemented yet.
 
 ## Preview
 
@@ -34,9 +34,9 @@
 | Module `aru` (facade + `Application`) | ✅ Working |
 | Module `aru.standard` (`String`, `Result`, `println`) | ✅ Working |
 | Module `aru.window` | ✅ Active (Win32 window + blocking event loop) |
-| Vulkan RHI (`aru.rhi`) | ✅ Basic (instance, surface, adapter, device, queue) |
+| Vulkan RHI (`aru.rhi`) | ✅ Basic (instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer) |
 
-The `aru` executable creates a Win32 window, then a Vulkan instance, Win32 surface, adapter, device, and graphics/present queue before entering the window event loop.
+The `aru` executable creates a Win32 window, a Vulkan instance, surface, adapter, device, graphics/present queue, swapchain with image views, a render pass, and one framebuffer per swapchain image before entering the window event loop.
 
 ---
 
@@ -70,7 +70,7 @@ The `aru` executable creates a Win32 window, then a Vulkan instance, Win32 surfa
 | **Target Platform** | Windows x64 (matching the available presets) |
 | **Standard Library** | `aru.standard` — `String` (UTF-8/16/32), `Vector`, `Result`, debug `println`/`eprintln` |
 | **Windowing** | `aru.window` — Win32 Unicode APIs, window + blocking event loop |
-| **Rendering** | Vulkan-Hpp (dynamic dispatch) — `aru.rhi` instance, surface, adapter, device, queue |
+| **Rendering** | Vulkan-Hpp (dynamic dispatch) — `aru.rhi` instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer |
 
 ---
 
@@ -126,7 +126,7 @@ cmake --build --preset build-release
 ./build/clang-x64-debug/modules/aru/aru.exe
 ```
 
-The current demo creates a Win32 window, a Vulkan instance, surface, adapter, device, and graphics/present queue, then enters the window event loop.
+The current demo creates a Win32 window, a Vulkan instance, surface, adapter, device, graphics/present queue, swapchain, image views, a render pass, and framebuffers, then enters the window event loop.
 
 ### Manual Build
 
@@ -165,7 +165,12 @@ arunimesta/
 │       ├── string.md                # String API reference
 │       ├── vector.md                # Vector API reference
 │       ├── result.md                # Result API reference
-│       └── print.md                 # print API reference
+│       ├── print.md                 # print API reference
+│       ├── window.md                # Window API reference
+│       ├── swapchain.md             # Swapchain API reference
+│       ├── resource.md              # Resource tagged union reference
+│       ├── render_pass.md           # RenderPass API reference
+│       └── framebuffer.md           # Framebuffer API reference
 │
 ├── modules/                         # All build targets
 │   ├── aru/                         # Executable — entry point
@@ -188,7 +193,24 @@ arunimesta/
 │       ├── CMakeLists.txt
 │       └── src/
 │           ├── lib.cppm             # export module aru.window; (facade)
+│           ├── error.cppm           # aru.window:error (formattable Error)
 │           └── window.cppm          # Win32 window + event loop
+│   │
+│   └── aru_rhi/                     # Static library — Vulkan RHI
+│       ├── CMakeLists.txt
+│       ├── include/aru_rhi/vulkan.hpp # Shared Vulkan-Hpp + dynamic dispatch
+│       └── src/
+│           ├── lib.cppm             # export module aru.rhi; (facade)
+│           ├── error.cppm           # aru.rhi:error (formattable Error)
+│           ├── instance.cppm        # Instance + QueueFlags
+│           ├── surface.cppm         # Win32 Surface
+│           ├── adapter.cppm         # Physical device selection
+│           ├── device.cppm          # Logical device + factories
+│           ├── queue.cppm           # Queue + requestQueue()
+│           ├── resource.cppm        # Resource tagged union (image/buffer)
+│           ├── swapchain.cppm       # Swapchain + image views
+│           ├── render_pass.cppm     # RenderPass
+│           └── framebuffer.cppm     # Framebuffer
 │
 ├── assets/                          # Logo and documentation images
 │   ├── logo.png                     # Project logo (README header)
@@ -210,8 +232,9 @@ arunimesta/
 | `aru.standard:result` | Module partition | ✅ | `Result<T, E>` discriminated union. |
 | `aru.standard:print` | Module partition | ✅ | Debug-gated `println` / `eprintln` wrappers. |
 | `aru.window` | Static library | ✅ | Win32 window creation, `Result`-based errors, copy/move by assignment, `createFromWindow()`, and event loop. |
+| `aru.rhi` | Static library | ✅ | Vulkan-Hpp with dynamic dispatch: instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer. |
 
-> `modules/aru` links both `aru_std` and `aru_window` (`target_link_libraries(aru PRIVATE aru_window aru_std)`). The `aru` facade re-exports `aru.standard` and `aru.window`.
+> `modules/aru` links `aru_std`, `aru_window`, and `aru_rhi`. The `aru` facade re-exports `aru.standard`, `aru.window`, and `aru.rhi`.
 
 ---
 
@@ -300,7 +323,22 @@ window.event_loop();
 
 Narrow titles are UTF-8, so non-ASCII text such as `世界` is supported. Rule of Five is implemented: copy duplicates the title/metadata (not the `HWND`), move transfers the handle. `window.copy()`, `window.move()`, and assignment are also available. To make a real second OS window, use `Window::createFromWindow(window)`.
 
-References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), [`docs/api/print.md`](docs/api/print.md), and [`docs/api/window.md`](docs/api/window.md).
+Vulkan RHI setup (see [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), and [`docs/api/framebuffer.md`](docs/api/framebuffer.md) for the full flow):
+
+```cpp
+auto swapchain = device.createSwapchain(window.windowWidth(), window.windowHeight())
+    .valueOrUnexpected(report);
+auto images = device.createSwapchainImages(swapchain).valueOrUnexpected(report);
+auto renderPass = device.createRenderPass(swapchain).valueOrUnexpected(report);
+
+auto framebuffers = aru::standard::Vector<aru::rhi::Framebuffer>::create(images.length());
+for (const auto& image : images) {
+    auto framebuffer = device.createFramebuffer(renderPass, image).valueOrUnexpected(report);
+    framebuffers.push(framebuffer.move()); // transfer ownership into the vector
+}
+```
+
+References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), [`docs/api/print.md`](docs/api/print.md), [`docs/api/window.md`](docs/api/window.md), [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), and [`docs/api/framebuffer.md`](docs/api/framebuffer.md).
 
 ---
 
@@ -319,6 +357,10 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 | [docs/api/result.md](docs/api/result.md) | `aru::standard::Result` API |
 | [docs/api/print.md](docs/api/print.md) | `aru::standard::println` / `eprintln` API |
 | [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API (Win32, active) |
+| [docs/api/swapchain.md](docs/api/swapchain.md) | `aru::rhi::Swapchain` API and image selection |
+| [docs/api/resource.md](docs/api/resource.md) | `aru::rhi::Resource` tagged union (image/buffer) |
+| [docs/api/render_pass.md](docs/api/render_pass.md) | `aru::rhi::RenderPass` API |
+| [docs/api/framebuffer.md](docs/api/framebuffer.md) | `aru::rhi::Framebuffer` API |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones and future plans |
 
 ---
@@ -331,8 +373,8 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 - [x] `aru.standard`: `String` (UTF-8/16/32 with transcoding), `Vector`, `Result`, debug `println`
 - [x] Re-enable and implement `aru.window`: RAII window creation, copy/move by assignment, and blocking event loop
 - [x] Vulkan RHI: instance, surface, adapter/device, queue
-- [ ] Vulkan swapchain and presentation
-- [ ] Render pass, pipeline, command buffer, and render loop
+- [x] Vulkan swapchain, image views, resource union, render pass, and framebuffers
+- [ ] Present an actual frame (command buffers, pipeline, synchronization, render loop)
 - [ ] Event handling and resize
 - [ ] Resource management and ECS
 

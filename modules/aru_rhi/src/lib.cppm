@@ -5,3 +5,7 @@ export import :surface;
 export import :adapter;
 export import :device;
 export import :queue;
+export import :resource;
+export import :swapchain;
+export import :render_pass;
+export import :framebuffer;

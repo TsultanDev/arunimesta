@@ -15,7 +15,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `aru.standard` (`Result`) | ✅ Basic | Discriminated union, in-place construction, `valueOrUnexpected()` |
 | `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
 | Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `Result` errors, copy/move assignment, event loop |
-| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `String<T>`, Win32 `Surface`, `Adapter`, `Device`, and `Queue` |
+| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `String<T>`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, and `Framebuffer` |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 
@@ -74,12 +74,15 @@ This document contains the status, milestones, and development plan for Arunimes
 
 **Done criteria:** the instance, surface, and device are created and destroyed without validation errors.
 
-### M3 — Presentation
+### M3 — Presentation (foundation done)
 
-- [ ] Swapchain, image views, and framebuffers
-- [ ] Render pass
-- [ ] Format and present mode selection
+- [x] Swapchain creation with format and present mode selection (`Device::createSwapchain`)
+- [x] Swapchain images with owned image views (`Device::createSwapchainImages`)
+- [x] `Resource` tagged union for image + view / buffer + view
+- [x] Render pass with a single color attachment (`Device::createRenderPass`)
+- [x] One framebuffer per swapchain image (`Device::createFramebuffer`)
 - [ ] Resize handling (recreate swapchain)
+- [ ] Command buffers and presenting an empty frame
 
 **Done criteria:** an empty frame is successfully presented to the window.
 
