@@ -39,7 +39,7 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] `:result` partition — `Result<T, E>` discriminated union
 - [x] `:string` partition — `String<T>` for `char8_t`/`char16_t`/`char32_t`
 - [x] Cross-encoding conversion via static `String::from()` factory (UTF-8 ⇄ UTF-16 ⇄ UTF-32, `U+FFFD` on invalid input)
-- [x] `:array` partition — fixed-size `Array<T>` with `copy()`/`move()` + assignment
+- [x] `:array` partition — fixed-size `Array<T, N>` with inline `T data[N]`, `copy()`/`move()` + assignment
 - [x] `:vector` partition — `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, initializer-list assignment, `iter()`/`intoIter()`
 - [x] Factory-only allocation policy for `String` and `Vector`; Rule of Five implemented (copy/move constructors available)
 - [ ] String concatenation (`append`, `+`, `+=`)

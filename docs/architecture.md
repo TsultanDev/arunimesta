@@ -72,7 +72,7 @@ The facade/partition split is useful as the module grows: consumers keep importi
   export import :string;
   export import :vector;
   ```
-- `modules/aru_std/src/array.cppm` is the partition `aru.standard:array`. It exports the fixed-size `Array<T>` class template.
+- `modules/aru_std/src/array.cppm` is the partition `aru.standard:array`. It exports the fixed-size `Array<T, N>` class template with inline `T data[N]` storage (no allocator).
 - `modules/aru_std/src/string.cppm` is the partition `aru.standard:string`. It exports the `character` concept and the `String<T>` class template.
 - `modules/aru_std/src/result.cppm` is the partition `aru.standard:result`. It exports `Result<T, E>`.
 - `modules/aru_std/src/print.cppm` is the partition `aru.standard:print`. It exports `println` and `eprintln`.
@@ -84,7 +84,7 @@ New allocations go through factory functions. All these types implement the Rule
 
 - `String<T>`: allocation via `String<T>::from(...)` (pointer or another string, cross-type converts and copies). Moving out via `s.move()` (same encoding only).
 - `Vector<T>`: allocation via `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any forward range with convertible elements (`std::array`, `std::vector`, `std::list`, ...), plus literal construction `Vector<int> t = {1, 2, 3}`. Copy via assignment `=` or `v.copy()`; move via move assignment or `v.move()`; literal assignment via `v = {1, 2, 3}`.
-- `Array<T>`: fixed-size; `create(size)` / `create({...})`, with deep-copy and steal constructors.
+- `Array<T, N>`: fixed compile-time size with inline `T data[N]`; `create()` / `create({...})`, with defaulted element-wise copy/move (no resource to steal).
 - `Result<T, E>`: copy/move operate on the active union member; an `active` flag keeps destruction correct if construction throws.
 - `Window`: the copy constructor duplicates title/metadata but not the `HWND`; the move constructor steals the handle.
 - Default constructors that allocate are private; copy/move constructors are implemented; destructors stay public (stack objects must be destructible).

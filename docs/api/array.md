@@ -1,4 +1,4 @@
-# API: `aru::standard::Array<T>`
+# API: `aru::standard::Array<T, N>`
 
 Reference for the `Array` class template exported by the `aru.standard:array` partition and re-exported by `aru.standard` / `aru`.
 
@@ -6,69 +6,65 @@ Reference for the `Array` class template exported by the `aru.standard:array` pa
 import aru;                  // or: import aru.standard;
 // or: import aru.standard:array;
 
-aru::standard::Array<T>
+aru::standard::Array<T, N>
 ```
 
 ## Overview
 
-`Array<T>` is a **fixed-size** sequence. Its length is set at creation and never changes; unlike `Vector<T>`, it has no `push`/`pop`/`reserve`. Storage is raw memory from `std::allocator<T>`, with elements constructed via `std::construct_at` and destroyed explicitly.
+`Array<T, N>` is a **fixed-size** sequence. `N` is a compile-time part of the type, and the elements live in an inline `T data[N]` member. There is no heap allocation, no allocator, and no manual `construct_at` / `destroy_n`. It behaves like a small, owning C array with a container-like interface.
 
-Allocation follows the same policy as `String` and `Vector`:
+`N` must be greater than zero (`static_assert`).
 
 | Task | How |
 | :--- | :--- |
-| New zero-initialized array | `Array<T>::create(size)` |
-| From a literal list | `Array<T>::create({1, 2, 3})` or `Array<int> a = {1, 2, 3};` |
+| New zero-initialized array | `Array<T, N>::create()` |
+| From a literal list | `Array<T, N>::create({1, 2, 3})` or `Array<int, 3> a = {1, 2, 3};` |
 | Copy of another array | `b = a;` or `b = a.copy()` |
 | Move from another array | `b = std::move(a);` or `b = a.move()` |
 | Assign a literal list | `a = {1, 2, 3};` |
 
-Rule of Five: copy/move **constructors are implemented** (deep copy / steal); the destructor is public.
+Rule of Five: copy/move constructors, assignments, and the destructor are `= default`. With inline storage there is no resource to steal: copying copies elements and moving transfers them element by element. The moved-from array remains valid (its elements are in a moved-from state).
 
 ## API
 
-### `static Array create(std::size_t size)`
+### `static Array create()`
 
-Allocates `size` value-initialized elements (`T{}`). `create(0)` is valid and produces an empty array with `begin() == end()`.
+Value-initializes all `N` elements with `T{}`.
 
 ### `static Array create(std::initializer_list<T> values)`
 
-Allocates an array containing exactly the literal list. Requires copy-constructible `T` because `initializer_list` elements are `const`.
+Equivalent to the literal constructor. `values.size()` may be smaller than `N`; the remaining elements are value-initialized. If it is larger than `N`, `std::length_error` is thrown.
+
+```cpp
+auto a = aru::standard::Array<int, 4>::create({1, 2}); // {1, 2, 0, 0}
+```
 
 ### `Array(std::initializer_list<T> values)`
 
-Literal constructor, equivalent to `create({...})`.
+Literal constructor, equivalent to `create({...})`. It is not `explicit`, so `Array<int, 3> a = {7, 8, 9};` works.
 
-### `Array copy() const`
+### `Array copy() const` and `Array move()`
 
-Deep copy: a new buffer with copies of all elements. Source is unchanged.
+Return a new `Array` built from a copy / move of `*this`.
 
-### `Array move() noexcept`
+### `Array& operator=(const Array&)`, `Array& operator=(Array&&)`, `Array& operator=(std::initializer_list<T>)`
 
-Transfers the buffer and length to the returned prvalue; the source becomes empty.
-
-### `Array& operator=(const Array& source)` and `Array& operator=(Array&& source) noexcept`
-
-Copy assignment deep-copies the elements; move assignment steals the buffer and empties the source. Self-assignment is a no-op.
-
-### `Array& operator=(std::initializer_list<T> values)`
-
-Replaces the contents with a deep copy of the literal list. The new length is `values.size()`.
+Defaulted copy/move assignment, plus list assignment. Self-assignment is safe. List assignment replaces all `N` elements, value-initializing any remainder.
 
 ### Element access and iteration
 
 ```cpp
 T& operator[](std::size_t index) noexcept;
 const T& operator[](std::size_t index) const noexcept;
-std::size_t length() const noexcept;
-bool empty() const noexcept;
+std::size_t length() const noexcept;   // always N
+bool empty() const noexcept;           // always false (N > 0)
 T* begin() noexcept;
 const T* begin() const noexcept;
-T* end() noexcept;
+T* end() noexcept;                     // data + N
 const T* end() const noexcept;
 ```
 
-`operator[]` does not perform bounds checks. `begin()`/`end()` are raw pointers, so range-for works directly:
+`operator[]` does not perform bounds checks. `begin()` / `end()` are raw pointers into the inline storage, so range-for works directly:
 
 ```cpp
 for (const T& value : array) {
@@ -76,20 +72,24 @@ for (const T& value : array) {
 }
 ```
 
+### `using value_type = T;` and `static constexpr std::size_t extent = N;`
+
+Both are exposed for generic code.
+
 ## Lifetime and Ownership
 
 | Operation | Status | Notes |
 | :--- | :--- | :--- |
-| Default constructor | Not exposed | Use `create(...)` |
-| Copy constructor | Public | Deep copy (`Array b = a;`), same as `b = a;` / `b = a.copy()` |
-| Move constructor | `noexcept` | Steals the buffer and empties `a`; same as `b = std::move(a);` / `b = a.move()` |
-| Destructor | Public | Destroys elements and deallocates only when `data != nullptr` |
-
-If copying an element throws, already-constructed elements are destroyed and the raw buffer is freed before the exception propagates.
+| Default constructor | Private | Use `create()` / the literal constructor |
+| Copy constructor | `= default` | Copies all elements |
+| Move constructor | `= default` | Moves all elements element-wise; source stays valid |
+| Copy / move assignment | `= default` | Element-wise; self-assignment is safe |
+| Destructor | `= default` | Destroys the inline array automatically |
 
 ## Current Limitations
 
-- Fixed length; no insertion, removal, or resize.
+- Fixed compile-time length; no insertion, removal, or resize.
+- `N == 0` is not supported (`static_assert`).
 - No bounds-checked `at()`.
 - No `std::formatter` / `std::hash` support yet.
 - No allocator customization.
@@ -97,5 +97,4 @@ If copying an element throws, already-constructed elements are destroyed and the
 ## Compatibility
 
 - C++23 named modules.
-- Requires copy-constructible `T` for `create({...})`, literal construction, and `copy()`.
-- `create(size)` additionally requires `T` to be value-initializable.
+- Requires `T` to be default-constructible for `create()` and copy-constructible / assignable for the list constructor and `copy()`.
