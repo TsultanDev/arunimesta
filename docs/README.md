@@ -7,6 +7,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 | Document | Description |
 | :--- | :--- |
 | [architecture.md](architecture.md) | Module architecture, pimpl pattern, ownership, and initialization flow. |
+| [assets.md](assets.md) | Logo, screenshots, and asset usage rules. |
 | [building.md](building.md) | Prerequisites, building with presets or manually, and troubleshooting. |
 | [coding-style.md](coding-style.md) | Naming conventions, `.cppm` file layout, and factory/pimpl patterns. |
 | [api/application.md](api/application.md) | `aru::Application` API reference. |
@@ -22,6 +23,15 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [api/device.md](api/device.md) | `aru::rhi::Device` API reference (logical device). |
 | [api/queue.md](api/queue.md) | `aru::rhi::Queue` API reference and `QueueFlags` bitwise operators. |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
+
+## Community
+
+| Document | Description |
+| :--- | :--- |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | Build, coding style, testing, and pull request workflow. |
+| [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) | Community expectations and enforcement. |
+| [SECURITY.md](../SECURITY.md) | Private vulnerability reporting and disclosure policy. |
+| [LICENSE](../LICENSE) | MIT License. |
 
 ## Documentation Principles
 

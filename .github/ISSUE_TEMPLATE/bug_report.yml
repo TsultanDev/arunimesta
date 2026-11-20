@@ -1,0 +1,94 @@
+name: Bug report
+description: Report a build failure, runtime crash, or incorrect behavior
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug in Arunimesta. Please search existing issues first, and **do not report security vulnerabilities here** — see [SECURITY.md](https://github.com/TsultanDev/arunimesta/blob/main/SECURITY.md).
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Commit hash or branch you reproduced this on.
+      placeholder: "e.g. 3fde1cb or main@abc1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project is affected?
+      options:
+        - Build / CMake
+        - aru (entry point / facade)
+        - aru.standard
+        - aru.window
+        - aru.rhi
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the incorrect behavior, including any error output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact commands and a minimal code snippet if possible.
+      value: |
+        1. `cmake --preset clang-x64-debug`
+        2. `cmake --build --preset build-debug`
+        3. Run `./build/clang-x64-debug/modules/aru/aru.exe`
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Toolchain and OS details.
+      value: |
+        - OS:
+        - Clang version (`clang++ --version`):
+        - CMake version (`cmake --version`):
+        - Ninja version (`ninja --version`):
+        - Vulkan SDK version (if relevant):
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Build / runtime output
+      description: Paste the full relevant output, not only the last line.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues for a duplicate.
+          required: true
+        - label: I reproduced this on the latest commit of `main`.
+          required: false
+        - label: I removed any temporary local changes before reporting.
+          required: false

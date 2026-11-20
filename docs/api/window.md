@@ -12,6 +12,12 @@ import aru;          // re-exports aru.window
 
 `Window` represents a Win32 window. Instances are created through the `create()` factories, which return `aru::standard::Result<Window, Error>`. The title is stored as `aru::standard::String<char16_t>` and passed directly to the Unicode Win32 APIs.
 
+<p align="center">
+  <img src="../../assets/window.png" alt="Arunimesta Win32 window" width="700">
+</p>
+
+<p align="center"><em>The current window created by <code>aru.window</code>; no rendering is implemented yet.</em></p>
+
 Rule of Five: copy and move **constructors are implemented**. The copy constructor duplicates title/metadata (not the `HWND`); the move constructor steals the handle. Assignment and the `copy()` / `move()` member functions are also available. Creating another real OS window is a separate operation: `createFromWindow()`.
 
 ## Error type

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/TsultanDev/arunimesta/tree/main/docs
+    about: Read the build guide, architecture notes, coding style, and API references.
+  - name: Contributing guide
+    url: https://github.com/TsultanDev/arunimesta/blob/main/CONTRIBUTING.md
+    about: Learn how to build the project, report bugs, and open pull requests.
+  - name: Security vulnerability
+    url: https://github.com/TsultanDev/arunimesta/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue for security reports.

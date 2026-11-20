@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="Arunimesta logo" width="160">
+
 # Arunimesta Engine
 
 <img src="https://img.shields.io/badge/C%2B%2B-23-blue.svg" alt="C++23">
@@ -13,6 +15,14 @@
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
 > **Status: early development.** The build system, the standard library module (`aru.standard` with `Array`, `String`, `Vector`, `Result`, and `println`), the Win32 windowing module (`aru.window`), and the basic Vulkan RHI (`aru.rhi` instance, Win32 surface, adapter, device, and queue with dynamic dispatch) are working. The renderer itself has not been implemented.
+
+## Preview
+
+<p align="center">
+  <img src="assets/window.png" alt="Arunimesta Win32 window" width="700">
+</p>
+
+<p align="center"><em>The current Win32 window created by <code>aru.window</code>. Rendering is not implemented yet.</em></p>
 
 ---
 
@@ -71,7 +81,7 @@ The `aru` executable creates a Win32 window, then a Vulkan instance, Win32 surfa
 3. **Ninja** as the generator.
 4. **Windows x64** — the provided presets are only active on Windows.
 
-> The Vulkan SDK is not required until the RHI module starts being implemented.
+> The Vulkan SDK is required by `aru_rhi` for the Vulkan-Hpp headers. Dynamic dispatch is used, so `vulkan-1.lib` is not linked.
 
 ---
 
@@ -116,7 +126,7 @@ cmake --build --preset build-release
 ./build/clang-x64-debug/modules/aru/aru.exe
 ```
 
-The current demo program prints nothing; it only exercises `String` creation and conversion.
+The current demo creates a Win32 window, a Vulkan instance, surface, adapter, device, and graphics/present queue, then enters the window event loop.
 
 ### Manual Build
 
@@ -180,7 +190,9 @@ arunimesta/
 │           ├── lib.cppm             # export module aru.window; (facade)
 │           └── window.cppm          # Win32 window + event loop
 │
-├── assets/                          # Assets (currently empty)
+├── assets/                          # Logo and documentation images
+│   ├── logo.png                     # Project logo (README header)
+│   └── window.png                   # Win32 window screenshot (README, docs)
 ├── test/                            # Test area (currently empty)
 └── build/                           # Build output (ignored)
 ```
@@ -299,6 +311,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 | [docs/architecture.md](docs/architecture.md) | Module structure, pimpl, ownership, initialization flow |
 | [docs/building.md](docs/building.md) | Prerequisites, presets, manual build, troubleshooting |
 | [docs/coding-style.md](docs/coding-style.md) | Naming, `.cppm` file layout, factory/pimpl patterns |
+| [docs/assets.md](docs/assets.md) | Logo, screenshots, and asset usage rules |
 | [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
 | [docs/api/array.md](docs/api/array.md) | `aru::standard::Array` API (fixed-size) |
 | [docs/api/string.md](docs/api/string.md) | `aru::standard::String` API (UTF-8/16/32) |
@@ -317,7 +330,8 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 - [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
 - [x] `aru.standard`: `String` (UTF-8/16/32 with transcoding), `Vector`, `Result`, debug `println`
 - [x] Re-enable and implement `aru.window`: RAII window creation, copy/move by assignment, and blocking event loop
-- [ ] Vulkan RHI: instance, surface, adapter/device, swapchain
+- [x] Vulkan RHI: instance, surface, adapter/device, queue
+- [ ] Vulkan swapchain and presentation
 - [ ] Render pass, pipeline, command buffer, and render loop
 - [ ] Event handling and resize
 - [ ] Resource management and ECS
@@ -326,13 +340,25 @@ Details: [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
+## Contributing
+
+Contributions are welcome. Start with the [contributing guide](CONTRIBUTING.md), which covers the build, coding style, testing expectations, and pull request process.
+
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md) — report vulnerabilities privately, not as public issues
+- [Issue templates](.github/ISSUE_TEMPLATE) — bug reports and feature requests
+- [Documentation index](docs/README.md)
+
+## License
+
+Arunimesta is released under the [MIT License](LICENSE).
+
 ## Notes
 
 - This project is **under active development**; the API and structure may change without backward compatibility.
 - The current build presets are specific to **Windows x64 + Clang**.
 - The `aru.window` module is active on Windows x64; see [its reference](docs/api/window.md) for the current API.
 - Window titles are UTF-8 and may contain non-ASCII characters.
-- No license has been chosen yet.
 
 ---
 

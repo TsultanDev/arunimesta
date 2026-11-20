@@ -19,7 +19,7 @@ cmake --version
 ninja --version
 ```
 
-> The Vulkan SDK is not required until the RHI module is implemented.
+> The Vulkan SDK is required by `aru_rhi` for Vulkan-Hpp headers. Dynamic dispatch is used, so `vulkan-1.lib` is not linked.
 
 ## Available Presets
 
@@ -143,4 +143,4 @@ The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Win
 - External library includes go in the global module fragment, not after `export module`.
 - Debug builds enable `std::println` logging; Release builds do not.
 - The `aru_window` target defines `UNICODE` and `_UNICODE`; keep Win32 code on the Unicode (`...W`) APIs.
-- `modules/aru_window` is currently commented out of the build; expect its `.cppm` sources to be work in progress.
+- `modules/aru_window` and `modules/aru_rhi` are active targets; new partitions must be added to their `FILE_SET CXX_MODULES` lists.
