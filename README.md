@@ -19,10 +19,16 @@
 ## Preview
 
 <p align="center">
-  <img src="assets/window.png" alt="Arunimesta Win32 window" width="700">
+  <img src="assets/window.png" alt="Arunimesta Win32 window before rendering" width="700">
 </p>
 
-<p align="center"><em>The current Win32 window created by <code>aru.window</code>. Empty-frame presentation is implemented; drawing is not.</em></p>
+<p align="center"><em>The original empty Win32 window created by <code>aru.window</code>.</em></p>
+
+<p align="center">
+  <img src="assets/color_window.png" alt="Arunimesta Win32 window with a cleared frame" width="700">
+</p>
+
+<p align="center"><em>Current output: the frame loop clears and presents a color attachment. Draw commands are not implemented yet.</em></p>
 
 ---
 
@@ -204,7 +210,8 @@ arunimesta/
 │
 ├── assets/                          # Logo and documentation images
 │   ├── logo.png                     # Project logo (README header)
-│   └── window.png                   # Win32 window screenshot (README, docs)
+│   ├── window.png                   # Empty Win32 window screenshot (README, docs)
+│   └── color_window.png             # Cleared-frame screenshot (README, frame docs)
 ├── test/                            # Test area (currently empty)
 └── build/                           # Build output (ignored)
 ```

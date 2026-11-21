@@ -20,6 +20,12 @@ check(device.acquire([&]() mutable {
 
 `acquire()`, `record()`, `render()`, `submit()`, and `present()` return `std::expected<void, Error>`. `check` in the demo prints the error and terminates; production code can propagate it instead.
 
+<p align="center">
+  <img src="../../assets/color_window.png" alt="Arunimesta window with a cleared frame" width="700">
+</p>
+
+<p align="center"><em>Output of the prototype loop: the color attachment is cleared and presented. No draw commands are recorded yet.</em></p>
+
 ## What Happens Automatically
 
 `Device::acquire(callback)` is implemented in `device.cppm`; its frame state lives in the `aru.rhi:frame` partition (`modules/aru_rhi/src/frame.cppm`):

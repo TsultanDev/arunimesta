@@ -30,7 +30,22 @@ The logo is the square project mark shown at the top of the README. Keep it on a
 | Format | PNG |
 | Used in | [`README.md`](../README.md) preview, [`api/window.md`](api/window.md) |
 
-The screenshot shows the current Win32 window created by `aru.window`. Rendering is not implemented yet, so the window is intentionally empty. Replace this image when there is a rendered frame worth showing.
+The screenshot shows the original empty Win32 window created by `aru.window`. It is kept as the baseline before any frame was presented; see `color_window.png` below for the current output.
+
+## Colored frame screenshot
+
+<p align="center">
+  <img src="../assets/color_window.png" alt="Arunimesta window with a cleared frame" width="700">
+</p>
+
+| Property | Value |
+| :--- | :--- |
+| File | `assets/color_window.png` |
+| Dimensions | 986 × 745 |
+| Format | PNG |
+| Used in | [`README.md`](../README.md) preview, [`api/frame.md`](api/frame.md) |
+
+This screenshot shows the window after the frame loop submits and presents the cleared color attachment. It confirms that `acquire → record → render → submit → present` works. No draw commands or graphics pipeline are involved yet.
 
 ## Usage Rules
 
@@ -43,7 +58,7 @@ The screenshot shows the current Win32 window created by `aru.window`. Rendering
 
 ## Adding an Asset
 
-1. Place the file in `assets/` with a lowercase, descriptive name (`logo.png`, `window.png`, `swapchain-triangle.png`).
+1. Place the file in `assets/` with a lowercase, descriptive name (`logo.png`, `window.png`, `color_window.png`, `swapchain-triangle.png`).
 2. Add a row to the appropriate table on this page with dimensions, format, and where it is used.
 3. Embed it in the relevant document with an explicit width, for example:
    ```html
