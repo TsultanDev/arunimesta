@@ -41,6 +41,7 @@ int main() {
         });
         framebuffers.push(framebuffer.move());
     }
+
     aru::standard::println("Aru RHI: queue ready (family {})", queue.familyIndex());
     aru::standard::println("Aru RHI: framebuffers ready ({})", framebuffers.length());
 

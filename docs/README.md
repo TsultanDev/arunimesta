@@ -12,6 +12,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [coding-style.md](coding-style.md) | Naming conventions, `.cppm` file layout, and factory/pimpl patterns. |
 | [api/application.md](api/application.md) | `aru::Application` API reference. |
 | [api/array.md](api/array.md) | `aru::standard::Array<T, N>` API reference. |
+| [api/option.md](api/option.md) | `aru::standard::Option<T>` API reference (`some`/`none`, `map`, `andThen`, Rule of Five). |
 | [api/string.md](api/string.md) | `aru::standard::String` (UTF-8/16/32) API reference. |
 | [api/vector.md](api/vector.md) | `aru::standard::Vector<T>` API reference. |
 | [api/result.md](api/result.md) | `aru::standard::Result<T, E>` API reference. |

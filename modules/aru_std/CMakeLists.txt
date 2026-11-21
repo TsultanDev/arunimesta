@@ -1,6 +1,7 @@
 set(SOURCES
   "src/lib.cppm"
   "src/array.cppm"
+  "src/option.cppm"
   "src/print.cppm"
   "src/result.cppm"
   "src/string.cppm"

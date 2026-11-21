@@ -159,6 +159,7 @@ Requirements:
 - Use `std::expected` for recoverable failures, with a meaningful error type (`ApplicationError`, `aru::window::Error`).
 - Avoid `throw` at public API boundaries.
 - `aru.standard:result` offers `Result<T, E>` for lightweight two-value returns; see [the `Result` reference](api/result.md).
+- `aru.standard:option` offers `Option<T>` for an optional value without an error type; see [the `Option` reference](api/option.md).
 - Do not ignore an `expected` result; check it or propagate it with `transform` / `and_then`.
 
 Example:

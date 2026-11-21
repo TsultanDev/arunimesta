@@ -47,6 +47,7 @@ The `aru` executable creates a Win32 window, a Vulkan instance, surface, adapter
 - **Array Type**: `aru::standard::Array<T, N>` is a fixed-size array with inline `T data[N]` storage (no heap allocation). Create with `Array<T, N>::create()` or `create({...})`; copy/move through constructors, assignment, or `copy()`/`move()`. Rule of Five is defaulted because there is no owned resource to steal.
 - **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation goes through `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any `std::array`/`std::vector`/forward range with convertible elements. Literal construction (`Vector<int> t = {1, 2, 3};`) is also supported. Copy/move constructors, assignment, `copy()`, and `move()` are all available (Rule of Five).
 - **Result Type**: `aru::standard::Result<T, E>` is a lightweight discriminated union for explicit success/failure values without exceptions.
+- **Option Type**: `aru::standard::Option<T>` holds either a value or nothing. Create with `Option<T>::some(value)` / `none()`, then use `map()`, `andThen()`, `orElse()`, and `valueOr()`; copy/move follow the engine's Rule of Five convention.
 - **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, ApplicationError>` without throwing exceptions.
 - **Pimpl with `std::unique_ptr`**: implementation details are hidden in `Application_T`; the object is *move-only*.
 - **Heap allocation blocked**: `operator new` is deleted so objects can only be created through the factory and cannot be freely allocated on the heap.
@@ -162,6 +163,7 @@ arunimesta/
 │   ├── roadmap.md                   # Development plan
 │   └── api/
 │       ├── application.md           # Application API reference
+│       ├── option.md                # Option<T> API reference
 │       ├── string.md                # String API reference
 │       ├── vector.md                # Vector API reference
 │       ├── result.md                # Result API reference
@@ -184,6 +186,8 @@ arunimesta/
 │   │   ├── CMakeLists.txt
 │   │   └── src/
 │   │       ├── lib.cppm             # export module aru.standard; (facade)
+│   │       ├── array.cppm           # Array<T, N> (inline storage)
+│   │       ├── option.cppm          # Option<T> (some/none + monadic helpers)
 │   │       ├── string.cppm          # String<T> (UTF-8/16/32) + transcoding
 │   │       ├── vector.cppm          # Vector<T> + iter() / intoIter()
 │   │       ├── result.cppm          # Result<T, E> discriminated union
@@ -338,7 +342,7 @@ for (const auto& image : images) {
 }
 ```
 
-References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), [`docs/api/print.md`](docs/api/print.md), [`docs/api/window.md`](docs/api/window.md), [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), and [`docs/api/framebuffer.md`](docs/api/framebuffer.md).
+References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/option.md`](docs/api/option.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), [`docs/api/print.md`](docs/api/print.md), [`docs/api/window.md`](docs/api/window.md), [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), and [`docs/api/framebuffer.md`](docs/api/framebuffer.md).
 
 ---
 
@@ -352,6 +356,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/str
 | [docs/assets.md](docs/assets.md) | Logo, screenshots, and asset usage rules |
 | [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
 | [docs/api/array.md](docs/api/array.md) | `aru::standard::Array` API (fixed-size) |
+| [docs/api/option.md](docs/api/option.md) | `aru::standard::Option<T>` API (some/none, map/andThen, Rule of Five) |
 | [docs/api/string.md](docs/api/string.md) | `aru::standard::String` API (UTF-8/16/32) |
 | [docs/api/vector.md](docs/api/vector.md) | `aru::standard::Vector` API (factory-only allocation) |
 | [docs/api/result.md](docs/api/result.md) | `aru::standard::Result` API |

@@ -13,6 +13,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `aru.standard` (`Vector`) | ✅ Basic | Factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()` |
 | `aru.standard` (`Array`) | ✅ Basic | Fixed-size factory allocation, `copy()`/`move()` + assignment |
 | `aru.standard` (`Result`) | ✅ Basic | Discriminated union, in-place construction, `valueOrUnexpected()` |
+| `aru.standard` (`Option`) | ✅ Basic | `some()`/`none()` factories, `map`/`andThen`/`orElse`, `valueOr()`, Rule of Five |
 | `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
 | Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `Result` errors, copy/move assignment, event loop |
 | Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `String<T>`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, and `Framebuffer` |
