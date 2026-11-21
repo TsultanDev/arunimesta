@@ -10,7 +10,7 @@ import aru;          // re-exports aru.window
 
 ## Overview
 
-`Window` represents a Win32 window. Instances are created through the `create()` factories, which return `aru::standard::Result<Window, Error>`. The title is stored as `aru::standard::String<char16_t>` and passed directly to the Unicode Win32 APIs.
+`Window` represents a Win32 window. Instances are created through the `create()` factories, which return `std::expected<Window, Error>` (`Window::ResultType`). The title is stored as `std::wstring` and passed directly to the Unicode Win32 APIs.
 
 <p align="center">
   <img src="../../assets/window.png" alt="Arunimesta Win32 window" width="700">
@@ -30,44 +30,48 @@ enum class aru::window::Error {
 };
 ```
 
-A `std::formatter<Error>` is exported, so `Error` can be printed directly:
+Failures are returned as `std::unexpected(Error::X)`.
+
+A `std::formatter<aru::window::Error, char>` specialization is exported, so `Error` can be printed directly:
 
 ```cpp
-aru::standard::println("Error! : {}", err);
+std::println("Error! : {}", err);
 ```
 
 ## API
 
-### `static Result<Window, Error> create(const char* title, uint32_t width, uint32_t height)`
+### `static std::expected<Window, Error> create(const char* title, uint32_t width, uint32_t height)`
 
-UTF-8 overload. The narrow title is converted to UTF-16 with `String<char8_t>` → `String<char16_t>` before being passed to `CreateWindowExW`.
+Narrow-title overload. The title is treated as UTF-8 and converted to a `std::wstring` with `MultiByteToWideChar(CP_UTF8, ...)` before being passed to `CreateWindowExW`.
 
 ```cpp
-auto window = aru::window::Window::create("Arunimesta", 800, 600)
-    .valueOrUnexpected([](aru::window::Error&& err) {
-        aru::standard::println("Error! : {}", err);
-    });
+auto window = aru::window::Window::create("Arunimesta", 800, 600);
+if (!window) {
+    std::println("Error! : {}", window.error());
+    std::terminate();
+}
 ```
 
-### `static Result<Window, Error> create(const char16_t* title, uint32_t width, uint32_t height)`
+### `static std::expected<Window, Error> create(const char16_t* title, uint32_t width, uint32_t height)`
 
-UTF-16 overload; the title is used as-is.
+UTF-16 overload; the title is used as-is (mapped to `wchar_t`, which is 16-bit on Windows).
 
-### `static Result<Window, Error> createFromWindow(const Window& source)`
+### `static std::expected<Window, Error> createFromWindow(const Window& source)`
 
 Creates a **new OS window** using the source window's title, width, and height. This is different from copy assignment or `copy()`: it calls WinAPI again and produces a distinct `HWND`.
 
 ```cpp
-auto second = aru::window::Window::createFromWindow(window)
-    .valueOrUnexpected([](aru::window::Error&& err) {
-        aru::standard::println("Error! : {}", err);
-    });
-// second.handle() != window.handle()
+auto second = aru::window::Window::createFromWindow(window);
+if (!second) {
+    std::println("Error! : {}", second.error());
+    std::terminate();
+}
+// second->handle() != window.handle()
 ```
 
 ### `Window& operator=(const Window& source)` and `Window copy() const`
 
-Copy assignment / `copy()` deep-copy the metadata and the title `String`. The source is unchanged. They deliberately do **not** copy the `HWND`: a copied object has the same configuration but no OS window. Use `createFromWindow()` when a real second window is needed.
+Copy assignment / `copy()` deep-copy the metadata and the title `std::wstring`. The source is unchanged. They deliberately do **not** copy the `HWND`: a copied object has the same configuration but no OS window. Use `createFromWindow()` when a real second window is needed.
 
 ### `Window& operator=(Window&& source) noexcept` and `Window move() noexcept`
 
@@ -94,7 +98,7 @@ while (window.isOpen()) {          // or: while (!window.shouldClose())
 | Function | Description |
 | :--- | :--- |
 | `HWND handle() const noexcept` | Native window handle, or `nullptr` when empty. |
-| `const String<char16_t>& windowTitle() const noexcept` | UTF-16 title. |
+| `const std::wstring& windowTitle() const noexcept` | UTF-16 title. |
 | `uint32_t windowWidth() / windowHeight() const noexcept` | Configured size. |
 | `bool empty() const noexcept` | `true` when `handle() == nullptr`. |
 | `bool isOpen() const noexcept` | `true` until `WM_QUIT` is received; `false` for copies and moved-from windows. |
@@ -111,7 +115,7 @@ while (window.isOpen()) {          // or: while (!window.shouldClose())
 | Move assignment | `noexcept` | Steals the handle; source becomes empty |
 | Destructor | Public | `DestroyWindow` is called only when `hwnd != nullptr` |
 
-The title is a `String<char16_t>` value member. It is RAII: when it is non-empty, clearing/replacing it releases its internal buffer, and the `String` destructor frees the remaining storage. No manual `delete` on the title is performed.
+The title is a `std::wstring` value member. It is RAII: assigning to or clearing it releases its internal buffer, and the `std::wstring` destructor frees any remaining storage. No manual `delete` on the title is performed.
 
 The window class `ArunimestaWindowClass` is registered on first use. Registration is idempotent: `ERROR_CLASS_ALREADY_EXISTS` is ignored.
 
@@ -126,6 +130,6 @@ The window class `ArunimestaWindowClass` is registered on first use. Registratio
 ## Compatibility
 
 - Windows x64 with Win32 (`user32`, `gdi32`).
-- Requires C++23 (named modules, `std::format`).
+- Requires C++23 (named modules, `std::expected`, `std::println`).
 - Imported via `import aru;`, `import aru.window;`, or `import aru.window:window;`.
 - No API stability guarantee yet; see [roadmap](../roadmap.md).

@@ -5,10 +5,11 @@
 ## Creation
 
 ```cpp
-auto swapchain = device.createSwapchain(window.windowWidth(), window.windowHeight())
-    .valueOrUnexpected([](aru::rhi::Error&& err) {
-        aru::standard::println("swapchain: {}", err);
-    });
+auto swapchain = device.createSwapchain(window.windowWidth(), window.windowHeight());
+if (!swapchain) {
+    std::println("swapchain: {}", swapchain.error());
+    std::terminate();
+}
 ```
 
 `createSwapchain(width, height)`:
@@ -20,18 +21,19 @@ auto swapchain = device.createSwapchain(window.windowWidth(), window.windowHeigh
 - Requests `minImageCount + 1` images, capped by `maxImageCount`.
 - Enables `COLOR_ATTACHMENT` usage and opaque composite alpha.
 
-`SwapchainCreationFailed` is returned on any query failure or `vk::createSwapchainKHR` exception. It is formattable through `std::formatter<aru::rhi::Error, char>`.
+`SwapchainCreationFailed` is returned as `std::unexpected(Error::SwapchainCreationFailed)` on any query failure or `vk::createSwapchainKHR` exception. It is formattable through `std::formatter<aru::rhi::Error, char>`.
 
 ## Swapchain Images
 
 ```cpp
-auto images = device.createSwapchainImages(swapchain)
-    .valueOrUnexpected([](aru::rhi::Error&& err) {
-        aru::standard::println("images: {}", err);
-    });
+auto images = device.createSwapchainImages(*swapchain);
+if (!images) {
+    std::println("images: {}", images.error());
+    std::terminate();
+}
 ```
 
-Returns `aru::standard::Vector<Resource>`. Each `Resource` contains a swapchain `vk::Image` (borrowed from the swapchain) and an owned `vk::ImageView`. Use these resources to create framebuffers. See [`api/resource.md`](resource.md).
+`*swapchain` is the `Swapchain` value held by the `std::expected` from the creation step above. The call returns `std::expected<std::vector<Resource>, Error>`; on success `images` holds a `std::vector<Resource>`. Each `Resource` contains a swapchain `vk::Image` (borrowed from the swapchain) and an owned `vk::ImageView`. Use these resources to create framebuffers. See [`api/resource.md`](resource.md).
 
 ## API
 

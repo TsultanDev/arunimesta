@@ -27,7 +27,7 @@ Describe the verification in a sentence or two. Include command output or screen
 
 ## Checklist
 
-- [ ] Code follows [`docs/coding-style.md`](docs/coding-style.md).
+- [ ] Code follows [`docs/coding-style.md`](../docs/coding-style.md).
 - [ ] New module/partition files are listed in `FILE_SET CXX_MODULES` and wired into the facade.
 - [ ] No new compiler warnings were introduced.
 - [ ] Public API changes are documented in `docs/api/` and reflected in `README.md` when needed.

@@ -4,13 +4,14 @@ module;
 
 #include <algorithm>
 #include <cstdint>
+#include <expected>
 #include <limits>
+#include <print>
 #include <utility>
 #include <vector>
 
 export module aru.rhi:swapchain;
 
-import aru.standard;
 import :device;
 import :resource;
 
@@ -21,7 +22,7 @@ export namespace aru::rhi {
 export namespace aru::rhi {
     class Swapchain {
         public:
-            using ResultType = aru::standard::Result<Swapchain, Error>;
+            using ResultType = std::expected<Swapchain, Error>;
 
             Swapchain(const Swapchain& other);
             Swapchain(Swapchain&& other) noexcept;
@@ -62,10 +63,10 @@ export namespace aru::rhi {
     };
 }
 
-aru::standard::Result<aru::rhi::Swapchain, aru::rhi::Error>
+std::expected<aru::rhi::Swapchain, aru::rhi::Error>
 aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) const{
     if (this->empty() || static_cast<VkSurfaceKHR>(this->mSurface) == nullptr){
-        return aru::rhi::Error::SwapchainCreationFailed;
+        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
     }
 
     vk::SurfaceCapabilitiesKHR capabilities;
@@ -82,11 +83,11 @@ aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) con
             this->mSurface, VULKAN_HPP_DEFAULT_DISPATCHER
         );
     }catch(...){
-        return aru::rhi::Error::SwapchainCreationFailed;
+        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
     }
 
     if (formats.empty() || presentModes.empty()){
-        return aru::rhi::Error::SwapchainCreationFailed;
+        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
     }
 
     vk::SurfaceFormatKHR chosenFormat = formats.front();
@@ -140,18 +141,18 @@ aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) con
     try{
         created = this->mDevice.createSwapchainKHR(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return aru::rhi::Error::SwapchainCreationFailed;
+        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
     }
 
-    aru::standard::println("Aru RHI: Swapchain(created!!) images={}", imageCount);
+    std::println("Aru RHI: Swapchain(created!!) images={}", imageCount);
 
     return Swapchain(this->mDevice, created, chosenFormat.format, extent, imageCount, Swapchain::InitTag{});
 }
 
-aru::standard::Result<aru::standard::Vector<aru::rhi::Resource>, aru::rhi::Error>
+std::expected<std::vector<aru::rhi::Resource>, aru::rhi::Error>
 aru::rhi::Device::createSwapchainImages(const aru::rhi::Swapchain& swapchain) const{
     if (this->empty() || swapchain.empty()){
-        return aru::rhi::Error::ResourceCreationFailed;
+        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
     std::vector<vk::Image> images;
@@ -160,10 +161,11 @@ aru::rhi::Device::createSwapchainImages(const aru::rhi::Swapchain& swapchain) co
             swapchain.handle(), VULKAN_HPP_DEFAULT_DISPATCHER
         );
     }catch(...){
-        return aru::rhi::Error::ResourceCreationFailed;
+        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
-    auto resources = aru::standard::Vector<aru::rhi::Resource>::create(images.size());
+    std::vector<aru::rhi::Resource> resources;
+    resources.reserve(images.size());
 
     for (const vk::Image image : images){
         vk::ImageViewCreateInfo info;
@@ -183,15 +185,15 @@ aru::rhi::Device::createSwapchainImages(const aru::rhi::Swapchain& swapchain) co
         try{
             view = this->mDevice.createImageView(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
         }catch(...){
-            return aru::rhi::Error::ResourceCreationFailed;
+            return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
         }
 
-        resources.push(aru::rhi::Resource(
+        resources.push_back(aru::rhi::Resource(
             this->mDevice, image, view, swapchain.extent(), aru::rhi::Resource::InitTag{}
         ));
     }
 
-    aru::standard::println("Aru RHI: Swapchain images(image views ready) count={}", images.size());
+    std::println("Aru RHI: Swapchain images(image views ready) count={}", images.size());
 
     return resources;
 }

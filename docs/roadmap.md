@@ -9,14 +9,9 @@ This document contains the status, milestones, and development plan for Arunimes
 | Build system | ✅ Done | CMake ≥ 3.28, Clang, Ninja, Debug/Release presets |
 | Named modules | ✅ Done | `aru` + `aru:application` partition, `lib.cppm` facade |
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
-| `aru.standard` (`String`) | ✅ Basic | `char8_t`/`char16_t`/`char32_t`, transcoding `from()`, `move()`, `U+FFFD` replacement |
-| `aru.standard` (`Vector`) | ✅ Basic | Factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()` |
-| `aru.standard` (`Array`) | ✅ Basic | Fixed-size factory allocation, `copy()`/`move()` + assignment |
-| `aru.standard` (`Result`) | ✅ Basic | Discriminated union, in-place construction, `valueOrUnexpected()` |
-| `aru.standard` (`Option`) | ✅ Basic | `some()`/`none()` factories, `map`/`andThen`/`orElse`, `valueOr()`, Rule of Five |
-| `aru.standard` (`print`) | ✅ Basic | Debug-gated `println` / `eprintln` |
-| Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `Result` errors, copy/move assignment, event loop |
-| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `String<T>`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, and `Framebuffer` |
+| C++ standard library | ✅ In use | `std::expected` / `std::optional`, `std::string` family, `std::string_view`, `std::vector` / `std::array`, `std::println` / `std::eprintln` used directly |
+| Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `std::expected` errors, copy/move assignment, event loop |
+| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, and `Framebuffer` |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 
@@ -33,21 +28,17 @@ This document contains the status, milestones, and development plan for Arunimes
 
 **Done criteria:** the project can be configured and built, and the `aru` executable runs and prints application info.
 
-### M0.5 — `aru.standard` Foundation (basic implementation done)
+### M0.5 — C++ Standard Library Migration (done)
 
-- [x] `aru_std` static library and `aru.standard` facade
-- [x] `:print` partition — debug-gated `println` / `eprintln`
-- [x] `:result` partition — `Result<T, E>` discriminated union
-- [x] `:string` partition — `String<T>` for `char8_t`/`char16_t`/`char32_t`
-- [x] Cross-encoding conversion via static `String::from()` factory (UTF-8 ⇄ UTF-16 ⇄ UTF-32, `U+FFFD` on invalid input)
-- [x] `:array` partition — fixed-size `Array<T, N>` with inline `T data[N]`, `copy()`/`move()` + assignment
-- [x] `:vector` partition — `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, initializer-list assignment, `iter()`/`intoIter()`
-- [x] Factory-only allocation policy for `String` and `Vector`; Rule of Five implemented (copy/move constructors available)
-- [ ] String concatenation (`append`, `+`, `+=`)
-- [x] `std::formatter` for `String` / `Error` (char context)
-- [ ] `std::hash` support for `String` and `Vector`
+- [x] Removed the custom standard-library module and its CMake target
+- [x] Fallible operations return `std::expected<T, E>` built with `std::unexpected(...)`
+- [x] Absent values use `std::optional<T>`
+- [x] Text uses `std::string`, `std::u8string`, `std::u16string`, `std::u32string`, `std::wstring`, and `std::string_view`
+- [x] Containers use `std::vector<T>` and `std::array<T, N>`
+- [x] Logging uses `std::println` / `std::eprintln`
+- [x] `std::formatter` specializations for `aru::window::Error` and `aru::rhi::Error`
 
-**Done criteria:** strings in the three UTF encodings and `Vector<T>` can be allocated through their factories, copied/moved through assignment or `copy()`/`move()`, and converted without data loss; `aru` links `aru_std` and re-exports it through `import aru;`.
+**Done criteria:** engine code uses the C++ standard library directly, the `aru` facade re-exports only `aru.window` and `aru.rhi`, and the project builds.
 
 ### M1 — Windowing (done; basic)
 
@@ -56,7 +47,7 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] Fill in the `aru.window` facade (`lib.cppm`)
 - [x] Register `modules/aru_window` in the root `CMakeLists.txt` and re-export `aru.window`
 - [x] Blocking event loop integration (`GetMessageW`)
-- [x] Unicode window titles (UTF-8 → UTF-16 via `String`)
+- [x] Unicode window titles (UTF-8 → UTF-16 via `MultiByteToWideChar(CP_UTF8, ...)`)
 - [x] Create and destroy windows safely (RAII with null checks)
 - [x] `createFromWindow()` for a genuinely new OS window
 - [x] Add a usage example in the executable
@@ -78,7 +69,7 @@ This document contains the status, milestones, and development plan for Arunimes
 ### M3 — Presentation (foundation done)
 
 - [x] Swapchain creation with format and present mode selection (`Device::createSwapchain`)
-- [x] Swapchain images with owned image views (`Device::createSwapchainImages`)
+- [x] Swapchain images with owned image views (`Device::createSwapchainImages`, returning `std::expected<std::vector<Resource>, Error>`)
 - [x] `Resource` tagged union for image + view / buffer + view
 - [x] Render pass with a single color attachment (`Device::createRenderPass`)
 - [x] One framebuffer per swapchain image (`Device::createFramebuffer`)
@@ -108,12 +99,13 @@ This document contains the status, milestones, and development plan for Arunimes
 
 ## Design Direction
 
-- **Module per subsystem**: `aru`, `aru.standard`, `aru.window`, `aru.rhi`, and other supporting modules.
+- **Module per subsystem**: `aru`, `aru.window`, `aru.rhi`, and other supporting modules.
 - **Facade + partitions**: consumers import a single module name; the implementation is split internally.
 - **`std::expected` in the public API**: explicit failures, not exceptions.
+- **Standard library first**: use `std::vector`, `std::array`, the `std::string` family, `std::optional`, and `std::println` directly instead of custom wrappers.
 - **Pimpl + `unique_ptr`**: implementation details hidden, ownership clear.
-- **RAII**: all resources are cleaned up by destructors.
-- **UTF-aware strings**: text moves through `aru::standard::String` (`char8_t`/`char16_t`/`char32_t`); conversion happens only when a *new* string is created with `String::from()`.
+- **RAII**: all resources are cleaned up by destructors; engine-owned wrappers follow the Rule of Five with explicit `copy()` / `move()` and transfer ownership with `move()` when stored in containers.
+- **UTF-aware text**: text uses `std::string` and the UTF `std::u8string` / `std::u16string` / `std::u32string` variants, viewed via `std::string_view`; UTF-8 titles are converted to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` at the Win32 boundary.
 - **Unicode-first Win32**: use the `...W` APIs and convert UTF-8 titles to UTF-16 before calling Win32.
 - **Windows-first**: the current presets and targets are Windows x64; other platform support will follow.
 
@@ -125,12 +117,10 @@ Cleanup priorities before adding large subsystems:
 2. Add a non-blocking/polling event-loop variant if the renderer needs one.
 3. Carry the Win32 error code in `aru::window::Error`.
 4. Handle resize (`WM_SIZE`).
-5. Add `String` concatenation (`append`, `+`, `+=`).
-6. Add `std::hash` support for `String` and wide/UTF-16 formatter contexts.
-7. Add unit tests in `test/`.
-8. Clean up the duplicate logs in `Application::init()`.
-9. Add `operator new[] = delete` for consistency.
-10. Add `.clang-format` if formatting should be automated.
+5. Add unit tests in `test/`.
+6. Clean up the duplicate logs in `Application::init()`.
+7. Add `operator new[] = delete` for consistency.
+8. Add `.clang-format` if formatting should be automated.
 
 ## Non-Goals (For Now)
 

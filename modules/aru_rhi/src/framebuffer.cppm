@@ -2,12 +2,13 @@ module;
 
 #include <aru_rhi/vulkan.hpp>
 
+#include <expected>
+
 #include <cstdint>
 #include <utility>
 
 export module aru.rhi:framebuffer;
 
-import aru.standard;
 import :device;
 import :resource;
 import :render_pass;
@@ -19,7 +20,7 @@ export namespace aru::rhi {
 export namespace aru::rhi {
     class Framebuffer {
         public:
-            using ResultType = aru::standard::Result<Framebuffer, Error>;
+            using ResultType = std::expected<Framebuffer, Error>;
 
             Framebuffer(const Framebuffer& other);
             Framebuffer(Framebuffer&& other) noexcept;
@@ -57,24 +58,24 @@ export namespace aru::rhi {
     };
 }
 
-aru::standard::Result<aru::rhi::Framebuffer, aru::rhi::Error>
+std::expected<aru::rhi::Framebuffer, aru::rhi::Error>
 aru::rhi::Device::createFramebuffer(const aru::rhi::RenderPass& renderPass,
                                     const aru::rhi::Resource& image) const{
     if (this->empty() || renderPass.empty() || image.empty()){
-        return aru::rhi::Error::FramebufferCreationFailed;
+        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
     }
     if (image.kind() != aru::rhi::ResourceKind::Image){
-        return aru::rhi::Error::FramebufferCreationFailed;
+        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
     }
 
     const vk::ImageView attachment = image.imageViewHandle();
     if (static_cast<VkImageView>(attachment) == nullptr){
-        return aru::rhi::Error::FramebufferCreationFailed;
+        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
     }
 
     const vk::Extent2D extent = image.extent();
     if (extent.width == 0 || extent.height == 0){
-        return aru::rhi::Error::FramebufferCreationFailed;
+        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
     }
 
     vk::FramebufferCreateInfo info;
@@ -89,7 +90,7 @@ aru::rhi::Device::createFramebuffer(const aru::rhi::RenderPass& renderPass,
     try{
         created = this->mDevice.createFramebuffer(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return aru::rhi::Error::FramebufferCreationFailed;
+        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
     }
 
     return Framebuffer(this->mDevice, created, extent.width, extent.height, Framebuffer::InitTag{});

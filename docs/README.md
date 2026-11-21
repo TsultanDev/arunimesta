@@ -11,12 +11,6 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [building.md](building.md) | Prerequisites, building with presets or manually, and troubleshooting. |
 | [coding-style.md](coding-style.md) | Naming conventions, `.cppm` file layout, and factory/pimpl patterns. |
 | [api/application.md](api/application.md) | `aru::Application` API reference. |
-| [api/array.md](api/array.md) | `aru::standard::Array<T, N>` API reference. |
-| [api/option.md](api/option.md) | `aru::standard::Option<T>` API reference (`some`/`none`, `map`, `andThen`, Rule of Five). |
-| [api/string.md](api/string.md) | `aru::standard::String` (UTF-8/16/32) API reference. |
-| [api/vector.md](api/vector.md) | `aru::standard::Vector<T>` API reference. |
-| [api/result.md](api/result.md) | `aru::standard::Result<T, E>` API reference. |
-| [api/print.md](api/print.md) | `aru::standard::println` / `eprintln` API reference. |
 | [api/window.md](api/window.md) | `aru::window::Window` API reference (active). |
 | [api/instance.md](api/instance.md) | `aru::rhi::Instance` API reference (Vulkan instance, dynamic dispatch). |
 | [api/surface.md](api/surface.md) | `aru::rhi::Surface` API reference (Win32 Vulkan surface). |

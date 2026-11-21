@@ -99,16 +99,9 @@ Then configure and build again.
 - `.clangd` points clangd to `build/clang-x64-debug`.
 - Therefore, configure the Debug preset first so that the IDE/clangd recognizes the modules and includes.
 
-## Module `aru.standard`
+## C++ Standard Library
 
-`modules/aru_std` is a static library that is registered in the root `CMakeLists.txt` and linked into the `aru` executable:
-
-```cmake
-# modules/aru/CMakeLists.txt
-target_link_libraries(aru PRIVATE aru_window aru_std)
-```
-
-It provides module `aru.standard` (the `:array`, `:string`, `:vector`, `:result`, and `:print` partitions), and the `aru` facade re-exports it, so `import aru;` exposes `Array`, `String`, `Vector`, `Result`, `println`, and `eprintln`. See the [API references](api/array.md).
+There is no separate standard-library module or target. Engine code uses the C++ standard library directly: `std::expected<T, E>` with `std::unexpected(...)` for fallible operations, `std::optional<T>`, `std::string` / `std::u8string` / `std::u16string` / `std::u32string` / `std::wstring`, `std::string_view`, `std::vector<T>`, `std::array<T, N>`, and `std::println` / `std::eprintln`. The `aru` facade re-exports only `aru.window` and `aru.rhi`.
 
 ## Module `aru_window` (active)
 
@@ -117,12 +110,14 @@ It provides module `aru.standard` (the `:array`, `:string`, `:vector`, `:result`
 ```cmake
 # Root CMakeLists.txt
 add_subdirectory("modules/aru_window")
+add_subdirectory("modules/aru_rhi")
+add_subdirectory("modules/aru")
 
 # modules/aru/CMakeLists.txt
-target_link_libraries(aru PRIVATE aru_window aru_std)
+target_link_libraries(aru PRIVATE aru_window aru_rhi)
 ```
 
-The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Windows are created with `Window::create()`; narrow UTF-8 titles are converted to UTF-16 with `String<char8_t>` → `String<char16_t>`, and a direct `const char16_t*` overload is available. See the [Window API](api/window.md).
+The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Windows are created with `Window::create()`; narrow UTF-8 titles are converted to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)`, a direct `const char16_t*` overload is available, and `windowTitle()` returns `const std::wstring&`. See the [Window API](api/window.md).
 
 ## Troubleshooting
 
@@ -135,7 +130,7 @@ The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Win
 | Error while compiling `.cppm` | The compiler does not support modules | Use a Clang version that supports C++23 modules |
 | Header changes are not detected | Stale build/module cache | Delete the build directory and configure again |
 | `import aru;` fails | The `.cppm` file is not listed in `FILE_SET CXX_MODULES`, or the target is not linked | Check `target_sources` and `target_link_libraries` |
-| Window title shows garbled or CJK characters | ANSI (`...A`) and Unicode (`...W`) Win32 APIs are mixed | Use the `...W` variants consistently and convert UTF-8 titles to UTF-16 via `String<char8_t>` → `String<char16_t>` |
+| Window title shows garbled or CJK characters | ANSI (`...A`) and Unicode (`...W`) Win32 APIs are mixed | Use the `...W` variants consistently and convert UTF-8 titles to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` (or use the `const char16_t*` overload) |
 
 ## Notes
 

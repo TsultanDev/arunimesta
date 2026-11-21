@@ -6,7 +6,11 @@ module;
 #include <aru_rhi/vulkan.hpp>
 
 #include <cstdint>
+#include <expected>
 #include <iterator>
+#include <print>
+#include <string>
+#include <string_view>
 #include <utility>
 
 // === Storage utama Vulkan-Hpp dispatcher (hanya di file ini) ===
@@ -16,7 +20,6 @@ namespace vk::detail {
 
 export module aru.rhi:instance;
 
-import aru.standard;
 import aru.window;
 export import :error;
 
@@ -67,14 +70,14 @@ export namespace aru::rhi {
 export namespace aru::rhi {
     class Instance {
         public:
-            using ResultType = aru::standard::Result<Instance, Error>;
+            using ResultType = std::expected<Instance, Error>;
 
-            template<aru::standard::character T>
-            static ResultType create(const aru::standard::String<T>& appName);
+            // appName adalah UTF-8; string_view tidak perlu null-terminated.
+            static ResultType create(std::string_view appName);
 
             // Didefinisikan di :surface / :adapter (butuh tipe lengkap).
-            aru::standard::Result<Surface, Error> createSurface(const aru::window::Window& window);
-            aru::standard::Result<Adapter, Error> requestAdapter(const Surface& surface);
+            std::expected<Surface, Error> createSurface(const aru::window::Window& window);
+            std::expected<Adapter, Error> requestAdapter(const Surface& surface);
 
             Instance(const Instance& other);
             Instance(Instance&& other) noexcept;
@@ -87,7 +90,7 @@ export namespace aru::rhi {
 
             vk::Instance handle() const noexcept;
             std::uint32_t apiVersion() const noexcept;
-            const aru::standard::String<char8_t>& applicationName() const noexcept;
+            const std::string& applicationName() const noexcept;
             bool empty() const noexcept;
 
         private:
@@ -97,29 +100,27 @@ export namespace aru::rhi {
 
             Instance(const Instance& other, CopyTag tag);
             Instance(Instance&& other, MoveTag tag) noexcept;
-            Instance(vk::Instance handle, aru::standard::String<char8_t>&& name,
+            Instance(vk::Instance handle, std::string&& name,
                      std::uint32_t version, InitTag tag) noexcept;
-            static ResultType createImpl(const aru::standard::String<char8_t>& appName);
+            static ResultType createImpl(const std::string& appName);
 
             void release() noexcept;
 
             vk::Instance mInstance;
-            aru::standard::String<char8_t> mApplicationName;
+            std::string mApplicationName;
             std::uint32_t mApiVersion;
     };
 }
 
-template<aru::standard::character T>
-aru::rhi::Instance::ResultType aru::rhi::Instance::create(const aru::standard::String<T>& appName){
-    auto utf8 = aru::standard::String<char8_t>::from(appName);
-    return createImpl(utf8);
+aru::rhi::Instance::ResultType aru::rhi::Instance::create(std::string_view appName){
+    return createImpl(std::string(appName));
 }
 
-aru::rhi::Instance::ResultType aru::rhi::Instance::createImpl(const aru::standard::String<char8_t>& appName){
+aru::rhi::Instance::ResultType aru::rhi::Instance::createImpl(const std::string& appName){
     // Dynamic Dispatch: muat vkGetInstanceProcAddr + entry-point level loader.
     VULKAN_HPP_DEFAULT_DISPATCHER.init();
     if (VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr == nullptr){
-        return aru::rhi::Error::DynamicLoaderFailed;
+        return std::unexpected(aru::rhi::Error::DynamicLoaderFailed);
     }
 
     // Versi API maksimum yang didukung driver loader. Vulkan 1.0 tidak punya
@@ -128,12 +129,12 @@ aru::rhi::Instance::ResultType aru::rhi::Instance::createImpl(const aru::standar
     if (VULKAN_HPP_DEFAULT_DISPATCHER.vkEnumerateInstanceVersion != nullptr){
         const VkResult result = VULKAN_HPP_DEFAULT_DISPATCHER.vkEnumerateInstanceVersion(&availableVersion);
         if (result != VK_SUCCESS){
-            return aru::rhi::Error::ApiVersionQueryFailed;
+            return std::unexpected(aru::rhi::Error::ApiVersionQueryFailed);
         }
     }
 
     vk::ApplicationInfo appInfo;
-    appInfo.setPApplicationName(reinterpret_cast<const char*>(appName.stringData()));
+    appInfo.setPApplicationName(appName.c_str());
     appInfo.setApplicationVersion(VK_MAKE_VERSION(1, 0, 0));
     appInfo.setPEngineName("Arunimesta");
     appInfo.setEngineVersion(VK_MAKE_VERSION(1, 0, 0));
@@ -153,15 +154,15 @@ aru::rhi::Instance::ResultType aru::rhi::Instance::createImpl(const aru::standar
     try{
         created = vk::createInstance(createInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return aru::rhi::Error::InstanceCreationFailed;
+        return std::unexpected(aru::rhi::Error::InstanceCreationFailed);
     }
 
     // Load instance-level entry points setelah instance tersedia.
     VULKAN_HPP_DEFAULT_DISPATCHER.init(created);
 
-    aru::standard::println("Aru RHI: Instance(created!!)");
+    std::println("Aru RHI: Instance(created!!)");
 
-    return Instance(created, aru::standard::String<char8_t>(appName), availableVersion, InitTag{});
+    return Instance(created, std::string(appName), availableVersion, InitTag{});
 }
 
 aru::rhi::Instance::Instance(const Instance& other) :
@@ -172,7 +173,7 @@ aru::rhi::Instance::Instance(Instance&& other) noexcept :
     Instance(std::move(other), MoveTag{})
 {}
 
-aru::rhi::Instance::Instance(vk::Instance handle, aru::standard::String<char8_t>&& name,
+aru::rhi::Instance::Instance(vk::Instance handle, std::string&& name,
                              std::uint32_t version, InitTag) noexcept :
     mInstance(handle),
     mApplicationName(std::move(name)),
@@ -187,7 +188,7 @@ aru::rhi::Instance::Instance(const Instance& other, CopyTag) :
 
 aru::rhi::Instance::Instance(Instance&& other, MoveTag) noexcept :
     mInstance(std::exchange(other.mInstance, vk::Instance{})),
-    mApplicationName(other.mApplicationName.move()),
+    mApplicationName(std::move(other.mApplicationName)),
     mApiVersion(std::exchange(other.mApiVersion, std::uint32_t{VK_API_VERSION_1_0}))
 {}
 
@@ -203,7 +204,7 @@ aru::rhi::Instance& aru::rhi::Instance::operator=(Instance&& other) noexcept{
     if (this != &other){
         this->release();
         this->mInstance = std::exchange(other.mInstance, vk::Instance{});
-        this->mApplicationName = other.mApplicationName.move();
+        this->mApplicationName = std::move(other.mApplicationName);
         this->mApiVersion = std::exchange(other.mApiVersion, std::uint32_t{VK_API_VERSION_1_0});
     }
     return *this;
@@ -225,7 +226,7 @@ std::uint32_t aru::rhi::Instance::apiVersion() const noexcept{
     return this->mApiVersion;
 }
 
-const aru::standard::String<char8_t>& aru::rhi::Instance::applicationName() const noexcept{
+const std::string& aru::rhi::Instance::applicationName() const noexcept{
     return this->mApplicationName;
 }
 

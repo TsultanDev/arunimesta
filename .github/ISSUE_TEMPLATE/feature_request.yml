@@ -13,7 +13,7 @@ body:
       label: Area
       options:
         - Build / CMake
-        - aru.standard
+        - aru (entry point / facade)
         - aru.window
         - aru.rhi
         - Rendering / swapchain

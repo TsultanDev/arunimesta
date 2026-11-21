@@ -24,7 +24,6 @@ body:
       options:
         - Build / CMake
         - aru (entry point / facade)
-        - aru.standard
         - aru.window
         - aru.rhi
         - Documentation

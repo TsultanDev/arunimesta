@@ -25,21 +25,28 @@ The implementation uses named private structs `ImageData` and `BufferData` insid
 Resources are created through `Device`:
 
 ```cpp
-auto imageResource = device.createImageResource(image, format, extent)
-    .valueOrUnexpected(report);
+auto imageResource = device.createImageResource(image, format, extent);
+if (!imageResource) {
+    std::println("image resource: {}", imageResource.error());
+    std::terminate();
+}
 
 auto bufferResource = device.createBufferResource(
     256,
     vk::BufferUsageFlagBits::eUniformBuffer,
     vk::Format::eR32Sfloat
-).valueOrUnexpected(report);
+);
+if (!bufferResource) {
+    std::println("buffer resource: {}", bufferResource.error());
+    std::terminate();
+}
 ```
 
 `createImageResource()` creates a 2D `vk::ImageView` with a color subresource range. The `vk::Image` itself is borrowed (typically from a swapchain); the view is owned.
 
-`createBufferResource()` creates an exclusive `vk::Buffer` and a `vk::BufferView` over the whole buffer. Both are owned. `ResourceCreationFailed` is returned on failure; it is formattable through `std::formatter<aru::rhi::Error, char>`.
+`createBufferResource()` creates an exclusive `vk::Buffer` and a `vk::BufferView` over the whole buffer. Both are owned. `ResourceCreationFailed` is returned as `std::unexpected(Error::ResourceCreationFailed)` on failure; it is formattable through `std::formatter<aru::rhi::Error, char>`.
 
-`Device::createSwapchainImages()` uses `createImageResource()` internally, so callers normally receive image resources rather than creating them directly.
+`Device::createSwapchainImages()` uses `createImageResource()` internally, so callers normally receive image resources rather than creating them directly. It returns `std::expected<std::vector<Resource>, Error>`.
 
 ## API
 

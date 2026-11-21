@@ -2,11 +2,13 @@ module;
 
 #include <aru_rhi/vulkan.hpp>
 
+#include <expected>
+#include <print>
+
 #include <utility>
 
 export module aru.rhi:render_pass;
 
-import aru.standard;
 import :device;
 import :swapchain;
 
@@ -17,7 +19,7 @@ export namespace aru::rhi {
 export namespace aru::rhi {
     class RenderPass {
         public:
-            using ResultType = aru::standard::Result<RenderPass, Error>;
+            using ResultType = std::expected<RenderPass, Error>;
 
             RenderPass(const RenderPass& other);
             RenderPass(RenderPass&& other) noexcept;
@@ -50,10 +52,10 @@ export namespace aru::rhi {
     };
 }
 
-aru::standard::Result<aru::rhi::RenderPass, aru::rhi::Error>
+std::expected<aru::rhi::RenderPass, aru::rhi::Error>
 aru::rhi::Device::createRenderPass(const aru::rhi::Swapchain& swapchain) const{
     if (this->empty() || swapchain.empty()){
-        return aru::rhi::Error::RenderPassCreationFailed;
+        return std::unexpected(aru::rhi::Error::RenderPassCreationFailed);
     }
 
     vk::AttachmentDescription colorAttachment;
@@ -95,10 +97,10 @@ aru::rhi::Device::createRenderPass(const aru::rhi::Swapchain& swapchain) const{
     try{
         created = this->mDevice.createRenderPass(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return aru::rhi::Error::RenderPassCreationFailed;
+        return std::unexpected(aru::rhi::Error::RenderPassCreationFailed);
     }
 
-    aru::standard::println("Aru RHI: RenderPass(created!!)");
+    std::println("Aru RHI: RenderPass(created!!)");
 
     return RenderPass(this->mDevice, created, RenderPass::InitTag{});
 }

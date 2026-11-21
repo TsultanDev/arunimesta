@@ -1,10 +1,11 @@
 module;
 #include <Windows.h>
 #include <cstdint>
+#include <expected>
+#include <string>
 #include <utility>
 
 export module aru.window:window;
-import aru.standard;
 export import :error;
 
 export namespace aru {
@@ -15,9 +16,9 @@ export namespace aru {
 
 class aru::window::Window{
     public:
-        using ResultType = aru::standard::Result<Window, Error>;
+        using ResultType = std::expected<Window, Error>;
 
-        // Factory pembuat OS window baru.
+        // Factory pembuat OS window baru. title narrow adalah UTF-8.
         static ResultType create(const char* title, std::uint32_t width, std::uint32_t height);
         static ResultType create(const char16_t* title, std::uint32_t width, std::uint32_t height);
 
@@ -39,7 +40,7 @@ class aru::window::Window{
         ~Window();
 
         HWND handle() const noexcept;
-        const aru::standard::String<char16_t>& windowTitle() const noexcept;
+        const std::wstring& windowTitle() const noexcept;
         std::uint32_t windowWidth() const noexcept;
         std::uint32_t windowHeight() const noexcept;
         bool empty() const noexcept;
@@ -53,15 +54,13 @@ class aru::window::Window{
         struct CopyTag {};
         struct MoveTag {};
 
-        template<typename, typename>
-        friend class aru::standard::Result;
-
         Window(HINSTANCE instance, HWND hwnd,
-               const aru::standard::String<char16_t>& title,
+               const std::wstring& title,
                std::uint32_t width, std::uint32_t height, AdoptTag);
         Window(const Window& source, CopyTag);
         Window(Window&& source, MoveTag) noexcept;
 
+        static std::wstring utf8ToWide(const char* text);
         static bool registerClass(HINSTANCE instance) noexcept;
         static LRESULT CALLBACK windowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) noexcept;
 
@@ -69,11 +68,25 @@ class aru::window::Window{
 
         HINSTANCE instance = nullptr;
         HWND hwnd = nullptr;
-        aru::standard::String<char16_t> title = aru::standard::String<char16_t>::from(u"");
+        std::wstring title;
         std::uint32_t width = 0;
         std::uint32_t height = 0;
         bool open = false;
 };
+
+std::wstring aru::window::Window::utf8ToWide(const char* text){
+    if (text == nullptr) {
+        return {};
+    }
+    const int needed = MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0);
+    if (needed <= 0) {
+        return {};
+    }
+    std::wstring result(static_cast<std::size_t>(needed), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, result.data(), needed);
+    result.resize(static_cast<std::size_t>(needed - 1));
+    return result;
+}
 
 aru::window::Window::Window(const Window& other) :
     Window(other, CopyTag{})
@@ -85,28 +98,28 @@ aru::window::Window::Window(Window&& other) noexcept :
 
 aru::window::Window::ResultType aru::window::Window::create(const char* title, std::uint32_t width, std::uint32_t height){
     if (title == nullptr) {
-        return ResultType(aru::standard::errorInPlace, Error::WindowCreationFailed);
+        return std::unexpected(Error::WindowCreationFailed);
     }
-    const auto utf8 = aru::standard::String<char8_t>::from(reinterpret_cast<const char8_t*>(title));
-    const auto utf16 = aru::standard::String<char16_t>::from(utf8);
-    return create(utf16.stringData(), width, height);
+    const std::wstring wide = utf8ToWide(title);
+    return create(reinterpret_cast<const char16_t*>(wide.c_str()), width, height);
 }
 
 aru::window::Window::ResultType aru::window::Window::create(const char16_t* title, std::uint32_t width, std::uint32_t height){
     if (title == nullptr) {
-        return ResultType(aru::standard::errorInPlace, Error::WindowCreationFailed);
+        return std::unexpected(Error::WindowCreationFailed);
     }
 
     HINSTANCE moduleInstance = GetModuleHandleW(nullptr);
     if (moduleInstance == nullptr || !registerClass(moduleInstance)) {
-        return ResultType(aru::standard::errorInPlace, Error::ClassRegistrationFailed);
+        return std::unexpected(Error::ClassRegistrationFailed);
     }
 
-    const auto windowTitle = aru::standard::String<char16_t>::from(title);
+    // wchar_t berukuran 16-bit di Windows, jadi char16_t bisa dipetakan langsung.
+    const std::wstring windowTitle(reinterpret_cast<const wchar_t*>(title));
     HWND handle = CreateWindowExW(
         0,
         L"ArunimestaWindowClass",
-        reinterpret_cast<LPCWSTR>(windowTitle.stringData()),
+        windowTitle.c_str(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -119,25 +132,17 @@ aru::window::Window::ResultType aru::window::Window::create(const char16_t* titl
     );
 
     if (handle == nullptr) {
-        return ResultType(aru::standard::errorInPlace, Error::WindowCreationFailed);
+        return std::unexpected(Error::WindowCreationFailed);
     }
 
     ShowWindow(handle, SW_SHOW);
     UpdateWindow(handle);
 
-    return ResultType(
-        std::in_place,
-        moduleInstance,
-        handle,
-        windowTitle,
-        width,
-        height,
-        AdoptTag{}
-    );
+    return Window(moduleInstance, handle, windowTitle, width, height, AdoptTag{});
 }
 
 aru::window::Window::ResultType aru::window::Window::createFromWindow(const Window& source){
-    return create(source.title.stringData(), source.width, source.height);
+    return create(reinterpret_cast<const char16_t*>(source.title.c_str()), source.width, source.height);
 }
 
 aru::window::Window& aru::window::Window::operator=(const Window& source){
@@ -148,7 +153,7 @@ aru::window::Window& aru::window::Window::operator=(const Window& source){
     this->release();
 
     this->instance = source.instance;
-    this->title = aru::standard::String<char16_t>::from(source.title);
+    this->title = source.title;
     this->width = source.width;
     this->height = source.height;
     this->open = false;  // salinan tidak memiliki HWND
@@ -162,7 +167,7 @@ aru::window::Window& aru::window::Window::operator=(Window&& source) noexcept {
 
         this->instance = std::exchange(source.instance, nullptr);
         this->hwnd = std::exchange(source.hwnd, nullptr);
-        this->title = source.title.move();
+        this->title = std::move(source.title);
         this->width = std::exchange(source.width, std::uint32_t{0});
         this->height = std::exchange(source.height, std::uint32_t{0});
         this->open = std::exchange(source.open, false);
@@ -206,7 +211,7 @@ HWND aru::window::Window::handle() const noexcept{
     return this->hwnd;
 }
 
-const aru::standard::String<char16_t>& aru::window::Window::windowTitle() const noexcept{
+const std::wstring& aru::window::Window::windowTitle() const noexcept{
     return this->title;
 }
 
@@ -231,11 +236,11 @@ bool aru::window::Window::shouldClose() const noexcept{
 }
 
 aru::window::Window::Window(HINSTANCE instance, HWND hwnd,
-    const aru::standard::String<char16_t>& title,
+    const std::wstring& title,
     std::uint32_t width, std::uint32_t height, AdoptTag) :
     instance(instance),
     hwnd(hwnd),
-    title(aru::standard::String<char16_t>::from(title)),
+    title(title),
     width(width),
     height(height),
     open(true)
@@ -244,7 +249,7 @@ aru::window::Window::Window(HINSTANCE instance, HWND hwnd,
 aru::window::Window::Window(const Window& source, CopyTag) :
     instance(source.instance),
     hwnd(nullptr),
-    title(aru::standard::String<char16_t>::from(source.title)),
+    title(source.title),
     width(source.width),
     height(source.height),
     open(false)
@@ -253,7 +258,7 @@ aru::window::Window::Window(const Window& source, CopyTag) :
 aru::window::Window::Window(Window&& source, MoveTag) noexcept :
     instance(std::exchange(source.instance, nullptr)),
     hwnd(std::exchange(source.hwnd, nullptr)),
-    title(source.title.move()),
+    title(std::move(source.title)),
     width(std::exchange(source.width, std::uint32_t{0})),
     height(std::exchange(source.height, std::uint32_t{0})),
     open(std::exchange(source.open, false))
@@ -300,12 +305,7 @@ void aru::window::Window::release() noexcept{
         this->hwnd = nullptr;
     }
 
-    // String members RAII: dikosongkan saat tidak empty, sehingga
-    // String destructor yang membebaskan buffer/internal data.
-    if (!this->title.empty()) {
-        this->title = aru::standard::String<char16_t>::from(u"");
-    }
-
+    this->title.clear();
     this->instance = nullptr;
     this->width = 0;
     this->height = 0;

@@ -2,13 +2,14 @@ module;
 
 #include <aru_rhi/vulkan.hpp>
 
+#include <expected>
+
 #include <cstdint>
 #include <memory>
 #include <utility>
 
 export module aru.rhi:resource;
 
-import aru.standard;
 import :device;
 
 export namespace aru::rhi {
@@ -30,7 +31,7 @@ export namespace aru::rhi {
     // Resource tetap bisa dilewatkan oleh value tanpa double-destroy.
     class Resource {
         public:
-            using ResultType = aru::standard::Result<Resource, Error>;
+            using ResultType = std::expected<Resource, Error>;
 
             Resource(const Resource& other);
             Resource(Resource&& other) noexcept;
@@ -98,10 +99,10 @@ export namespace aru::rhi {
     };
 }
 
-aru::standard::Result<aru::rhi::Resource, aru::rhi::Error>
+std::expected<aru::rhi::Resource, aru::rhi::Error>
 aru::rhi::Device::createImageResource(vk::Image image, vk::Format format, vk::Extent2D extent) const{
     if (this->empty() || static_cast<VkImage>(image) == nullptr){
-        return aru::rhi::Error::ResourceCreationFailed;
+        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
     vk::ImageViewCreateInfo info;
@@ -121,16 +122,16 @@ aru::rhi::Device::createImageResource(vk::Image image, vk::Format format, vk::Ex
     try{
         view = this->mDevice.createImageView(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return aru::rhi::Error::ResourceCreationFailed;
+        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
     return Resource(this->mDevice, image, view, extent, Resource::InitTag{});
 }
 
-aru::standard::Result<aru::rhi::Resource, aru::rhi::Error>
+std::expected<aru::rhi::Resource, aru::rhi::Error>
 aru::rhi::Device::createBufferResource(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Format format) const{
     if (this->empty() || size == 0){
-        return aru::rhi::Error::ResourceCreationFailed;
+        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
     vk::BufferCreateInfo bufferInfo;
@@ -153,7 +154,7 @@ aru::rhi::Device::createBufferResource(vk::DeviceSize size, vk::BufferUsageFlags
         if (static_cast<VkBuffer>(buffer) != nullptr){
             this->mDevice.destroyBuffer(buffer, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
         }
-        return aru::rhi::Error::ResourceCreationFailed;
+        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
     return Resource(this->mDevice, buffer, view, size, Resource::InitTag{});

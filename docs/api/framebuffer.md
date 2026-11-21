@@ -5,10 +5,11 @@
 ## Creation
 
 ```cpp
-auto framebuffer = device.createFramebuffer(renderPass, image)
-    .valueOrUnexpected([](aru::rhi::Error&& err) {
-        aru::standard::println("framebuffer: {}", err);
-    });
+auto framebuffer = device.createFramebuffer(renderPass, image);
+if (!framebuffer) {
+    std::println("framebuffer: {}", framebuffer.error());
+    std::terminate();
+}
 ```
 
 `image` must be an image `Resource` (`ResourceKind::Image`) with a non-null image view and a non-zero extent. The framebuffer uses:
@@ -18,22 +19,36 @@ auto framebuffer = device.createFramebuffer(renderPass, image)
 - `image.extent().width` / `image.extent().height` as its dimensions.
 - One layer.
 
-`FramebufferCreationFailed` is returned on invalid input or `vk::createFramebuffer` failure; it is formattable through `std::formatter<aru::rhi::Error, char>`.
+`FramebufferCreationFailed` is returned as `std::unexpected(Error::FramebufferCreationFailed)` on invalid input or `vk::createFramebuffer` failure; it is formattable through `std::formatter<aru::rhi::Error, char>`.
 
 ### Typical loop
 
 ```cpp
-auto images = device.createSwapchainImages(swapchain).valueOrUnexpected(report);
-auto renderPass = device.createRenderPass(swapchain).valueOrUnexpected(report);
-auto framebuffers = aru::standard::Vector<aru::rhi::Framebuffer>::create(images.length());
+auto images = device.createSwapchainImages(swapchain);
+if (!images) {
+    std::println("images: {}", images.error());
+    std::terminate();
+}
+auto renderPass = device.createRenderPass(swapchain);
+if (!renderPass) {
+    std::println("render pass: {}", renderPass.error());
+    std::terminate();
+}
 
-for (const auto& image : images) {
-    auto framebuffer = device.createFramebuffer(renderPass, image).valueOrUnexpected(report);
-    framebuffers.push(framebuffer.move()); // transfer ownership into the vector
+std::vector<aru::rhi::Framebuffer> framebuffers;
+framebuffers.reserve(images->size());
+
+for (const auto& image : *images) {
+    auto framebuffer = device.createFramebuffer(*renderPass, image);
+    if (!framebuffer) {
+        std::println("framebuffer: {}", framebuffer.error());
+        std::terminate();
+    }
+    framebuffers.push_back(framebuffer->move()); // transfer ownership into the vector
 }
 ```
 
-Use `move()` (or `std::move`) when pushing into the vector. A copied `Framebuffer` is empty by design.
+`createSwapchainImages()` yields a `std::vector<Resource>` inside a `std::expected`. Use `move()` (or `std::move`) when pushing engine-owned objects into a `std::vector`. A copied `Framebuffer` is empty by design.
 
 ## API
 

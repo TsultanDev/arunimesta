@@ -5,10 +5,11 @@
 ## Creation
 
 ```cpp
-auto renderPass = device.createRenderPass(swapchain)
-    .valueOrUnexpected([](aru::rhi::Error&& err) {
-        aru::standard::println("render pass: {}", err);
-    });
+auto renderPass = device.createRenderPass(swapchain);
+if (!renderPass) {
+    std::println("render pass: {}", renderPass.error());
+    std::terminate();
+}
 ```
 
 The current render pass has:
@@ -17,7 +18,7 @@ The current render pass has:
 - One graphics subpass referencing that attachment as `COLOR_ATTACHMENT_OPTIMAL`.
 - One external dependency on `COLOR_ATTACHMENT_OUTPUT` with `COLOR_ATTACHMENT_WRITE` destination access.
 
-`RenderPassCreationFailed` is returned when the device/swapchain is empty or `vk::createRenderPass` throws. It is formattable through `std::formatter<aru::rhi::Error, char>`.
+`RenderPassCreationFailed` is returned as `std::unexpected(Error::RenderPassCreationFailed)` when the device/swapchain is empty or `vk::createRenderPass` throws. It is formattable through `std::formatter<aru::rhi::Error, char>`.
 
 ## API
 

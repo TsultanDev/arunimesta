@@ -2,13 +2,16 @@ module;
 
 #include <aru_rhi/vulkan.hpp>
 
+#include <expected>
+#include <vector>
+#include <print>
+
 #include <cstdint>
 #include <iterator>
 #include <utility>
 
 export module aru.rhi:device;
 
-import aru.standard;
 import :instance;
 import :adapter;
 
@@ -23,21 +26,21 @@ export namespace aru::rhi {
 export namespace aru::rhi {
     class Device {
         public:
-            using ResultType = aru::standard::Result<Device, Error>;
+            using ResultType = std::expected<Device, Error>;
 
             // Didefinisikan di partisi lain (butuh tipe lengkap masing-masing).
-            aru::standard::Result<Queue, Error> requestQueue(QueueFlags flags) const;
-            aru::standard::Result<Resource, Error> createImageResource(
+            std::expected<Queue, Error> requestQueue(QueueFlags flags) const;
+            std::expected<Resource, Error> createImageResource(
                 vk::Image image, vk::Format format, vk::Extent2D extent) const;
-            aru::standard::Result<Resource, Error> createBufferResource(
+            std::expected<Resource, Error> createBufferResource(
                 vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Format format) const;
-            aru::standard::Result<Swapchain, Error> createSwapchain(
+            std::expected<Swapchain, Error> createSwapchain(
                 std::uint32_t width, std::uint32_t height) const;
-            aru::standard::Result<aru::standard::Vector<Resource>, Error> createSwapchainImages(
+            std::expected<std::vector<Resource>, Error> createSwapchainImages(
                 const Swapchain& swapchain) const;
-            aru::standard::Result<RenderPass, Error> createRenderPass(
+            std::expected<RenderPass, Error> createRenderPass(
                 const Swapchain& swapchain) const;
-            aru::standard::Result<Framebuffer, Error> createFramebuffer(
+            std::expected<Framebuffer, Error> createFramebuffer(
                 const RenderPass& renderPass, const Resource& image) const;
 
             Device(const Device& other);
@@ -79,9 +82,9 @@ export namespace aru::rhi {
     };
 }
 
-aru::standard::Result<aru::rhi::Device, aru::rhi::Error> aru::rhi::Adapter::createDevice(const aru::rhi::Adapter& adapter) const{
+std::expected<aru::rhi::Device, aru::rhi::Error> aru::rhi::Adapter::createDevice(const aru::rhi::Adapter& adapter) const{
     if (this->empty() || adapter.empty()){
-        return aru::rhi::Error::DeviceCreationFailed;
+        return std::unexpected(aru::rhi::Error::DeviceCreationFailed);
     }
 
     const float priority = 1.0F;
@@ -101,10 +104,10 @@ aru::standard::Result<aru::rhi::Device, aru::rhi::Error> aru::rhi::Adapter::crea
     try{
         created = adapter.mPhysicalDevice.createDevice(createInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return aru::rhi::Error::DeviceCreationFailed;
+        return std::unexpected(aru::rhi::Error::DeviceCreationFailed);
     }
 
-    aru::standard::println("Aru RHI: Device(created!!)");
+    std::println("Aru RHI: Device(created!!)");
 
     return Device(adapter.mInstance, adapter.mPhysicalDevice, adapter.mSurface,
                   created, adapter.mQueueFamily, Device::InitTag{});

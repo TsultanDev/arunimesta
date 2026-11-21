@@ -1,13 +1,15 @@
 module;
 
 #include <aru_rhi/vulkan.hpp>
+
+#include <expected>
+#include <print>
 #include <Windows.h>
 
 #include <utility>
 
 export module aru.rhi:surface;
 
-import aru.standard;
 import aru.window;
 import :instance;
 
@@ -18,7 +20,7 @@ export namespace aru::rhi {
 export namespace aru::rhi {
     class Surface {
         public:
-            using ResultType = aru::standard::Result<Surface, Error>;
+            using ResultType = std::expected<Surface, Error>;
 
             Surface(const Surface& other);
             Surface(Surface&& other) noexcept;
@@ -54,7 +56,7 @@ export namespace aru::rhi {
 
 aru::rhi::Surface::ResultType aru::rhi::Instance::createSurface(const aru::window::Window& window){
     if (window.empty()){
-        return aru::rhi::Error::SurfaceCreationFailed;
+        return std::unexpected(aru::rhi::Error::SurfaceCreationFailed);
     }
 
     vk::Win32SurfaceCreateInfoKHR info;
@@ -66,10 +68,10 @@ aru::rhi::Surface::ResultType aru::rhi::Instance::createSurface(const aru::windo
     try{
         created = this->mInstance.createWin32SurfaceKHR(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return aru::rhi::Error::SurfaceCreationFailed;
+        return std::unexpected(aru::rhi::Error::SurfaceCreationFailed);
     }
 
-    aru::standard::println("Aru RHI: Surface(created!!)");
+    std::println("Aru RHI: Surface(created!!)");
 
     return Surface(this->mInstance, created, Surface::InitTag{});
 }

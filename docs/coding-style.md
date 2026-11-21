@@ -6,15 +6,15 @@ This document summarizes the conventions used (and targeted) by the Arunimesta c
 
 | Element | Convention | Example |
 | :--- | :--- | :--- |
-| Public class / struct | `PascalCase` | `Application`, `Window`, `String` |
+| Public class / struct | `PascalCase` | `Application`, `Window`, `Instance` |
 | Internal implementation struct | `PascalCase` + `_T` | `Application_T` |
-| Function / method | `camelCase` | `init`, `printInfo`, `valueOrUnexpected`, `createFromWindow` |
+| Function / method | `camelCase` | `init`, `printInfo`, `create`, `createFromWindow` |
 | Variable / parameter / member | `camelCase` | `app`, `name`, `version`, `char_size` |
 | Enum type | `PascalCase` | `Flags`, `ApplicationError` |
 | Enum value | `PascalCase` | `None`, `Resizable` |
-| Concept | `lowercase` | `character` |
-| Namespace | `lowercase` | `aru`, `aru::window`, `aru::standard` |
-| Module | `lowercase.dot` | `aru`, `aru.window`, `aru.standard:string` |
+| Concept | `lowercase` | *(none in the engine yet)* |
+| Namespace | `lowercase` | `aru`, `aru::window`, `aru::rhi` |
+| Module | `lowercase.dot` | `aru`, `aru.window`, `aru.window:window` |
 | Module file | `lowercase.cppm` | `application.cppm` |
 | Macro | `UPPER_SNAKE_CASE` | *(none in the engine yet)* |
 
@@ -80,36 +80,12 @@ export import :application;
 - Internal partitions are not imported directly by outside code.
 - Partition names follow the file name without the extension.
 
-## Template and Concept Conventions
+## Templates and Helpers
 
-Used by `aru.standard:string` (see [the `String` reference](api/string.md)):
-
-1. **Constrain templates with a named concept** that is declared and defined once in the export block, then reused everywhere:
-   ```cpp
-   template<typename T>
-   concept character = (
-       std::same_as<T, char8_t> || std::same_as<T, char16_t> ||
-       std::same_as<T, char32_t>
-   );
-
-   template<character T>
-   class String;
-   ```
-2. **Out-of-line member definitions repeat the constraint** with the fully qualified concept name:
-   ```cpp
-   template<aru::standard::character T>
-   aru::standard::String<T>::String(const T* str) { /* ... */ }
-   ```
-   Concepts must be defined in their first declaration; do not split a `concept` into a forward declaration plus definition (that pattern is only valid for classes).
-3. **Different instantiations of one class template are unrelated classes.** When they must share access (for example, `String<char8_t>::from(u32s)` reading private data of `String<char32_t>`), declare mutual friendship inside the class:
-   ```cpp
-   private:
-       template<character U>
-       friend class String;
-   ```
-4. **Keep internal helpers in an unexported `<namespace>::detail` namespace** placed between the class declaration and its definition (e.g. `aru::standard::detail::decode_utf8`). Helpers and forward-declared helper functions may be marked `static` or `noexcept` as appropriate.
-5. **Creation goes through static factories (`from(...)`)**, which may call private constructors.
-6. Comments inside modules follow the engine language (Indonesian) but should stay short and explanatory.
+- Prefer the C++ standard library over custom wrappers: `std::vector<T>`, `std::array<T, N>`, `std::string` and its UTF variants, `std::string_view`, `std::expected<T, E>`, and `std::optional<T>`.
+- Keep internal helpers in an unexported `<namespace>::detail` namespace. Helpers and forward-declared helper functions may be marked `static` or `noexcept` as appropriate.
+- Concepts must be defined in their first declaration; do not split a `concept` into a forward declaration plus definition (that pattern is only valid for classes).
+- Comments inside modules follow the engine language (Indonesian) but should stay short and explanatory.
 
 ## Factory + Pimpl Pattern
 
@@ -156,10 +132,9 @@ Requirements:
 
 ## Error Handling
 
-- Use `std::expected` for recoverable failures, with a meaningful error type (`ApplicationError`, `aru::window::Error`).
+- Use `std::expected<T, E>` with `std::unexpected(...)` for recoverable failures, with a meaningful error type (`ApplicationError`, `aru::window::Error`, `aru::rhi::Error`).
+- Use `std::optional<T>` when a value may be absent; prefer the standard library over custom result/option wrappers.
 - Avoid `throw` at public API boundaries.
-- `aru.standard:result` offers `Result<T, E>` for lightweight two-value returns; see [the `Result` reference](api/result.md).
-- `aru.standard:option` offers `Option<T>` for an optional value without an error type; see [the `Option` reference](api/option.md).
 - Do not ignore an `expected` result; check it or propagate it with `transform` / `and_then`.
 
 Example:
@@ -192,7 +167,7 @@ std::println(stdout, "Aru: Window(created!!), title: {}", title);
 - Include `<Windows.h>` in the global module fragment.
 - Use the explicit Unicode (`...W`) Win32 APIs: `RegisterClassExW`, `CreateWindowExW`, `DefWindowProcW`, `PeekMessageW`, `DispatchMessageW`.
 - Never mix ANSI (`...A`) and Unicode (`...W`) APIs for the same window. Mixing them corrupts text; for example, a title created with `CreateWindowExA` and handled by `DefWindowProcW` is re-read as UTF-16 and can appear as CJK characters.
-- Narrow public APIs take UTF-8 text (`const char*` / `String<char8_t>`). Convert to UTF-16 with `String<char16_t>::from()` before calling a `...W` function; also accept `const char16_t*` where appropriate.
+- Narrow public APIs take UTF-8 text (`const char*`, `std::string`, or `std::string_view`). Convert to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` before calling a `...W` function; `Window` also accepts a `const char16_t*` title and returns `const std::wstring&` from `windowTitle()`.
 - Define `UNICODE` and `_UNICODE` for targets that include `<Windows.h>` (see `modules/aru_window/CMakeLists.txt`).
 
 ## Formatting

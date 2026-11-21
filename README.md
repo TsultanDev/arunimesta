@@ -14,7 +14,7 @@
 
 **Arunimesta** is a 3D game engine built from scratch with **C++23** and *named modules*. The project emphasizes a modular architecture, explicit error handling, and RAII-based resource management.
 
-> **Status: early development.** The build system, the standard library module (`aru.standard` with `Array`, `String`, `Vector`, `Result`, and `println`), the Win32 windowing module (`aru.window`), and the Vulkan RHI presentation foundation (`aru.rhi` instance, surface, adapter, device, queue, swapchain, resource views, render pass, and framebuffers with dynamic dispatch) are working. Rendering and presentation of an actual frame have not been implemented yet.
+> **Status: early development.** The build system, the Win32 windowing module (`aru.window`), and the Vulkan RHI presentation foundation (`aru.rhi` instance, surface, adapter, device, queue, swapchain, resource views, render pass, and framebuffers with dynamic dispatch) are working. The engine uses the C++ standard library directly (`std::vector`, `std::array`, `std::expected`, `std::optional`, `std::string`, `std::println`) instead of a custom standard module. Rendering and presentation of an actual frame have not been implemented yet.
 
 ## Preview
 
@@ -32,7 +32,7 @@
 | :--- | :--- |
 | Build system (CMake + Clang + Ninja) | ✅ Working |
 | Module `aru` (facade + `Application`) | ✅ Working |
-| Module `aru.standard` (`String`, `Result`, `println`) | ✅ Working |
+| Standard library types (`std::expected`, `std::string`, `std::vector`, `std::array`) | ✅ Working |
 | Module `aru.window` | ✅ Active (Win32 window + blocking event loop) |
 | Vulkan RHI (`aru.rhi`) | ✅ Basic (instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer) |
 
@@ -43,18 +43,14 @@ The `aru` executable creates a Win32 window, a Vulkan instance, surface, adapter
 ## Current Features
 
 - **C++23 Named Modules**: the main module `aru` with the module partition `aru:application` and the facade `lib.cppm`.
-- **UTF String Type**: `aru::standard::String<T>` supports `char8_t`, `char16_t`, and `char32_t`. Use the static `String::from()` factory to build one from a C string of any character type (`char` is treated as UTF-8) or from another `String<T>`; it transcodes between UTF-8, UTF-16, and UTF-32. Invalid sequences are replaced with `U+FFFD`. Any `String<T>` can be printed directly with `println()` thanks to its `std::formatter` specialization. Moving within the same encoding is done with `s.move()`.
-- **Array Type**: `aru::standard::Array<T, N>` is a fixed-size array with inline `T data[N]` storage (no heap allocation). Create with `Array<T, N>::create()` or `create({...})`; copy/move through constructors, assignment, or `copy()`/`move()`. Rule of Five is defaulted because there is no owned resource to steal.
-- **Vector Type**: `aru::standard::Vector<T>` is a growable dynamic array. Allocation goes through `Vector<T>::create(capacity)`, `create({...})`, or `create(container)` for any `std::array`/`std::vector`/forward range with convertible elements. Literal construction (`Vector<int> t = {1, 2, 3};`) is also supported. Copy/move constructors, assignment, `copy()`, and `move()` are all available (Rule of Five).
-- **Result Type**: `aru::standard::Result<T, E>` is a lightweight discriminated union for explicit success/failure values without exceptions.
-- **Option Type**: `aru::standard::Option<T>` holds either a value or nothing. Create with `Option<T>::some(value)` / `none()`, then use `map()`, `andThen()`, `orElse()`, and `valueOr()`; copy/move follow the engine's Rule of Five convention.
+- **Standard Library First**: sequences use `std::vector<T>` and `std::array<T, N>`; text uses `std::string`, `std::u8string`, `std::u16string`, and `std::u32string`; explicit success/failure uses `std::expected<T, E>`; optional values use `std::optional<T>`; output uses `std::println` / `std::eprintln`. There is no custom standard library module.
 - **Factory + `std::expected`**: `Application::init()` returns `std::expected<Application, ApplicationError>` without throwing exceptions.
 - **Pimpl with `std::unique_ptr`**: implementation details are hidden in `Application_T`; the object is *move-only*.
 - **Heap allocation blocked**: `operator new` is deleted so objects can only be created through the factory and cannot be freely allocated on the heap.
 - **RAII**: `Application_T` is cleaned up automatically by `std::unique_ptr`.
 - **Debug logging**: `std::println` output is only active in debug builds (`#ifndef NDEBUG`).
 - **Win32 windowing**: `aru.window` creates and shows a window via `Window::create()`, runs a blocking event loop with `event_loop()`, and exits when the window is destroyed.
-- **Unicode window titles**: narrow UTF-8 titles are converted to UTF-16 with `String<char8_t>` → `String<char16_t>`; a `const char16_t*` overload is available too.
+- **Unicode window titles**: narrow UTF-8 titles are converted to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` and stored as `std::wstring`; a `const char16_t*` overload is available too.
 - **CMake Presets**: Clang LLVM x64 presets for Debug and Release, complete with `compile_commands.json` for clangd.
 - **Modular structure**: each module lives in `modules/<module_name>` with its own `CMakeLists.txt`.
 
@@ -67,9 +63,9 @@ The `aru` executable creates a Win32 window, a Vulkan instance, surface, adapter
 | **Language** | C++23 (named modules) |
 | **Compiler** | Clang (`clang++`) |
 | **Build System** | CMake ≥ 3.28 + Ninja |
-| **Standard Features** | `std::expected`, `std::print` / `std::println`, `std::unique_ptr` |
+| **Standard Features** | `std::expected`, `std::optional`, `std::vector`, `std::array`, `std::print` / `std::println`, `std::unique_ptr` |
 | **Target Platform** | Windows x64 (matching the available presets) |
-| **Standard Library** | `aru.standard` — `String` (UTF-8/16/32), `Vector`, `Result`, debug `println`/`eprintln` |
+| **Standard Library** | C++ standard library only — `std::string` family, `std::vector`, `std::array`, `std::expected`, `std::optional`, `std::println` |
 | **Windowing** | `aru.window` — Win32 Unicode APIs, window + blocking event loop |
 | **Rendering** | Vulkan-Hpp (dynamic dispatch) — `aru.rhi` instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer |
 
@@ -163,11 +159,6 @@ arunimesta/
 │   ├── roadmap.md                   # Development plan
 │   └── api/
 │       ├── application.md           # Application API reference
-│       ├── option.md                # Option<T> API reference
-│       ├── string.md                # String API reference
-│       ├── vector.md                # Vector API reference
-│       ├── result.md                # Result API reference
-│       ├── print.md                 # print API reference
 │       ├── window.md                # Window API reference
 │       ├── swapchain.md             # Swapchain API reference
 │       ├── resource.md              # Resource tagged union reference
@@ -181,17 +172,6 @@ arunimesta/
 │   │       ├── lib.cppm             # export module aru; (facade)
 │   │       ├── application.cppm     # export module aru:application;
 │   │       └── main.cpp             # int main()
-│   │
-│   ├── aru_std/                     # Static library — standard library module
-│   │   ├── CMakeLists.txt
-│   │   └── src/
-│   │       ├── lib.cppm             # export module aru.standard; (facade)
-│   │       ├── array.cppm           # Array<T, N> (inline storage)
-│   │       ├── option.cppm          # Option<T> (some/none + monadic helpers)
-│   │       ├── string.cppm          # String<T> (UTF-8/16/32) + transcoding
-│   │       ├── vector.cppm          # Vector<T> + iter() / intoIter()
-│   │       ├── result.cppm          # Result<T, E> discriminated union
-│   │       └── print.cppm           # println / eprintln (debug builds)
 │   │
 │   └── aru_window/                  # Static library — windowing (Win32)
 │       ├── CMakeLists.txt
@@ -227,18 +207,12 @@ arunimesta/
 
 | Module | Type | Status | Description |
 | :--- | :--- | :--- | :--- |
-| `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `aru.standard`. |
+| `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `aru.window` and `aru.rhi`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
-| `aru.standard` | Static library | ✅ | Facade `lib.cppm` over the `:array`, `:string`, `:vector`, `:result`, and `:print` partitions. |
-| `aru.standard:string` | Module partition | ✅ | `String<T>` for `char8_t`/`char16_t`/`char32_t` with transcoding `from()` (any char pointer or `String`), `move()`, and `std::formatter`. |
-| `aru.standard:array` | Module partition | ✅ | `Array<T, N>` fixed-size array with inline `T data[N]`, `copy()`/`move()` + assignment. |
-| `aru.standard:vector` | Module partition | ✅ | `Vector<T>` with factory-only allocation (`create()`), `copy()`/`move()`, `iter()`/`intoIter()`. |
-| `aru.standard:result` | Module partition | ✅ | `Result<T, E>` discriminated union. |
-| `aru.standard:print` | Module partition | ✅ | Debug-gated `println` / `eprintln` wrappers. |
-| `aru.window` | Static library | ✅ | Win32 window creation, `Result`-based errors, copy/move by assignment, `createFromWindow()`, and event loop. |
+| `aru.window` | Static library | ✅ | Win32 window creation, `std::expected`-based errors, copy/move by assignment, `createFromWindow()`, and event loop. |
 | `aru.rhi` | Static library | ✅ | Vulkan-Hpp with dynamic dispatch: instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer. |
 
-> `modules/aru` links `aru_std`, `aru_window`, and `aru_rhi`. The `aru` facade re-exports `aru.standard`, `aru.window`, and `aru.rhi`.
+> `modules/aru` links `aru_window` and `aru_rhi`. The `aru` facade re-exports `aru.window` and `aru.rhi`. Standard-library types are used directly in every module.
 
 ---
 
@@ -247,55 +221,36 @@ arunimesta/
 The code currently in `modules/aru/src/main.cpp`:
 
 ```cpp
+#include <array>
 #include <expected>
+#include <optional>
 #include <print>
-import aru;
+#include <string>
+#include <vector>
+
+std::optional<int> find(int id) {
+    return id == 1 ? std::optional<int>{100} : std::nullopt;
+}
+
+std::expected<int, std::string> parse(std::string_view text) {
+    if (text == "42") {
+        return 42;
+    }
+    return std::unexpected(std::string("bad input"));
+}
 
 int main() {
-    auto string = aru::standard::String<char8_t>::from(u8"Hello");
-    auto s2 = aru::standard::String<char32_t>::from(string);
-    return 0;
+    std::vector<int> values{1, 3, 4};
+    std::array<int, 3> fixed{1, 3, 4};
+    std::u16string title = u"Arunimesta";
+
+    values.push_back(5);
+    std::println("values={} fixed={} title-length={}",
+                 values.size(), fixed.size(), title.size());
 }
 ```
 
-Strings are not converted in place. A **new** string is created from an existing one with the static `from()` factory; the target type is the `String` type the factory is called on:
-
-```cpp
-import aru;
-
-auto u8s  = aru::standard::String<char8_t>::from(u8"halo 🌍 dunia");
-auto u16s = aru::standard::String<char16_t>::from(u8s);  // UTF-8 -> UTF-16
-auto u32s = aru::standard::String<char32_t>::from(u16s); // UTF-16 -> UTF-32
-auto u8b  = aru::standard::String<char8_t>::from(u32s);  // UTF-32 -> UTF-8
-// u8b == u8s: roundtrip is lossless
-```
-
-Same-encoding moves use `move()`; the source becomes empty:
-
-```cpp
-auto s8b = u8s.move();   // UTF-8 -> UTF-8, same type only
-```
-
-Vectors are allocated through the `create()` factory, filled by assignment, and copied/moved via assignment or `copy()`/`move()`:
-
-```cpp
-auto vec = aru::standard::Vector<int>::create(16);       // capacity
-auto vals = aru::standard::Vector<int>::create({1, 3, 4}); // literal list
-
-std::array<int, 3> src = {1, 3, 4};
-auto fromArray = aru::standard::Vector<int>::create(src); // any forward range
-
-vec = {1, 3, 4};
-auto copy = vec.copy();
-auto moved = vec.move();   // vec is now empty
-
-// Three iteration styles:
-for (auto value : vec)          { /* copy */ }
-for (auto& value : vec.iter())  { /* reference */ }
-for (auto value : vec.intoIter()) { /* move out; vec becomes empty */ }
-```
-
-Literal construction works too: `Vector<int> t = {1, 2, 3};` (requires a copy-constructible element type).
+The engine modules use these types in their public APIs: `std::expected<T, Error>` for fallible factories, `std::string_view` / `std::string` for names, and `std::vector<T>` for collections such as swapchain image views.
 
 Application with explicit error handling:
 
@@ -317,10 +272,12 @@ int main() {
 Window creation with explicit error handling:
 
 ```cpp
-auto window = aru::window::Window::create("Arunimesta — 世界", 800, 600)
-    .valueOrUnexpected([](aru::window::Error&& err) {
-        aru::standard::println("Error! : {}", err);
-    });
+auto windowResult = aru::window::Window::create("Arunimesta — 世界", 800, 600);
+if (!windowResult) {
+    std::println("Error: {}", windowResult.error());
+    return 1;
+}
+auto window = std::move(*windowResult);
 
 window.event_loop();
 ```
@@ -330,19 +287,19 @@ Narrow titles are UTF-8, so non-ASCII text such as `世界` is supported. Rule o
 Vulkan RHI setup (see [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), and [`docs/api/framebuffer.md`](docs/api/framebuffer.md) for the full flow):
 
 ```cpp
-auto swapchain = device.createSwapchain(window.windowWidth(), window.windowHeight())
-    .valueOrUnexpected(report);
-auto images = device.createSwapchainImages(swapchain).valueOrUnexpected(report);
-auto renderPass = device.createRenderPass(swapchain).valueOrUnexpected(report);
+auto swapchainResult = device.createSwapchain(window.windowWidth(), window.windowHeight());
+auto imagesResult = device.createSwapchainImages(swapchainResult.value());
+auto renderPassResult = device.createRenderPass(swapchainResult.value());
 
-auto framebuffers = aru::standard::Vector<aru::rhi::Framebuffer>::create(images.length());
-for (const auto& image : images) {
-    auto framebuffer = device.createFramebuffer(renderPass, image).valueOrUnexpected(report);
-    framebuffers.push(framebuffer.move()); // transfer ownership into the vector
+std::vector<aru::rhi::Framebuffer> framebuffers;
+framebuffers.reserve(imagesResult->size());
+for (const auto& image : *imagesResult) {
+    auto framebufferResult = device.createFramebuffer(renderPassResult.value(), image);
+    framebuffers.push_back(framebufferResult->move()); // transfer ownership into the vector
 }
 ```
 
-References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/option.md`](docs/api/option.md), [`docs/api/string.md`](docs/api/string.md), [`docs/api/vector.md`](docs/api/vector.md), [`docs/api/result.md`](docs/api/result.md), [`docs/api/print.md`](docs/api/print.md), [`docs/api/window.md`](docs/api/window.md), [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), and [`docs/api/framebuffer.md`](docs/api/framebuffer.md).
+References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/window.md`](docs/api/window.md), [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), and [`docs/api/framebuffer.md`](docs/api/framebuffer.md).
 
 ---
 
@@ -355,12 +312,6 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/opt
 | [docs/coding-style.md](docs/coding-style.md) | Naming, `.cppm` file layout, factory/pimpl patterns |
 | [docs/assets.md](docs/assets.md) | Logo, screenshots, and asset usage rules |
 | [docs/api/application.md](docs/api/application.md) | `aru::Application` API |
-| [docs/api/array.md](docs/api/array.md) | `aru::standard::Array` API (fixed-size) |
-| [docs/api/option.md](docs/api/option.md) | `aru::standard::Option<T>` API (some/none, map/andThen, Rule of Five) |
-| [docs/api/string.md](docs/api/string.md) | `aru::standard::String` API (UTF-8/16/32) |
-| [docs/api/vector.md](docs/api/vector.md) | `aru::standard::Vector` API (factory-only allocation) |
-| [docs/api/result.md](docs/api/result.md) | `aru::standard::Result` API |
-| [docs/api/print.md](docs/api/print.md) | `aru::standard::println` / `eprintln` API |
 | [docs/api/window.md](docs/api/window.md) | `aru::window::Window` API (Win32, active) |
 | [docs/api/swapchain.md](docs/api/swapchain.md) | `aru::rhi::Swapchain` API and image selection |
 | [docs/api/resource.md](docs/api/resource.md) | `aru::rhi::Resource` tagged union (image/buffer) |
@@ -375,7 +326,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/opt
 - [x] CMake + Clang + Ninja build system
 - [x] C++23 named modules and module partitions
 - [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
-- [x] `aru.standard`: `String` (UTF-8/16/32 with transcoding), `Vector`, `Result`, debug `println`
+- [x] Standard-library types only: `std::expected`, `std::optional`, `std::string`, `std::vector`, `std::array`
 - [x] Re-enable and implement `aru.window`: RAII window creation, copy/move by assignment, and blocking event loop
 - [x] Vulkan RHI: instance, surface, adapter/device, queue
 - [x] Vulkan swapchain, image views, resource union, render pass, and framebuffers

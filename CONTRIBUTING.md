@@ -50,8 +50,8 @@ If module caches cause strange errors, delete `build/clang-x64-debug` and config
    - 4-space indentation, Allman braces, `camelCase` functions/members, `PascalCase` types.
    - Put `#include` directives in the global module fragment, before `export module`.
    - Keep facade files (`lib.cppm`) re-exporting partitions with `export import :partition;`.
-   - Use `Result`/`std::expected` for recoverable errors; avoid exceptions at public API boundaries.
-   - Keep Win32 code on the Unicode (`...W`) APIs and convert UTF-8 text through `String<char16_t>`.
+   - Use `std::expected`/`std::unexpected` for recoverable errors; avoid exceptions at public API boundaries.
+   - Keep Win32 code on the Unicode (`...W`) APIs and convert UTF-8 text through `std::wstring`.
 4. Register every new module/partition in the target's `CMakeLists.txt` under `FILE_SET CXX_MODULES`.
 5. Update documentation under `docs/` (and `README.md` when the public API or status changes). If you add an image under `assets/`, register it in [`docs/assets.md`](docs/assets.md).
 6. Use short, descriptive commit titles, for example:
@@ -95,7 +95,6 @@ Please search existing issues first. Include your commit hash, Clang/CMake/Ninja
 
 ```text
 modules/aru/        executable and public facade
-modules/aru_std/    aru.standard (String, Vector, Array, Result, print)
 modules/aru_window/ aru.window (Win32 window + event loop)
 modules/aru_rhi/    aru.rhi (instance, surface, adapter, device, queue)
 docs/               architecture, build guide, coding style, API references

@@ -2,12 +2,14 @@ module;
 
 #include <aru_rhi/vulkan.hpp>
 
+#include <expected>
+#include <print>
+
 #include <cstdint>
 #include <utility>
 
 export module aru.rhi:adapter;
 
-import aru.standard;
 import :instance;
 import :surface;
 
@@ -18,10 +20,10 @@ export namespace aru::rhi {
 export namespace aru::rhi {
     class Adapter {
         public:
-            using ResultType = aru::standard::Result<Adapter, Error>;
+            using ResultType = std::expected<Adapter, Error>;
 
             // Didefinisikan di :device (butuh tipe Device yang lengkap).
-            aru::standard::Result<Device, Error> createDevice(const Adapter& adapter) const;
+            std::expected<Device, Error> createDevice(const Adapter& adapter) const;
 
             Adapter(const Adapter& other);
             Adapter(Adapter&& other) noexcept;
@@ -58,7 +60,7 @@ export namespace aru::rhi {
     };
 }
 
-aru::standard::Result<aru::rhi::Adapter, aru::rhi::Error> aru::rhi::Instance::requestAdapter(const aru::rhi::Surface& surface){
+std::expected<aru::rhi::Adapter, aru::rhi::Error> aru::rhi::Instance::requestAdapter(const aru::rhi::Surface& surface){
     const auto devices = this->mInstance.enumeratePhysicalDevices(VULKAN_HPP_DEFAULT_DISPATCHER);
 
     for (const vk::PhysicalDevice& physicalDevice : devices){
@@ -72,13 +74,13 @@ aru::standard::Result<aru::rhi::Adapter, aru::rhi::Error> aru::rhi::Instance::re
                 index, surface.handle(), VULKAN_HPP_DEFAULT_DISPATCHER
             );
             if (supportsPresent){
-                aru::standard::println("Aru RHI: Adapter(found!!) family={}", index);
+                std::println("Aru RHI: Adapter(found!!) family={}", index);
                 return Adapter(this->mInstance, physicalDevice, surface.handle(), index, Adapter::InitTag{});
             }
         }
     }
 
-    return aru::rhi::Error::AdapterNotFound;
+    return std::unexpected(aru::rhi::Error::AdapterNotFound);
 }
 
 aru::rhi::Adapter::Adapter(vk::Instance instance, vk::PhysicalDevice physicalDevice,
