@@ -24,17 +24,23 @@ The current render pass has:
 
 | Function | Description |
 | :--- | :--- |
+| `template<typename Func> std::expected<void, Error> render(Func&& callback) const` | Begins the render pass with the stored clear color, runs the callback, then ends the pass. |
+| `template<typename Func> std::expected<void, Error> render(std::array<float, 4> clearColor, Func&& callback) const` | Same, with an explicit RGBA clear color. |
+| `void setClearColor(std::array<float, 4> color) noexcept` | Sets the stored clear color (default `{0.3f, 0.3f, 0.3f, 1.0f}`). |
+| `std::array<float, 4> clearColor() const noexcept` | Returns the stored clear color. |
 | `vk::RenderPass handle() const noexcept` | Underlying render pass. |
 | `vk::Device deviceHandle() const noexcept` | Owning device. |
 | `bool empty() const noexcept` | `true` when no render pass handle is held. |
 | `RenderPass copy() const` | Metadata-only copy (see below). |
 | `RenderPass move() noexcept` | Transfers the handle; source becomes empty. |
 
+`render()` is meant to be called inside [`CommandBuffer::record()`](command_buffer.md): it uses the active command buffer, the framebuffer for `Device::currentImageIndex()`, and the cached swapchain extent. It returns `RenderPassRecordingFailed` when any of those is missing or when Vulkan rejects `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`. See [frame.md](frame.md) for the full flow.
+
 ## Rule of Five
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies the device handle but not the `vk::RenderPass`; the copy is `empty()`. |
+| Copy constructor / copy assignment / `copy()` | Copies the owner pointer, device handle, and clear color, but not the `vk::RenderPass`; the copy is `empty()`. |
 | Move constructor / move assignment / `move()` | Steals the render pass and empties the source. `noexcept`. |
 | Destructor | Calls `destroyRenderPass()` only when a handle is held. |
 

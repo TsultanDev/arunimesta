@@ -146,6 +146,8 @@ aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) con
 
     std::println("Aru RHI: Swapchain(created!!) images={}", imageCount);
 
+    this->registerSwapchain(created, extent, imageCount);
+
     return Swapchain(this->mDevice, created, chosenFormat.format, extent, imageCount, Swapchain::InitTag{});
 }
 

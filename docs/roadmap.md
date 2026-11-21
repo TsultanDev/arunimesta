@@ -11,7 +11,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
 | C++ standard library | ✅ In use | `std::expected` / `std::optional`, `std::string` family, `std::string_view`, `std::vector` / `std::array`, `std::println` / `std::eprintln` used directly |
 | Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `std::expected` errors, copy/move assignment, event loop |
-| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, and `CommandBuffer` |
+| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`, and an empty-frame loop with fences/semaphores |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 
@@ -74,18 +74,18 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] Render pass with a single color attachment (`Device::createRenderPass`)
 - [x] One framebuffer per swapchain image (`Device::createFramebuffer`)
 - [x] Command pool and per-image command buffers (`Device::createCommandPool`, `Device::allocateCommandBuffers`)
+- [x] Frame loop prototype (`acquire` → `record` → `render` → `submit` → `present`) with fence/semaphore synchronization and two frames in flight
+- [x] Presenting an empty cleared frame (`Queue::submit`, `Queue::present`)
 - [ ] Resize handling (recreate swapchain)
-- [ ] Presenting an empty frame (queue submission + synchronization)
 
 **Done criteria:** an empty frame is successfully presented to the window.
 
 ### M4 — Frame Rendering
 
 - [ ] Recording draw commands into command buffers
-- [ ] Synchronization (fence/semaphore) and frames in flight
 - [ ] Graphics pipeline and shaders
 - [ ] Vertex/index buffers
-- [ ] Per-frame render loop
+- [ ] Expand the prototype into a full per-frame render loop with resource updates
 
 **Done criteria:** a simple object (for example a triangle) is displayed and animated.
 

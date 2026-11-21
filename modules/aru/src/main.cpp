@@ -1,5 +1,6 @@
 import aru;
 
+#include <array>
 #include <exception>
 #include <print>
 #include <utility>
@@ -13,6 +14,14 @@ int main() {
             std::terminate();
         }
         return std::move(*result);
+    };
+
+    // Untuk expected<void, Error> (frame/record/render/submit/present).
+    auto check = [](auto&& result) {
+        if (!result) {
+            std::println("Aru error: {}", result.error());
+            std::terminate();
+        }
     };
 
     auto window = unwrap(aru::window::Window::create("Arunimesta", 800, 600));
@@ -38,31 +47,39 @@ int main() {
     auto command_pool = unwrap(device.createCommandPool(queue));
     auto command_buffers = unwrap(device.allocateCommandBuffers(command_pool, swapchainImages.size()));
 
+    constexpr std::array<float, 4> clearColor{0.05f, 0.05f, 0.05f, 1.0f};
+
     while (window.isOpen()) {
-        window.event_loop();
-        uint32_t image_index = 0;
+        // event_loop() bersifat blocking; pollEvents() hanya menguras pesan
+        // yang sedang antre supaya loop render bisa berjalan tiap frame.
+        window.pollEvents();
+        if (window.shouldClose()) {
+            break;
+        }
 
-        aru::rhi::CommandBuffer& command_buffer = command_buffers[image_index];
-        device.acquire([...]() mutable {
-            //mulai waitFence, AcquireImage, resetfence, dan resetCommandBuffer sebelum closure dimulai,
-            // fence dan semaphore (synchornizer) untuk sekarang disimpan di device saja.
-            // frame_index disimpan di device bersama fence dan semaphore (syncronizer).
+        check(device.acquire([&]() mutable {
+            // Device sudah menunggu fence, meng-acquire gambar, mereset fence,
+            // dan menyimpan image_index/frame_index sebelum closure ini jalan.
+            const std::uint32_t image_index = device.currentImageIndex();
+            aru::rhi::CommandBuffer& command_buffer = command_buffers[image_index];
 
-            command_buffer.record([...](){
-                //otomaris memulai vkBeginCommandBuffer
-                render_pass.render([/*Warna float( ex: 0.3f, 0.3f, 0.3f, 1.0f) */](){
-                    //otomatis memulai vkCmdBeginRenderPass
+            check(command_buffer.record([&]() {
+                // record() otomatis reset + vkBeginCommandBuffer, lalu
+                // vkEndCommandBuffer setelah closure render selesai.
+                check(renderPass.render(clearColor, []() {
+                    // render() otomatis vkCmdBeginRenderPass / vkCmdEndRenderPass.
+                    // Perintah draw akan ditambahkan di sini.
+                }));
+            }));
 
-                    // otomatis memanggil vkCmdEndRenderPass
-                });
-                //otomatis memanggil vkEndCommandBuffer
-            });
+            check(queue.submit(command_buffer));
+            check(queue.present());
 
-            queue.submit(command_buffer); //untuk sekarang 1 command buffer dulu
-            queue.present();
-        });
-
+            // Device otomatis menaikkan frame_index (modulo MaxFramesInFlight)
+            // setelah closure acquire selesai.
+        }));
     }
 
+    device.waitIdle();
     return 0;
 }

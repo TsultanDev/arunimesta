@@ -5,6 +5,7 @@ set(MODULES
   "src/surface.cppm"
   "src/adapter.cppm"
   "src/device.cppm"
+  "src/frame.cppm"
   "src/queue.cppm"
   "src/resource.cppm"
   "src/swapchain.cppm"

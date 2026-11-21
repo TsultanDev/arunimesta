@@ -14,6 +14,7 @@ import :instance;
 import :device;
 
 export namespace aru::rhi {
+    class CommandBuffer;
     class Queue;
 }
 
@@ -31,6 +32,10 @@ export namespace aru::rhi {
             Queue copy() const;
             Queue move() noexcept;
 
+            // Didefinisikan di :command_buffer karena butuh CommandBuffer lengkap.
+            std::expected<void, Error> submit(const CommandBuffer& buffer) const;
+            std::expected<void, Error> present() const;
+
             vk::Queue handle() const noexcept;
             vk::Device deviceHandle() const noexcept;
             QueueFlags flags() const noexcept;
@@ -44,11 +49,12 @@ export namespace aru::rhi {
             struct MoveTag {};
             struct InitTag {};
 
-            Queue(vk::Device device, vk::Queue queue, QueueFlags flags,
-                  std::uint32_t familyIndex, InitTag tag) noexcept;
+            Queue(const Device* owner, vk::Device device, vk::Queue queue,
+                  QueueFlags flags, std::uint32_t familyIndex, InitTag tag) noexcept;
             Queue(const Queue& other, CopyTag tag);
             Queue(Queue&& other, MoveTag tag) noexcept;
 
+            const Device* mOwner;
             vk::Device mDevice;
             vk::Queue mQueue;
             QueueFlags mFlags;
@@ -92,11 +98,12 @@ std::expected<aru::rhi::Queue, aru::rhi::Error> aru::rhi::Device::requestQueue(a
 
     std::println("Aru RHI: Queue(requested!!) family={}", this->mQueueFamily);
 
-    return Queue(this->mDevice, queue, flags, this->mQueueFamily, Queue::InitTag{});
+    return Queue(this, this->mDevice, queue, flags, this->mQueueFamily, Queue::InitTag{});
 }
 
-aru::rhi::Queue::Queue(vk::Device device, vk::Queue queue, QueueFlags flags,
-                       std::uint32_t familyIndex, InitTag) noexcept :
+aru::rhi::Queue::Queue(const Device* owner, vk::Device device, vk::Queue queue,
+                       QueueFlags flags, std::uint32_t familyIndex, InitTag) noexcept :
+    mOwner(owner),
     mDevice(device),
     mQueue(queue),
     mFlags(flags),
@@ -112,6 +119,7 @@ aru::rhi::Queue::Queue(Queue&& other) noexcept :
 {}
 
 aru::rhi::Queue::Queue(const Queue& other, CopyTag) :
+    mOwner(other.mOwner),
     mDevice(other.mDevice),
     mQueue(other.mQueue),
     mFlags(other.mFlags),
@@ -119,6 +127,7 @@ aru::rhi::Queue::Queue(const Queue& other, CopyTag) :
 {}
 
 aru::rhi::Queue::Queue(Queue&& other, MoveTag) noexcept :
+    mOwner(std::exchange(other.mOwner, nullptr)),
     mDevice(std::exchange(other.mDevice, vk::Device{})),
     mQueue(std::exchange(other.mQueue, vk::Queue{})),
     mFlags(std::exchange(other.mFlags, QueueFlags::None)),
@@ -135,6 +144,7 @@ aru::rhi::Queue& aru::rhi::Queue::operator=(const Queue& other){
 
 aru::rhi::Queue& aru::rhi::Queue::operator=(Queue&& other) noexcept{
     if (this != &other){
+        this->mOwner = std::exchange(other.mOwner, nullptr);
         this->mDevice = std::exchange(other.mDevice, vk::Device{});
         this->mQueue = std::exchange(other.mQueue, vk::Queue{});
         this->mFlags = std::exchange(other.mFlags, QueueFlags::None);

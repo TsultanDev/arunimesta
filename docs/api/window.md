@@ -93,6 +93,22 @@ while (window.isOpen()) {          // or: while (!window.shouldClose())
 }
 ```
 
+### `void pollEvents()`
+
+Non-blocking alternative for render loops. It calls `PeekMessageW(PM_REMOVE)` until the queue is empty, dispatches each message, and sets `isOpen()` to `false` when `WM_QUIT` arrives. This is the variant used by the current demo because `event_loop()` would block rendering until the window closes.
+
+```cpp
+while (window.isOpen()) {
+    window.pollEvents();
+    if (window.shouldClose()) {
+        break;
+    }
+    // acquire / record / render / submit / present
+}
+```
+
+See [frame.md](frame.md) for the frame-loop prototype.
+
 ### Accessors
 
 | Function | Description |
@@ -122,7 +138,7 @@ The window class `ArunimestaWindowClass` is registered on first use. Registratio
 ## Current Limitations
 
 - No keyboard, mouse, resize, or other input events are exposed.
-- `event_loop()` blocks until `WM_QUIT`; there is no polling variant. `isOpen()` is the close flag for the outer loop.
+- `event_loop()` blocks until `WM_QUIT`; use `pollEvents()` for non-blocking render loops. `isOpen()` is the close flag for the outer loop.
 - The window class name is fixed to `ArunimestaWindowClass`.
 - `Error` does not yet carry the Win32 error code.
 - No thread-safety guarantees.

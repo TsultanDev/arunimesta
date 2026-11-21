@@ -44,6 +44,8 @@ These are the spellings used by `main.cpp`.
 | `QueueFlags flags() const noexcept` | Flags requested at creation. |
 | `std::uint32_t familyIndex() const noexcept` | Queue family index. |
 | `bool empty() const noexcept` | `true` when no queue handle is held. |
+| `std::expected<void, Error> submit(const CommandBuffer& buffer) const` | Submits one primary buffer with the frame semaphores/fence (defined in `:command_buffer`). |
+| `std::expected<void, Error> present() const` | Presents the current swapchain image after render completion (defined in `:command_buffer`). |
 | `Queue copy() const` | Copies the handle (non-owning). |
 | `Queue move() noexcept` | Transfers the handle; source becomes empty. |
 
@@ -51,8 +53,8 @@ These are the spellings used by `main.cpp`.
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies device, queue handle, flags, and family index. Vulkan queues are not destroyed by the application, so sharing is safe. |
+| Copy constructor / copy assignment / `copy()` | Copies the owner pointer, device, queue handle, flags, and family index. Vulkan queues are not destroyed by the application, so sharing is safe. |
 | Move constructor / move assignment / `move()` | Steals the handles/metadata and empties the source. `noexcept`. |
 | Destructor | Defaulted; queues are destroyed with the `Device`. |
 
-The `vk::Device` stored in a `Queue` is borrowed. Destroy the `Queue` before its `Device`.
+The `vk::Device` stored in a `Queue` is borrowed. Destroy the `Queue` before its `Device`. For the full submit/present call chain, see [frame.md](frame.md).

@@ -21,6 +21,11 @@ export namespace aru::rhi {
         FramebufferCreationFailed,
         CommandPoolCreationFailed,
         CommandBufferAllocationFailed,
+        FrameAcquisitionFailed,
+        CommandBufferRecordingFailed,
+        RenderPassRecordingFailed,
+        CommandSubmissionFailed,
+        FramePresentationFailed,
     };
 }
 
@@ -72,6 +77,21 @@ export namespace std {
                     break;
                 case aru::rhi::Error::CommandBufferAllocationFailed:
                     text = "vk::allocateCommandBuffers failed";
+                    break;
+                case aru::rhi::Error::FrameAcquisitionFailed:
+                    text = "vk::acquireNextImageKHR failed";
+                    break;
+                case aru::rhi::Error::CommandBufferRecordingFailed:
+                    text = "command buffer recording failed";
+                    break;
+                case aru::rhi::Error::RenderPassRecordingFailed:
+                    text = "render pass recording failed";
+                    break;
+                case aru::rhi::Error::CommandSubmissionFailed:
+                    text = "vkQueueSubmit failed";
+                    break;
+                case aru::rhi::Error::FramePresentationFailed:
+                    text = "vkQueuePresentKHR failed";
                     break;
             }
             return formatter<string_view>::format(text, ctx);

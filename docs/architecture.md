@@ -37,8 +37,9 @@ The Vulkan renderer (`aru.rhi`) provides the presentation foundation. The remain
   ┌─────────────▼────────┐  ┌──▼─────────────────────────────────────────┐
   │ module aru.window    │  │ module aru.rhi                              │
   │ :error, :window      │  │ :error :instance :surface :adapter :device  │
-  │ Window (Win32)       │  │ :queue :resource :swapchain :render_pass    │
-  │                      │  │ :framebuffer :command_pool :command_buffer  │
+  │ Window (Win32)       │  │ :frame :queue :resource :swapchain          │
+  │                      │  │ :render_pass :framebuffer :command_pool    │
+  │                      │  │ :command_buffer                            │
   └──────────────────────┘  └─────────────────────────────────────────────┘
 ```
 
@@ -66,6 +67,7 @@ The facade keeps the public import surface small: consumers import a single name
   export import :surface;
   export import :adapter;
   export import :device;
+  export import :frame;
   export import :queue;
   export import :resource;
   export import :swapchain;
@@ -78,21 +80,23 @@ The facade keeps the public import surface small: consumers import a single name
 - `src/instance.cppm` is the partition `aru.rhi:instance`. It exports `QueueFlags` with `constexpr` bitwise operators and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
 - `src/surface.cppm` is the partition `aru.rhi:surface`. It exports `Surface` and defines `Instance::createSurface(const Window&)`; it imports `:instance` and `aru.window`.
 - `src/adapter.cppm` is the partition `aru.rhi:adapter`. It exports `Adapter` and defines `Instance::requestAdapter(const Surface&)`; it selects the first graphics + present queue family.
-- `src/device.cppm` is the partition `aru.rhi:device`. It exports `Device` and defines `Adapter::createDevice(const Adapter&)`; it enables `VK_KHR_swapchain`.
-- `src/queue.cppm` is the partition `aru.rhi:queue`. It exports `Queue` and defines `Device::requestQueue(QueueFlags)`, validating flags with the `constexpr` bitwise helpers.
+- `src/device.cppm` is the partition `aru.rhi:device`. It exports `Device`, defines `Adapter::createDevice(const Adapter&)` and `Device::acquire(callback)`, and caches swapchain/frame/sync state; it enables `VK_KHR_swapchain`.
+- `src/frame.cppm` is the partition `aru.rhi:frame`. It defines the `Device` frame helpers: lazy fence/semaphore creation, fence wait/reset, image acquisition, image/frame observers, and frame index rollover.
+- `src/queue.cppm` is the partition `aru.rhi:queue`. It exports `Queue` and defines `Device::requestQueue(QueueFlags)`, validating flags with the `constexpr` bitwise helpers; `submit()`/`present()` are defined in `:command_buffer`.
 - `src/resource.cppm` is the partition `aru.rhi:resource`. It exports `Resource` and `ResourceKind`; `Resource` is a tagged union of `ImageData { image, view }` and `BufferData { buffer, view }`, with an ownership flag for safe copies.
 - `src/swapchain.cppm` is the partition `aru.rhi:swapchain`. It exports `Swapchain` and defines `Device::createSwapchain(width, height)` and `Device::createSwapchainImages(swapchain)`.
-- `src/render_pass.cppm` is the partition `aru.rhi:render_pass`. It exports `RenderPass` and defines `Device::createRenderPass(swapchain)`.
+- `src/render_pass.cppm` is the partition `aru.rhi:render_pass`. It exports `RenderPass`, defines `Device::createRenderPass(swapchain)`, and implements `render(callback)` / `render(clearColor, callback)` around `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`.
 - `src/framebuffer.cppm` is the partition `aru.rhi:framebuffer`. It exports `Framebuffer` and defines `Device::createFramebuffer(renderPass, image)`.
 - `src/command_pool.cppm` is the partition `aru.rhi:command_pool`. It exports `CommandPool` and defines `Device::createCommandPool(queue)`; pools are created with `eResetCommandBuffer` for the queue's family.
-- `src/command_buffer.cppm` is the partition `aru.rhi:command_buffer`. It exports `CommandBuffer` and defines `Device::allocateCommandBuffers(pool, count)`; `begin()` / `end()` / `reset()` wrap the Vulkan recording lifecycle.
+- `src/command_buffer.cppm` is the partition `aru.rhi:command_buffer`. It exports `CommandBuffer`, defines `Device::allocateCommandBuffers(pool, count)`, implements `record(callback)` (reset + begin + callback + end), and defines `Queue::submit(buffer)` / `Queue::present()` with the frame semaphores.
 - `Instance::create(std::string_view appName)` takes a UTF-8 application name and returns `std::expected<Instance, Error>`; `applicationName()` returns `const std::string&`.
 - All RHI factories return `std::expected<T, Error>`; `Device::createSwapchainImages()` returns `std::expected<std::vector<Resource>, Error>` and `Device::allocateCommandBuffers()` returns `std::expected<std::vector<CommandBuffer>, Error>`.
 - The API version comes from `vkEnumerateInstanceVersion`, not from the caller; Vulkan 1.0 falls back to `VK_API_VERSION_1_0`.
 - `aru_rhi/vulkan.hpp` also defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic dispatcher has one consistent layout.
 - Vulkan-Hpp uses **dynamic dispatch** (`VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`). The dispatcher storage is defined exactly once in `src/instance.cppm`; other translation units include `aru_rhi/vulkan.hpp`, which only declares it `extern`.
 - Rule of Five: copy duplicates metadata but not the owned Vulkan handle; move steals the handle and empties the source. Destructors destroy only owned handles (`Instance`, `Surface`, `Device`, `Swapchain`, `RenderPass`, `Framebuffer`, and owned `Resource` views/buffers); `Adapter` and `Queue` are non-owning views. A copied `Resource` keeps its handles but is marked non-owning to avoid double destruction.
-- Presentation order in `main.cpp`: window → instance → surface → adapter → device → queue → swapchain → swapchain images → render pass → framebuffers → command pool → command buffers. Reverse declaration order destroys buffers before their pool.
+- Setup order in `main.cpp`: window → instance → surface → adapter → device → queue → swapchain → swapchain images → render pass → framebuffers → command pool → command buffers. Reverse declaration order destroys buffers before their pool.
+- Frame order in `main.cpp`: `Window::pollEvents()` → `Device::acquire(callback)` → `CommandBuffer::record(callback)` → `RenderPass::render(callback)` → `Queue::submit(buffer)` → `Queue::present()`. See [api/frame.md](api/frame.md).
 
 ### Module `aru.window` (active)
 
@@ -242,9 +246,9 @@ General steps:
 | Item | Impact | Plan |
 | :--- | :--- | :--- |
 | `Window` copy does not duplicate the OS window | `copy()` / copy assignment copy metadata only; `handle()` is null on the copy | Use `createFromWindow()` when a real second window is needed |
-| `event_loop()` blocks | It uses `GetMessageW` until `WM_QUIT`; no polling variant exists | Add a non-blocking `pollEvents()` if the renderer needs one |
+| `event_loop()` blocks | It uses `GetMessageW` until `WM_QUIT`, so it is not used by the render loop | `pollEvents()` exists for per-frame message pumping |
 | No input handling | Keyboard and mouse messages are ignored | Handle `WM_KEYDOWN` / `WM_MOUSEMOVE` and expose events |
-| Command buffers are not submitted | Buffers can be allocated and recorded, but no queue submission or synchronization exists | Add pipeline, semaphores, and a render loop before presenting a frame |
+| Empty frame only | The frame loop submits and presents a cleared frame; no draw commands, pipeline, or resize handling | Add a graphics pipeline and per-frame draw recording |
 | No resize handling | `WM_SIZE` is not processed | Handle resize before the RHI needs it |
 | `ApplicationError` is minimal | Only `Unknown`; no failure context | Expand the error enum/struct as failure paths appear |
 | No tests yet | Regressions go undetected | Fill the `test/` folder with unit tests |

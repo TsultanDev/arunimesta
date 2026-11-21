@@ -23,6 +23,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [api/framebuffer.md](api/framebuffer.md) | `aru::rhi::Framebuffer` API reference and per-image creation loop. |
 | [api/command_pool.md](api/command_pool.md) | `aru::rhi::CommandPool` API reference (queue-family pool, reset). |
 | [api/command_buffer.md](api/command_buffer.md) | `aru::rhi::CommandBuffer` API reference (batch allocation, record lifecycle). |
+| [api/frame.md](api/frame.md) | Frame loop prototype: acquire → record → render → submit → present, plus sync state. |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
 ## Community

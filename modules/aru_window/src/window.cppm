@@ -37,6 +37,9 @@ class aru::window::Window{
         Window move() noexcept;
 
         void event_loop();
+
+        // Non-blocking variant for render loops: drains pending messages once.
+        void pollEvents();
         ~Window();
 
         HWND handle() const noexcept;
@@ -200,6 +203,22 @@ void aru::window::Window::event_loop(){
     // saat WM_DESTROY) atau -1 saat error. Keduanya mengakhiri loop utama.
     if (status <= 0) {
         this->open = false;
+    }
+}
+
+void aru::window::Window::pollEvents(){
+    if (!this->open) {
+        return;
+    }
+
+    MSG message = {};
+    while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+        if (message.message == WM_QUIT) {
+            this->open = false;
+            break;
+        }
+        TranslateMessage(&message);
+        DispatchMessageW(&message);
     }
 }
 

@@ -93,6 +93,8 @@ aru::rhi::Device::createFramebuffer(const aru::rhi::RenderPass& renderPass,
         return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
     }
 
+    this->registerFramebuffer(created);
+
     return Framebuffer(this->mDevice, created, extent.width, extent.height, Framebuffer::InitTag{});
 }
 

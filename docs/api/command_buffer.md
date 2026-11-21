@@ -28,6 +28,7 @@ The error is formattable through `std::formatter<aru::rhi::Error, char>`.
 | `vk::Device deviceHandle() const noexcept` | Owning device. |
 | `vk::CommandPool poolHandle() const noexcept` | Pool this buffer was allocated from. |
 | `bool empty() const noexcept` | `true` when no command-buffer handle is held. |
+| `template<typename Func> std::expected<void, Error> record(Func&& callback)` | Resets the buffer, calls `vkBeginCommandBuffer`, runs the callback, then calls `vkEndCommandBuffer`. |
 | `bool begin(vk::CommandBufferUsageFlags flags = {}) noexcept` | Starts recording; `false` when empty or on failure. |
 | `void end() noexcept` | Ends recording; silently ignores an empty buffer or a Vulkan error. |
 | `bool reset(vk::CommandBufferResetFlags flags = {}) noexcept` | Resets the buffer for reuse; requires the pool's `eResetCommandBuffer` flag. |
@@ -38,7 +39,7 @@ The error is formattable through `std::formatter<aru::rhi::Error, char>`.
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies the device and pool handles but not the `vk::CommandBuffer`; the copy is `empty()`. |
+| Copy constructor / copy assignment / `copy()` | Copies the owner pointer, device and pool handles, but not the `vk::CommandBuffer`; the copy is `empty()`. |
 | Move constructor / move assignment / `move()` | Steals the handle and empties the source. `noexcept`. |
 | Destructor | Calls `freeCommandBuffers()` for its own handle when non-null. |
 
@@ -56,13 +57,11 @@ if (!result) {
 }
 
 std::vector<aru::rhi::CommandBuffer> buffers = std::move(*result);
-for (auto& buffer : buffers) {
-    if (!buffer.begin()) {
-        std::terminate();
-    }
-    // record drawing commands here
-    buffer.end();
-}
+check(buffers[0].record([&]() {
+    check(renderPass.render([]() {
+        // draw commands will be added here
+    }));
+}));
 ```
 
-Recording an actual frame is still future work; see [roadmap.md](../roadmap.md).
+`record()` is the preferred prototype API; direct `begin()` / `end()` / `reset()` remain available for manual control. See [frame.md](frame.md) for the full loop. Drawing commands themselves are still future work; see [roadmap.md](../roadmap.md).

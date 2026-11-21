@@ -16,6 +16,7 @@ import :instance;
 import :adapter;
 
 export namespace aru::rhi {
+    class Queue;
     class Resource;
     class Swapchain;
     class RenderPass;
@@ -29,6 +30,8 @@ export namespace aru::rhi {
     class Device {
         public:
             using ResultType = std::expected<Device, Error>;
+
+            static constexpr std::uint32_t MaxFramesInFlight = 2;
 
             // Didefinisikan di partisi lain (butuh tipe lengkap masing-masing).
             std::expected<Queue, Error> requestQueue(QueueFlags flags) const;
@@ -48,6 +51,29 @@ export namespace aru::rhi {
             std::expected<std::vector<CommandBuffer>, Error> allocateCommandBuffers(
                 const CommandPool& commandPool, std::uint32_t count) const;
 
+            // Prototipe loop frame: wait fence -> acquire image -> jalankan
+            // closure -> majukan frame_index. Fence/semaphore dan image index
+            // disimpan di Device (lihat partisi :frame).
+            template<typename Func>
+            std::expected<void, Error> acquire(Func&& func){
+                if (auto started = this->beginFrame(); !started){
+                    return std::unexpected(started.error());
+                }
+
+                try{
+                    std::forward<Func>(func)();
+                }catch(...){
+                    this->noteError(Error::CommandSubmissionFailed);
+                }
+
+                const Error error = this->lastError();
+                this->finishFrame();
+                if (error != Error::None){
+                    return std::unexpected(error);
+                }
+                return {};
+            }
+
             Device(const Device& other);
             Device(Device&& other) noexcept;
             Device& operator=(const Device& other);
@@ -62,10 +88,20 @@ export namespace aru::rhi {
             vk::Instance instanceHandle() const noexcept;
             vk::SurfaceKHR surfaceHandle() const noexcept;
             std::uint32_t queueFamilyIndex() const noexcept;
+            std::uint32_t currentImageIndex() const noexcept;
+            std::uint32_t frameIndex() const noexcept;
             bool empty() const noexcept;
+
+            // Menunggu semua kerja GPU selesai sebelum destruksi frame state.
+            void waitIdle() const noexcept;
 
         private:
             friend class Adapter;
+            friend class Queue;
+            friend class RenderPass;
+            friend class Framebuffer;
+            friend class Swapchain;
+            friend class CommandBuffer;
 
             struct CopyTag {};
             struct MoveTag {};
@@ -79,11 +115,43 @@ export namespace aru::rhi {
 
             void release() noexcept;
 
+            // Frame state. Bersifat mutable karena factory create* bersifat const
+            // tetapi perlu mendaftarkan swapchain/framebuffer ke state ini.
+            std::expected<void, Error> beginFrame() const;
+            void finishFrame() const noexcept;
+            std::expected<void, Error> ensureFrameResources() const;
+            void destroyFrameResources() const noexcept;
+            void registerSwapchain(vk::SwapchainKHR swapchain, vk::Extent2D extent,
+                                   std::uint32_t imageCount) const noexcept;
+            void registerFramebuffer(vk::Framebuffer framebuffer) const noexcept;
+            vk::SwapchainKHR swapchainHandle() const noexcept;
+            vk::Framebuffer framebufferForCurrentImage() const noexcept;
+            vk::Extent2D frameExtent() const noexcept;
+            vk::Semaphore imageAvailableSemaphore() const noexcept;
+            vk::Semaphore renderFinishedSemaphore() const noexcept;
+            vk::Fence currentFence() const noexcept;
+            vk::CommandBuffer activeCommandBuffer() const noexcept;
+            void setActiveCommandBuffer(vk::CommandBuffer buffer) const noexcept;
+            void clearActiveCommandBuffer() const noexcept;
+            void noteError(Error error) const noexcept;
+            Error lastError() const noexcept;
+
             vk::Instance mInstance;
             vk::PhysicalDevice mPhysicalDevice;
             vk::SurfaceKHR mSurface;
             vk::Device mDevice;
             std::uint32_t mQueueFamily;
+
+            mutable vk::SwapchainKHR mSwapchain;
+            mutable vk::Extent2D mFrameExtent;
+            mutable std::vector<vk::Framebuffer> mFramebuffers;
+            mutable std::vector<vk::Semaphore> mImageAvailableSemaphores;
+            mutable std::vector<vk::Semaphore> mRenderFinishedSemaphores;
+            mutable std::vector<vk::Fence> mInFlightFences;
+            mutable std::uint32_t mFrameIndex;
+            mutable std::uint32_t mCurrentImage;
+            mutable vk::CommandBuffer mActiveCommandBuffer;
+            mutable Error mLastError;
     };
 }
 
@@ -125,7 +193,17 @@ aru::rhi::Device::Device(vk::Instance instance, vk::PhysicalDevice physicalDevic
     mPhysicalDevice(physicalDevice),
     mSurface(surface),
     mDevice(device),
-    mQueueFamily(queueFamilyIndex)
+    mQueueFamily(queueFamilyIndex),
+    mSwapchain(),
+    mFrameExtent(),
+    mFramebuffers(),
+    mImageAvailableSemaphores(),
+    mRenderFinishedSemaphores(),
+    mInFlightFences(),
+    mFrameIndex(0),
+    mCurrentImage(0),
+    mActiveCommandBuffer(),
+    mLastError(Error::None)
 {}
 
 aru::rhi::Device::Device(const Device& other) :
@@ -141,7 +219,17 @@ aru::rhi::Device::Device(const Device& other, CopyTag) :
     mPhysicalDevice(other.mPhysicalDevice),
     mSurface(other.mSurface),
     mDevice(),
-    mQueueFamily(other.mQueueFamily)
+    mQueueFamily(other.mQueueFamily),
+    mSwapchain(other.mSwapchain),
+    mFrameExtent(other.mFrameExtent),
+    mFramebuffers(other.mFramebuffers),
+    mImageAvailableSemaphores(),
+    mRenderFinishedSemaphores(),
+    mInFlightFences(),
+    mFrameIndex(other.mFrameIndex),
+    mCurrentImage(other.mCurrentImage),
+    mActiveCommandBuffer(),
+    mLastError(other.mLastError)
 {}
 
 aru::rhi::Device::Device(Device&& other, MoveTag) noexcept :
@@ -149,7 +237,17 @@ aru::rhi::Device::Device(Device&& other, MoveTag) noexcept :
     mPhysicalDevice(std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{})),
     mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{})),
     mDevice(std::exchange(other.mDevice, vk::Device{})),
-    mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0}))
+    mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0})),
+    mSwapchain(std::exchange(other.mSwapchain, vk::SwapchainKHR{})),
+    mFrameExtent(std::exchange(other.mFrameExtent, vk::Extent2D{})),
+    mFramebuffers(std::exchange(other.mFramebuffers, std::vector<vk::Framebuffer>{})),
+    mImageAvailableSemaphores(std::exchange(other.mImageAvailableSemaphores, std::vector<vk::Semaphore>{})),
+    mRenderFinishedSemaphores(std::exchange(other.mRenderFinishedSemaphores, std::vector<vk::Semaphore>{})),
+    mInFlightFences(std::exchange(other.mInFlightFences, std::vector<vk::Fence>{})),
+    mFrameIndex(std::exchange(other.mFrameIndex, std::uint32_t{0})),
+    mCurrentImage(std::exchange(other.mCurrentImage, std::uint32_t{0})),
+    mActiveCommandBuffer(std::exchange(other.mActiveCommandBuffer, vk::CommandBuffer{})),
+    mLastError(std::exchange(other.mLastError, Error::None))
 {}
 
 aru::rhi::Device& aru::rhi::Device::operator=(const Device& other){
@@ -168,6 +266,16 @@ aru::rhi::Device& aru::rhi::Device::operator=(Device&& other) noexcept{
         this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
         this->mDevice = std::exchange(other.mDevice, vk::Device{});
         this->mQueueFamily = std::exchange(other.mQueueFamily, std::uint32_t{0});
+        this->mSwapchain = std::exchange(other.mSwapchain, vk::SwapchainKHR{});
+        this->mFrameExtent = std::exchange(other.mFrameExtent, vk::Extent2D{});
+        this->mFramebuffers = std::exchange(other.mFramebuffers, std::vector<vk::Framebuffer>{});
+        this->mImageAvailableSemaphores = std::exchange(other.mImageAvailableSemaphores, std::vector<vk::Semaphore>{});
+        this->mRenderFinishedSemaphores = std::exchange(other.mRenderFinishedSemaphores, std::vector<vk::Semaphore>{});
+        this->mInFlightFences = std::exchange(other.mInFlightFences, std::vector<vk::Fence>{});
+        this->mFrameIndex = std::exchange(other.mFrameIndex, std::uint32_t{0});
+        this->mCurrentImage = std::exchange(other.mCurrentImage, std::uint32_t{0});
+        this->mActiveCommandBuffer = std::exchange(other.mActiveCommandBuffer, vk::CommandBuffer{});
+        this->mLastError = std::exchange(other.mLastError, Error::None);
     }
     return *this;
 }
@@ -205,6 +313,7 @@ bool aru::rhi::Device::empty() const noexcept{
 }
 
 void aru::rhi::Device::release() noexcept{
+    this->destroyFrameResources();
     if (static_cast<VkDevice>(this->mDevice) != nullptr){
         this->mDevice.destroy(nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
         this->mDevice = vk::Device{};
@@ -212,6 +321,13 @@ void aru::rhi::Device::release() noexcept{
     this->mPhysicalDevice = vk::PhysicalDevice{};
     this->mSurface = vk::SurfaceKHR{};
     this->mQueueFamily = 0;
+    this->mSwapchain = vk::SwapchainKHR{};
+    this->mFrameExtent = vk::Extent2D{};
+    this->mFramebuffers.clear();
+    this->mFrameIndex = 0;
+    this->mCurrentImage = 0;
+    this->mActiveCommandBuffer = vk::CommandBuffer{};
+    this->mLastError = Error::None;
 }
 
 aru::rhi::Device::~Device(){
