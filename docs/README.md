@@ -21,6 +21,8 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [api/resource.md](api/resource.md) | `aru::rhi::Resource` tagged union (image + view / buffer + view). |
 | [api/render_pass.md](api/render_pass.md) | `aru::rhi::RenderPass` API reference. |
 | [api/framebuffer.md](api/framebuffer.md) | `aru::rhi::Framebuffer` API reference and per-image creation loop. |
+| [api/command_pool.md](api/command_pool.md) | `aru::rhi::CommandPool` API reference (queue-family pool, reset). |
+| [api/command_buffer.md](api/command_buffer.md) | `aru::rhi::CommandBuffer` API reference (batch allocation, record lifecycle). |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
 ## Community

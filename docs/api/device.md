@@ -27,6 +27,8 @@ The object stores the parent instance, physical device, surface, logical device,
 | `std::uint32_t queueFamilyIndex() const noexcept` | Queue family used at creation. |
 | `bool empty() const noexcept` | `true` when no logical device is held. |
 | `std::expected<Queue, Error> requestQueue(QueueFlags flags) const` | Fetches a queue satisfying the requested flags (defined in `:queue`). |
+| `std::expected<CommandPool, Error> createCommandPool(const Queue& queue) const` | Creates a resettable command pool for the queue's family (defined in `:command_pool`). |
+| `std::expected<std::vector<CommandBuffer>, Error> allocateCommandBuffers(const CommandPool& pool, std::uint32_t count) const` | Allocates `count` primary command buffers from the pool (defined in `:command_buffer`). |
 | `Device copy() const` | Metadata-only copy (see below). |
 | `Device move() noexcept` | Transfers the device handle; source becomes empty. |
 

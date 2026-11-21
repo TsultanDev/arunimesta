@@ -10,6 +10,8 @@ set(MODULES
   "src/swapchain.cppm"
   "src/render_pass.cppm"
   "src/framebuffer.cppm"
+  "src/command_pool.cppm"
+  "src/command_buffer.cppm"
 )
 
 find_package(Vulkan REQUIRED)

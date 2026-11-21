@@ -19,6 +19,8 @@ export namespace aru::rhi {
         ResourceCreationFailed,
         RenderPassCreationFailed,
         FramebufferCreationFailed,
+        CommandPoolCreationFailed,
+        CommandBufferAllocationFailed,
     };
 }
 
@@ -64,6 +66,12 @@ export namespace std {
                     break;
                 case aru::rhi::Error::FramebufferCreationFailed:
                     text = "vk::createFramebuffer failed";
+                    break;
+                case aru::rhi::Error::CommandPoolCreationFailed:
+                    text = "vk::createCommandPool failed";
+                    break;
+                case aru::rhi::Error::CommandBufferAllocationFailed:
+                    text = "vk::allocateCommandBuffers failed";
                     break;
             }
             return formatter<string_view>::format(text, ctx);

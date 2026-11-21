@@ -32,14 +32,36 @@ int main() {
     framebuffers.reserve(swapchainImages.size());
     for (const auto& image : swapchainImages) {
         auto framebuffer = unwrap(device.createFramebuffer(renderPass, image));
-        framebuffers.push_back(framebuffer.move()); // pindahkan handle, jangan copy.
+        framebuffers.push_back(framebuffer.move());
     }
 
-    std::println("Aru RHI: queue ready (family {})", queue.familyIndex());
-    std::println("Aru RHI: framebuffers ready ({})", framebuffers.size());
+    auto command_pool = unwrap(device.createCommandPool(queue));
+    auto command_buffers = unwrap(device.allocateCommandBuffers(command_pool, swapchainImages.size()));
 
     while (window.isOpen()) {
         window.event_loop();
+        uint32_t image_index = 0;
+
+        aru::rhi::CommandBuffer& command_buffer = command_buffers[image_index];
+        device.acquire([...]() mutable {
+            //mulai waitFence, AcquireImage, resetfence, dan resetCommandBuffer sebelum closure dimulai,
+            // fence dan semaphore (synchornizer) untuk sekarang disimpan di device saja.
+            // frame_index disimpan di device bersama fence dan semaphore (syncronizer).
+
+            command_buffer.record([...](){
+                //otomaris memulai vkBeginCommandBuffer
+                render_pass.render([/*Warna float( ex: 0.3f, 0.3f, 0.3f, 1.0f) */](){
+                    //otomatis memulai vkCmdBeginRenderPass
+
+                    // otomatis memanggil vkCmdEndRenderPass
+                });
+                //otomatis memanggil vkEndCommandBuffer
+            });
+
+            queue.submit(command_buffer); //untuk sekarang 1 command buffer dulu
+            queue.present();
+        });
+
     }
 
     return 0;

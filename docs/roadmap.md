@@ -11,7 +11,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
 | C++ standard library | ✅ In use | `std::expected` / `std::optional`, `std::string` family, `std::string_view`, `std::vector` / `std::array`, `std::println` / `std::eprintln` used directly |
 | Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `std::expected` errors, copy/move assignment, event loop |
-| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, and `Framebuffer` |
+| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, and `CommandBuffer` |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 
@@ -73,14 +73,15 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] `Resource` tagged union for image + view / buffer + view
 - [x] Render pass with a single color attachment (`Device::createRenderPass`)
 - [x] One framebuffer per swapchain image (`Device::createFramebuffer`)
+- [x] Command pool and per-image command buffers (`Device::createCommandPool`, `Device::allocateCommandBuffers`)
 - [ ] Resize handling (recreate swapchain)
-- [ ] Command buffers and presenting an empty frame
+- [ ] Presenting an empty frame (queue submission + synchronization)
 
 **Done criteria:** an empty frame is successfully presented to the window.
 
 ### M4 — Frame Rendering
 
-- [ ] Command pool and command buffers
+- [ ] Recording draw commands into command buffers
 - [ ] Synchronization (fence/semaphore) and frames in flight
 - [ ] Graphics pipeline and shaders
 - [ ] Vertex/index buffers

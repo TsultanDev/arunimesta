@@ -20,6 +20,8 @@ export namespace aru::rhi {
     class Swapchain;
     class RenderPass;
     class Framebuffer;
+    class CommandPool;
+    class CommandBuffer;
     class Device;
 }
 
@@ -42,6 +44,9 @@ export namespace aru::rhi {
                 const Swapchain& swapchain) const;
             std::expected<Framebuffer, Error> createFramebuffer(
                 const RenderPass& renderPass, const Resource& image) const;
+            std::expected<CommandPool, Error> createCommandPool(const Queue& queue) const;
+            std::expected<std::vector<CommandBuffer>, Error> allocateCommandBuffers(
+                const CommandPool& commandPool, std::uint32_t count) const;
 
             Device(const Device& other);
             Device(Device&& other) noexcept;

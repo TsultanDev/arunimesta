@@ -9,3 +9,5 @@ export import :resource;
 export import :swapchain;
 export import :render_pass;
 export import :framebuffer;
+export import :command_pool;
+export import :command_buffer;
