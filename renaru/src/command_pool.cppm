@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 #include <print>
@@ -8,12 +8,12 @@ module;
 #include <cstdint>
 #include <utility>
 
-export module aru.rhi:command_pool;
+export module renaru:command_pool;
 
 import :device;
 import :queue;
 
-export namespace aru::rhi {
+export namespace renaru {
     // CommandPool memiliki vk::CommandPool untuk satu queue family.
     // Flag eResetCommandBuffer memungkinkan reset per command buffer.
     class CommandPool {
@@ -91,16 +91,16 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
 // CommandPool membutuhkan tipe lengkap Queue/CommandPool dari partisi ini.
-std::expected<aru::rhi::CommandPool, aru::rhi::Error>
-aru::rhi::Device::createCommandPool(const aru::rhi::Queue& queue) const{
+std::expected<renaru::CommandPool, renaru::Error>
+renaru::Device::createCommandPool(const renaru::Queue& queue) const{
     if (this->empty() || queue.empty()){
-        return std::unexpected(aru::rhi::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
     if (static_cast<VkDevice>(queue.deviceHandle()) != static_cast<VkDevice>(this->mDevice)){
-        return std::unexpected(aru::rhi::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
     if (queue.familyIndex() != this->mQueueFamily){
-        return std::unexpected(aru::rhi::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
 
     vk::CommandPoolCreateInfo info;
@@ -111,7 +111,7 @@ aru::rhi::Device::createCommandPool(const aru::rhi::Queue& queue) const{
     try{
         created = this->mDevice.createCommandPool(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return std::unexpected(aru::rhi::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
 
     std::println("Aru RHI: CommandPool(created!!) family={}", this->mQueueFamily);

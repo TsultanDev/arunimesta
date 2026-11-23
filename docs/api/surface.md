@@ -1,13 +1,13 @@
-# `aru::rhi::Surface` API Reference
+# `renaru::Surface` API Reference
 
-`Surface` is the Win32 Vulkan surface wrapper in the `aru.rhi:surface` module partition (`aru_rhi/src/surface.cppm`). It is created from an `Instance` and an existing `aru::window::Window`, and returned in a `std::expected<Surface, Error>`.
+`Surface` is the Win32 Vulkan surface wrapper in the `renaru:surface` module partition (`renaru/src/surface.cppm`). It is created from an `Instance` and an existing `winaru::Window`, and returned in a `std::expected<Surface, Error>`.
 
 ## Creation
 
 Surfaces are not created with a public constructor. Use the `Instance` member:
 
 ```cpp
-auto instance = aru::rhi::Instance::create("Arunimesta");
+auto instance = renaru::Instance::create("Arunimesta");
 if (!instance) {
     std::println("instance: {}", instance.error());
     std::terminate();
@@ -22,7 +22,7 @@ if (!surface) {
 
 `Instance::create()` enables `VK_KHR_surface` and `VK_KHR_win32_surface`, so `createWin32SurfaceKHR()` is available. The `HWND` comes from `Window::handle()`; `GetModuleHandleW(nullptr)` supplies the `HINSTANCE`.
 
-`SurfaceCreationFailed` is returned as `std::unexpected(Error::SurfaceCreationFailed)` when the window is empty or `vk::createWin32SurfaceKHR` throws. It is formattable through `std::formatter<aru::rhi::Error, char>`.
+`SurfaceCreationFailed` is returned as `std::unexpected(Error::SurfaceCreationFailed)` when the window is empty or `vk::createWin32SurfaceKHR` throws. It is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 
@@ -44,11 +44,11 @@ Only one object owns a given `vk::SurfaceKHR`. The surface must be destroyed bef
 
 ## Build Notes
 
-- `aru.rhi:surface` imports `aru.window` and `aru.rhi:instance`.
-- `aru_rhi` links `Vulkan::Headers` and `aru_window`.
-- The shared `aru_rhi/vulkan.hpp` defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic-dispatch loader layout stays identical; its storage is still defined only in `instance.cppm`.
+- `renaru:surface` imports `winaru` and `renaru:instance`.
+- `renaru` links `Vulkan::Headers` and `winaru`.
+- The shared `renaru/vulkan.hpp` defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic-dispatch loader layout stays identical; its storage is still defined only in `instance.cppm`.
 
 ## Limitations
 
 - No surface capability / format queries.
-- Windows-only, matching the current `aru.window` target.
+- Windows-only, matching the current `winaru` target.

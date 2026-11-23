@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 #include <print>
@@ -8,13 +8,12 @@ module;
 #include <cstdint>
 #include <utility>
 
-export module aru.rhi:adapter;
+export module renaru:adapter;
 
 import :instance;
 import :surface;
 
-export namespace aru::rhi {
-    // Forward declaration: tipe lengkap ada di partisi :device.
+export namespace renaru {
     class Device;
 
     class Adapter {
@@ -77,7 +76,7 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Instance didefinisikan di :instance, tetapi
 // pemilihan adapter membutuhkan tipe lengkap Surface dari partisi ini.
-std::expected<aru::rhi::Adapter, aru::rhi::Error> aru::rhi::Instance::requestAdapter(const aru::rhi::Surface& surface){
+std::expected<renaru::Adapter, renaru::Error> renaru::Instance::requestAdapter(const renaru::Surface& surface){
     const auto devices = this->mInstance.enumeratePhysicalDevices(VULKAN_HPP_DEFAULT_DISPATCHER);
 
     for (const vk::PhysicalDevice& physicalDevice : devices){
@@ -97,5 +96,5 @@ std::expected<aru::rhi::Adapter, aru::rhi::Error> aru::rhi::Instance::requestAda
         }
     }
 
-    return std::unexpected(aru::rhi::Error::AdapterNotFound);
+    return std::unexpected(renaru::Error::AdapterNotFound);
 }

@@ -3,9 +3,9 @@ module;
 #include <format>
 #include <string_view>
 
-export module aru.rhi:error;
+export module renaru:error;
 
-export namespace aru::rhi {
+export namespace renaru {
     enum class Error {
         None = 0,
         DynamicLoaderFailed,
@@ -31,66 +31,66 @@ export namespace aru::rhi {
 
 export namespace std {
     template<>
-    struct formatter<aru::rhi::Error> : formatter<string_view> {
+    struct formatter<renaru::Error> : formatter<string_view> {
         template<typename FormatContext>
-        auto format(const aru::rhi::Error& error, FormatContext& ctx) const {
+        auto format(const renaru::Error& error, FormatContext& ctx) const {
             string_view text = "unknown";
             switch (error) {
-                case aru::rhi::Error::None:
+                case renaru::Error::None:
                     text = "none";
                     break;
-                case aru::rhi::Error::DynamicLoaderFailed:
+                case renaru::Error::DynamicLoaderFailed:
                     text = "vulkan dynamic loader failed";
                     break;
-                case aru::rhi::Error::ApiVersionQueryFailed:
+                case renaru::Error::ApiVersionQueryFailed:
                     text = "vkEnumerateInstanceVersion failed";
                     break;
-                case aru::rhi::Error::InstanceCreationFailed:
+                case renaru::Error::InstanceCreationFailed:
                     text = "vk::createInstance failed";
                     break;
-                case aru::rhi::Error::SurfaceCreationFailed:
+                case renaru::Error::SurfaceCreationFailed:
                     text = "vk::createWin32SurfaceKHR failed";
                     break;
-                case aru::rhi::Error::AdapterNotFound:
+                case renaru::Error::AdapterNotFound:
                     text = "no suitable physical device";
                     break;
-                case aru::rhi::Error::DeviceCreationFailed:
+                case renaru::Error::DeviceCreationFailed:
                     text = "vk::createDevice failed";
                     break;
-                case aru::rhi::Error::QueueRequestFailed:
+                case renaru::Error::QueueRequestFailed:
                     text = "requested queue flags are unavailable";
                     break;
-                case aru::rhi::Error::SwapchainCreationFailed:
+                case renaru::Error::SwapchainCreationFailed:
                     text = "vk::createSwapchainKHR failed";
                     break;
-                case aru::rhi::Error::ResourceCreationFailed:
+                case renaru::Error::ResourceCreationFailed:
                     text = "image view / buffer creation failed";
                     break;
-                case aru::rhi::Error::RenderPassCreationFailed:
+                case renaru::Error::RenderPassCreationFailed:
                     text = "vk::createRenderPass failed";
                     break;
-                case aru::rhi::Error::FramebufferCreationFailed:
+                case renaru::Error::FramebufferCreationFailed:
                     text = "vk::createFramebuffer failed";
                     break;
-                case aru::rhi::Error::CommandPoolCreationFailed:
+                case renaru::Error::CommandPoolCreationFailed:
                     text = "vk::createCommandPool failed";
                     break;
-                case aru::rhi::Error::CommandBufferAllocationFailed:
+                case renaru::Error::CommandBufferAllocationFailed:
                     text = "vk::allocateCommandBuffers failed";
                     break;
-                case aru::rhi::Error::FrameAcquisitionFailed:
+                case renaru::Error::FrameAcquisitionFailed:
                     text = "vk::acquireNextImageKHR failed";
                     break;
-                case aru::rhi::Error::CommandBufferRecordingFailed:
+                case renaru::Error::CommandBufferRecordingFailed:
                     text = "command buffer recording failed";
                     break;
-                case aru::rhi::Error::RenderPassRecordingFailed:
+                case renaru::Error::RenderPassRecordingFailed:
                     text = "render pass recording failed";
                     break;
-                case aru::rhi::Error::CommandSubmissionFailed:
+                case renaru::Error::CommandSubmissionFailed:
                     text = "vkQueueSubmit failed";
                     break;
-                case aru::rhi::Error::FramePresentationFailed:
+                case renaru::Error::FramePresentationFailed:
                     text = "vkQueuePresentKHR failed";
                     break;
             }

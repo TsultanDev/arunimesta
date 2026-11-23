@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 #include <print>
@@ -8,12 +8,12 @@ module;
 
 #include <utility>
 
-export module aru.rhi:surface;
+export module renaru:surface;
 
-import aru.window;
+import winaru;
 import :instance;
 
-export namespace aru::rhi {
+export namespace renaru {
     class Surface {
         public:
             using ResultType = std::expected<Surface, Error>;
@@ -68,9 +68,9 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Instance didefinisikan di :instance, tetapi
 // pembuatannya membutuhkan tipe lengkap Surface dari partisi ini.
-aru::rhi::Surface::ResultType aru::rhi::Instance::createSurface(const aru::window::Window& window){
+renaru::Surface::ResultType renaru::Instance::createSurface(const winaru::Window& window){
     if (window.empty()){
-        return std::unexpected(aru::rhi::Error::SurfaceCreationFailed);
+        return std::unexpected(renaru::Error::SurfaceCreationFailed);
     }
 
     vk::Win32SurfaceCreateInfoKHR info;
@@ -82,7 +82,7 @@ aru::rhi::Surface::ResultType aru::rhi::Instance::createSurface(const aru::windo
     try{
         created = this->mInstance.createWin32SurfaceKHR(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return std::unexpected(aru::rhi::Error::SurfaceCreationFailed);
+        return std::unexpected(renaru::Error::SurfaceCreationFailed);
     }
 
     std::println("Aru RHI: Surface(created!!)");

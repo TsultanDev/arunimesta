@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -10,12 +10,12 @@ module;
 #include <utility>
 #include <vector>
 
-export module aru.rhi:swapchain;
+export module renaru:swapchain;
 
 import :device;
 import :resource;
 
-export namespace aru::rhi {
+export namespace renaru {
     class Swapchain {
         public:
             using ResultType = std::expected<Swapchain, Error>;
@@ -92,10 +92,10 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
 // swapchain dan image resource membutuhkan tipe lengkap dari partisi ini.
-std::expected<aru::rhi::Swapchain, aru::rhi::Error>
-aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) const{
+std::expected<renaru::Swapchain, renaru::Error>
+renaru::Device::createSwapchain(std::uint32_t width, std::uint32_t height) const{
     if (this->empty() || static_cast<VkSurfaceKHR>(this->mSurface) == nullptr){
-        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
     vk::SurfaceCapabilitiesKHR capabilities;
@@ -112,11 +112,11 @@ aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) con
             this->mSurface, VULKAN_HPP_DEFAULT_DISPATCHER
         );
     }catch(...){
-        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
     if (formats.empty() || presentModes.empty()){
-        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
     vk::SurfaceFormatKHR chosenFormat = formats.front();
@@ -170,7 +170,7 @@ aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) con
     try{
         created = this->mDevice.createSwapchainKHR(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return std::unexpected(aru::rhi::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
     std::println("Aru RHI: Swapchain(created!!) images={}", imageCount);
@@ -180,10 +180,10 @@ aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) con
     return Swapchain(this->mDevice, created, chosenFormat.format, extent, imageCount);
 }
 
-std::expected<std::vector<aru::rhi::Resource>, aru::rhi::Error>
-aru::rhi::Device::createSwapchainImages(const aru::rhi::Swapchain& swapchain) const{
+std::expected<std::vector<renaru::Resource>, renaru::Error>
+renaru::Device::createSwapchainImages(const renaru::Swapchain& swapchain) const{
     if (this->empty() || swapchain.empty()){
-        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
     std::vector<vk::Image> images;
@@ -192,10 +192,10 @@ aru::rhi::Device::createSwapchainImages(const aru::rhi::Swapchain& swapchain) co
             swapchain.handle(), VULKAN_HPP_DEFAULT_DISPATCHER
         );
     }catch(...){
-        return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
-    std::vector<aru::rhi::Resource> resources;
+    std::vector<renaru::Resource> resources;
     resources.reserve(images.size());
 
     for (const vk::Image image : images){
@@ -216,10 +216,10 @@ aru::rhi::Device::createSwapchainImages(const aru::rhi::Swapchain& swapchain) co
         try{
             view = this->mDevice.createImageView(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
         }catch(...){
-            return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
+            return std::unexpected(renaru::Error::ResourceCreationFailed);
         }
 
-        resources.push_back(aru::rhi::Resource(
+        resources.push_back(renaru::Resource(
             this->mDevice, image, view, swapchain.extent()
         ));
     }

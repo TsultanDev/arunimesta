@@ -1,11 +1,11 @@
-# API: `aru::window::Window`
+# API: `winaru::Window`
 
-Reference for the `Window` class exported by module `aru.window`.
+Reference for the `Window` class exported by module `winaru`.
 
 ```cpp
-import aru;          // re-exports aru.window
-// or: import aru.window;
-// or: import aru.window:window;
+import aru;          // re-exports winaru
+// or: import winaru;
+// or: import winaru:window;
 ```
 
 ## Overview
@@ -16,14 +16,14 @@ import aru;          // re-exports aru.window
   <img src="../../assets/window.png" alt="Arunimesta Win32 window" width="700">
 </p>
 
-<p align="center"><em>The current window created by <code>aru.window</code>; no rendering is implemented yet.</em></p>
+<p align="center"><em>The current window created by <code>winaru</code>; no rendering is implemented yet.</em></p>
 
 `Window` is move-only: the copy constructor and copy assignment are deleted because `HWND` is a raw handle. The move constructor and move assignment steal the handle and empty the source; use `std::move` to transfer ownership. Creating another real OS window is a separate operation: `createFromWindow()`.
 
 ## Error type
 
 ```cpp
-enum class aru::window::Error {
+enum class winaru::Error {
     None = 0,
     ClassRegistrationFailed = 1,
     WindowCreationFailed = 2,
@@ -32,7 +32,7 @@ enum class aru::window::Error {
 
 Failures are returned as `std::unexpected(Error::X)`.
 
-A `std::formatter<aru::window::Error, char>` specialization is exported, so `Error` can be printed directly:
+A `std::formatter<winaru::Error, char>` specialization is exported, so `Error` can be printed directly:
 
 ```cpp
 std::println("Error! : {}", err);
@@ -45,7 +45,7 @@ std::println("Error! : {}", err);
 Narrow-title overload. The title is treated as UTF-8 and converted to a `std::wstring` with `MultiByteToWideChar(CP_UTF8, ...)` before being passed to `CreateWindowExW`.
 
 ```cpp
-auto window = aru::window::Window::create("Arunimesta", 800, 600);
+auto window = winaru::Window::create("Arunimesta", 800, 600);
 if (!window) {
     std::println("Error! : {}", window.error());
     std::terminate();
@@ -61,7 +61,7 @@ UTF-16 overload; the title is used as-is (mapped to `wchar_t`, which is 16-bit o
 Creates a **new OS window** using the source window's title, width, and height. Since copying is deleted, this is the only way to obtain a second window with the same configuration: it calls WinAPI again and produces a distinct `HWND`.
 
 ```cpp
-auto second = aru::window::Window::createFromWindow(window);
+auto second = winaru::Window::createFromWindow(window);
 if (!second) {
     std::println("Error! : {}", second.error());
     std::terminate();
@@ -147,5 +147,5 @@ The window class `ArunimestaWindowClass` is registered on first use. Registratio
 
 - Windows x64 with Win32 (`user32`, `gdi32`).
 - Requires C++23 (named modules, `std::expected`, `std::println`).
-- Imported via `import aru;`, `import aru.window;`, or `import aru.window:window;`.
+- Imported via `import aru;`, `import winaru;`, or `import winaru:window;`.
 - No API stability guarantee yet; see [roadmap](../roadmap.md).

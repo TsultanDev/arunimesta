@@ -3,7 +3,7 @@ module;
 // Dynamic Dispatch: tidak menautkan vulkan-1.lib. vkGetInstanceProcAddr dan
 // entry point dimuat lewat Vulkan-Hpp DynamicLoaderTool saat runtime.
 // Header ini hanya memberi deklarasi extern; storage ada di bawah.
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <cstdint>
 #include <expected>
@@ -18,12 +18,12 @@ namespace vk::detail {
     DispatchLoaderDynamic defaultDispatchLoaderDynamic;
 }
 
-export module aru.rhi:instance;
+export module renaru:instance;
 
-import aru.window;
+import winaru;
 export import :error;
 
-export namespace aru::rhi {
+export namespace renaru {
     // Dipakai Device::requestQueue(). Operator bitwise constexpr supaya
     // kombinasi seperti GRAPHICS | PRESENT bisa jadi konstanta compile-time.
     enum class QueueFlags : std::uint32_t {
@@ -65,7 +65,7 @@ export namespace aru::rhi {
     class Adapter;
 }
 
-export namespace aru::rhi {
+export namespace renaru {
     class Instance {
         public:
             using ResultType = std::expected<Instance, Error>;
@@ -76,7 +76,7 @@ export namespace aru::rhi {
             }
 
             // Didefinisikan di :surface / :adapter (butuh tipe lengkap).
-            std::expected<Surface, Error> createSurface(const aru::window::Window& window);
+            std::expected<Surface, Error> createSurface(const winaru::Window& window);
             std::expected<Adapter, Error> requestAdapter(const Surface& surface);
 
             // vk::Instance adalah raw handle: salinan tidak diizinkan.
@@ -121,7 +121,7 @@ export namespace aru::rhi {
                 // Dynamic Dispatch: muat vkGetInstanceProcAddr + entry-point level loader.
                 VULKAN_HPP_DEFAULT_DISPATCHER.init();
                 if (VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr == nullptr){
-                    return std::unexpected(aru::rhi::Error::DynamicLoaderFailed);
+                    return std::unexpected(renaru::Error::DynamicLoaderFailed);
                 }
 
                 // Versi API maksimum yang didukung driver loader. Vulkan 1.0 tidak punya
@@ -130,7 +130,7 @@ export namespace aru::rhi {
                 if (VULKAN_HPP_DEFAULT_DISPATCHER.vkEnumerateInstanceVersion != nullptr){
                     const VkResult result = VULKAN_HPP_DEFAULT_DISPATCHER.vkEnumerateInstanceVersion(&availableVersion);
                     if (result != VK_SUCCESS){
-                        return std::unexpected(aru::rhi::Error::ApiVersionQueryFailed);
+                        return std::unexpected(renaru::Error::ApiVersionQueryFailed);
                     }
                 }
 
@@ -155,7 +155,7 @@ export namespace aru::rhi {
                 try{
                     created = vk::createInstance(createInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
                 }catch(...){
-                    return std::unexpected(aru::rhi::Error::InstanceCreationFailed);
+                    return std::unexpected(renaru::Error::InstanceCreationFailed);
                 }
 
                 // Load instance-level entry points setelah instance tersedia.

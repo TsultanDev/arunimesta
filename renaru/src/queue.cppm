@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 #include <print>
@@ -8,17 +8,17 @@ module;
 #include <cstdint>
 #include <utility>
 
-export module aru.rhi:queue;
+export module renaru:queue;
 
 import :instance;
 import :device;
 
-export namespace aru::rhi {
+export namespace renaru {
     // Forward declaration: tipe lengkap ada di partisi :command_buffer.
     class CommandBuffer;
 }
 
-export namespace aru::rhi {
+export namespace renaru {
     class Queue {
         public:
             using ResultType = std::expected<Queue, Error>;
@@ -85,38 +85,38 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Device didefinisikan di :device, tetapi
 // permintaan queue membutuhkan tipe lengkap Queue dari partisi ini.
-std::expected<aru::rhi::Queue, aru::rhi::Error> aru::rhi::Device::requestQueue(aru::rhi::QueueFlags flags) const{
+std::expected<renaru::Queue, renaru::Error> renaru::Device::requestQueue(renaru::QueueFlags flags) const{
     if (this->empty()){
-        return std::unexpected(aru::rhi::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::QueueRequestFailed);
     }
 
     const auto families = this->mPhysicalDevice.getQueueFamilyProperties(VULKAN_HPP_DEFAULT_DISPATCHER);
     if (this->mQueueFamily >= families.size()){
-        return std::unexpected(aru::rhi::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::QueueRequestFailed);
     }
     const VkQueueFlags available = static_cast<VkQueueFlags>(families[this->mQueueFamily].queueFlags);
 
     if (hasFlag(flags, QueueFlags::Graphics) && (available & VK_QUEUE_GRAPHICS_BIT) == 0){
-        return std::unexpected(aru::rhi::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::QueueRequestFailed);
     }
     if (hasFlag(flags, QueueFlags::Compute) && (available & VK_QUEUE_COMPUTE_BIT) == 0){
-        return std::unexpected(aru::rhi::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::QueueRequestFailed);
     }
     if (hasFlag(flags, QueueFlags::Transfer) && (available & VK_QUEUE_TRANSFER_BIT) == 0){
-        return std::unexpected(aru::rhi::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::QueueRequestFailed);
     }
     if (hasFlag(flags, QueueFlags::Present)){
         const vk::Bool32 supportsPresent = this->mPhysicalDevice.getSurfaceSupportKHR(
             this->mQueueFamily, this->mSurface, VULKAN_HPP_DEFAULT_DISPATCHER
         );
         if (!supportsPresent){
-            return std::unexpected(aru::rhi::Error::QueueRequestFailed);
+            return std::unexpected(renaru::Error::QueueRequestFailed);
         }
     }
 
     const vk::Queue queue = this->mDevice.getQueue(this->mQueueFamily, 0, VULKAN_HPP_DEFAULT_DISPATCHER);
     if (static_cast<VkQueue>(queue) == nullptr){
-        return std::unexpected(aru::rhi::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::QueueRequestFailed);
     }
 
     std::println("Aru RHI: Queue(requested!!) family={}", this->mQueueFamily);

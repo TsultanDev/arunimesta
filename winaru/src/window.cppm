@@ -5,10 +5,10 @@ module;
 #include <string>
 #include <utility>
 
-export module aru.window:window;
+export module winaru:window;
 export import :error;
 
-export namespace aru::window {
+export namespace winaru {
     class Window {
         public:
             using ResultType = std::expected<Window, Error>;

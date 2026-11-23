@@ -30,7 +30,7 @@ The logo is the square project mark shown at the top of the README. Keep it on a
 | Format | PNG |
 | Used in | [`README.md`](../README.md) preview, [`api/window.md`](api/window.md) |
 
-The screenshot shows the original empty Win32 window created by `aru.window`. It is kept as the baseline before any frame was presented; see `color_window.png` below for the current output.
+The screenshot shows the original empty Win32 window created by `winaru`. It is kept as the baseline before any frame was presented; see `color_window.png` below for the current output.
 
 ## Colored frame screenshot
 

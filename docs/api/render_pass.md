@@ -1,6 +1,6 @@
-# `aru::rhi::RenderPass` API Reference
+# `renaru::RenderPass` API Reference
 
-`RenderPass` is the Vulkan render pass wrapper in the `aru.rhi:render_pass` module partition (`aru_rhi/src/render_pass.cppm`). It is created from a `Swapchain`.
+`RenderPass` is the Vulkan render pass wrapper in the `renaru:render_pass` module partition (`renaru/src/render_pass.cppm`). It is created from a `Swapchain`.
 
 ## Creation
 
@@ -18,7 +18,7 @@ The current render pass has:
 - One graphics subpass referencing that attachment as `COLOR_ATTACHMENT_OPTIMAL`.
 - One external dependency on `COLOR_ATTACHMENT_OUTPUT` with `COLOR_ATTACHMENT_WRITE` destination access.
 
-`RenderPassCreationFailed` is returned as `std::unexpected(Error::RenderPassCreationFailed)` when the device/swapchain is empty or `vk::createRenderPass` throws. It is formattable through `std::formatter<aru::rhi::Error, char>`.
+`RenderPassCreationFailed` is returned as `std::unexpected(Error::RenderPassCreationFailed)` when the device/swapchain is empty or `vk::createRenderPass` throws. It is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 

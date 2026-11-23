@@ -1,3 +1,3 @@
 export module aru;
-export import aru.window;
-export import aru.rhi;
+export import winaru;
+export import renaru;

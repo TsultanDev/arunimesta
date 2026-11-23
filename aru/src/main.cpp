@@ -24,20 +24,20 @@ int main() {
         }
     };
 
-    auto window = unwrap(aru::window::Window::create("Arunimesta", 800, 600));
-    auto instance = unwrap(aru::rhi::Instance::create("Arunimesta"));
+    auto window = unwrap(winaru::Window::create("Arunimesta", 800, 600));
+    auto instance = unwrap(renaru::Instance::create("Arunimesta"));
     auto surface = unwrap(instance.createSurface(window));
     auto adapter = unwrap(instance.requestAdapter(surface));
     auto device = unwrap(adapter.createDevice(adapter));
     auto queue = unwrap(device.requestQueue(
-        aru::rhi::QueueFlags::Graphics | aru::rhi::QueueFlags::Present
+        renaru::QueueFlags::Graphics | renaru::QueueFlags::Present
     ));
 
     auto swapchain = unwrap(device.createSwapchain(window.windowWidth(), window.windowHeight()));
     auto swapchainImages = unwrap(device.createSwapchainImages(swapchain));
     auto renderPass = unwrap(device.createRenderPass(swapchain));
 
-    std::vector<aru::rhi::Framebuffer> framebuffers;
+    std::vector<renaru::Framebuffer> framebuffers;
     framebuffers.reserve(swapchainImages.size());
     for (const auto& image : swapchainImages) {
         auto framebuffer = unwrap(device.createFramebuffer(renderPass, image));
@@ -61,7 +61,7 @@ int main() {
             // Device sudah menunggu fence, meng-acquire gambar, mereset fence,
             // dan menyimpan image_index/frame_index sebelum closure ini jalan.
             const std::uint32_t image_index = device.currentImageIndex();
-            aru::rhi::CommandBuffer& command_buffer = command_buffers[image_index];
+            renaru::CommandBuffer& command_buffer = command_buffers[image_index];
 
             check(command_buffer.record([&]() {
                 // record() otomatis reset + vkBeginCommandBuffer, lalu

@@ -19,7 +19,7 @@ cmake --version
 ninja --version
 ```
 
-> The Vulkan SDK is required by `aru_rhi` for Vulkan-Hpp headers. Dynamic dispatch is used, so `vulkan-1.lib` is not linked.
+> The Vulkan SDK is required by `renaru` for Vulkan-Hpp headers. Dynamic dispatch is used, so `vulkan-1.lib` is not linked.
 
 ## Available Presets
 
@@ -101,20 +101,20 @@ Then configure and build again.
 
 ## C++ Standard Library
 
-There is no separate standard-library module or target. Engine code uses the C++ standard library directly: `std::expected<T, E>` with `std::unexpected(...)` for fallible operations, `std::optional<T>`, `std::string` / `std::u8string` / `std::u16string` / `std::u32string` / `std::wstring`, `std::string_view`, `std::vector<T>`, `std::array<T, N>`, and `std::println` / `std::eprintln`. The `aru` facade re-exports only `aru.window` and `aru.rhi`.
+There is no separate standard-library module or target. Engine code uses the C++ standard library directly: `std::expected<T, E>` with `std::unexpected(...)` for fallible operations, `std::optional<T>`, `std::string` / `std::u8string` / `std::u16string` / `std::u32string` / `std::wstring`, `std::string_view`, `std::vector<T>`, `std::array<T, N>`, and `std::println` / `std::eprintln`. The `aru` facade re-exports only `winaru` and `renaru`.
 
-## Module `aru_window` (active)
+## Module `winaru` (active)
 
-`aru_window` contains the Win32 windowing module `aru.window`. It is registered in the root `CMakeLists.txt` and re-exported by the `aru` facade:
+`winaru` contains the Win32 windowing module `winaru`. It is registered in the root `CMakeLists.txt` and re-exported by the `aru` facade:
 
 ```cmake
 # Root CMakeLists.txt
-add_subdirectory("aru_window")
-add_subdirectory("aru_rhi")
+add_subdirectory("winaru")
+add_subdirectory("renaru")
 add_subdirectory("aru")
 
 # aru/CMakeLists.txt
-target_link_libraries(aru PRIVATE aru_window aru_rhi)
+target_link_libraries(aru PRIVATE winaru renaru)
 ```
 
 The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Windows are created with `Window::create()`; narrow UTF-8 titles are converted to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)`, a direct `const char16_t*` overload is available, and `windowTitle()` returns `const std::wstring&`. See the [Window API](api/window.md).
@@ -137,5 +137,5 @@ The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Win
 - All module files must be listed in `target_sources(... FILE_SET CXX_MODULES ...)` to be compiled.
 - External library includes go in the global module fragment, not after `export module`.
 - Debug builds enable `std::println` logging; Release builds do not.
-- The `aru_window` target defines `UNICODE` and `_UNICODE`; keep Win32 code on the Unicode (`...W`) APIs.
-- `aru_window` and `aru_rhi` are active targets; new partitions must be added to their `FILE_SET CXX_MODULES` lists.
+- The `winaru` target defines `UNICODE` and `_UNICODE`; keep Win32 code on the Unicode (`...W`) APIs.
+- `winaru` and `renaru` are active targets; new partitions must be added to their `FILE_SET CXX_MODULES` lists.

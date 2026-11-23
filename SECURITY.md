@@ -25,7 +25,7 @@ Use one of these private channels:
 Include as much of the following as possible:
 
 - A description of the vulnerability and its impact.
-- The affected commit hash and file/module (for example `aru_rhi/src/adapter.cppm`).
+- The affected commit hash and file/module (for example `renaru/src/adapter.cppm`).
 - Steps to reproduce, including compiler/toolchain versions and build preset.
 - A proof of concept or minimal reproducer, if available.
 - Any suggested fix or mitigation.
@@ -36,7 +36,7 @@ We aim to acknowledge reports within **7 days**. Complex issues may take longer 
 
 In scope:
 
-- Source code under `aru/`, `aru_window/`, and `aru_rhi/`.
+- Source code under `aru/`, `winaru/`, and `renaru/`.
 - Build configuration (`CMakeLists.txt`, `CMakePresets.json`) that could produce unsafe binaries or unsafe defaults.
 - Documentation that could lead users into insecure usage.
 

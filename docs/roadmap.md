@@ -10,8 +10,8 @@ This document contains the status, milestones, and development plan for Arunimes
 | Named modules | ✅ Done | `aru` + `aru:application` partition, `lib.cppm` facade |
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
 | C++ standard library | ✅ In use | `std::expected` / `std::optional`, `std::string` family, `std::string_view`, `std::vector` / `std::array`, `std::println` / `std::eprintln` used directly |
-| Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `std::expected` errors, move-only ownership, event loop |
-| Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`, and an empty-frame loop with fences/semaphores |
+| Windowing | ✅ Basic | `winaru` active: Win32 `Window`, `std::expected` errors, move-only ownership, event loop |
+| Vulkan renderer (RHI) | ✅ Basic | `renaru` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`, and an empty-frame loop with fences/semaphores |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 
@@ -19,7 +19,7 @@ This document contains the status, milestones, and development plan for Arunimes
 
 ### M0 — Foundation (done)
 
-- [x] Modular workspace structure with top-level `aru/`, `aru_window/`, and `aru_rhi/` subprojects
+- [x] Modular workspace structure with top-level `aru/`, `winaru/`, and `renaru/` subprojects
 - [x] C++23 named modules and facade
 - [x] Clang x64 Debug/Release build presets
 - [x] `Application` with `std::expected` and pimpl
@@ -36,16 +36,16 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] Text uses `std::string`, `std::u8string`, `std::u16string`, `std::u32string`, `std::wstring`, and `std::string_view`
 - [x] Containers use `std::vector<T>` and `std::array<T, N>`
 - [x] Logging uses `std::println` / `std::eprintln`
-- [x] `std::formatter` specializations for `aru::window::Error` and `aru::rhi::Error`
+- [x] `std::formatter` specializations for `winaru::Error` and `renaru::Error`
 
-**Done criteria:** engine code uses the C++ standard library directly, the `aru` facade re-exports only `aru.window` and `aru.rhi`, and the project builds.
+**Done criteria:** engine code uses the C++ standard library directly, the `aru` facade re-exports only `winaru` and `renaru`, and the project builds.
 
 ### M1 — Windowing (done; basic)
 
-- [x] Finish the `Window` class in `aru.window:window`
+- [x] Finish the `Window` class in `winaru:window`
 - [x] Move-only ownership: copy constructor and copy assignment deleted; move constructor and move assignment implemented
-- [x] Fill in the `aru.window` facade (`lib.cppm`)
-- [x] Register `aru_window` in the root `CMakeLists.txt` and re-export `aru.window`
+- [x] Fill in the `winaru` facade (`lib.cppm`)
+- [x] Register `winaru` in the root `CMakeLists.txt` and re-export `winaru`
 - [x] Blocking event loop integration (`GetMessageW`)
 - [x] Unicode window titles (UTF-8 → UTF-16 via `MultiByteToWideChar(CP_UTF8, ...)`)
 - [x] Create and destroy windows safely (RAII with null checks)
@@ -57,7 +57,7 @@ This document contains the status, milestones, and development plan for Arunimes
 
 ### M2 — Vulkan RHI Foundation
 
-- [x] `aru_rhi` module (static library) and `aru.rhi` facade
+- [x] `renaru` module (static library) and `renaru` facade
 - [x] Vulkan loader/instance (dynamic dispatch, `vkEnumerateInstanceVersion`)
 - [ ] Debug messenger in debug builds
 - [x] Surface from the window (`Instance::createSurface(Window)`)
@@ -100,7 +100,7 @@ This document contains the status, milestones, and development plan for Arunimes
 
 ## Design Direction
 
-- **Module per subsystem**: `aru`, `aru.window`, `aru.rhi`, and other supporting modules.
+- **Module per subsystem**: `aru`, `winaru`, `renaru`, and other supporting modules.
 - **Facade + partitions**: consumers import a single module name; the implementation is split internally.
 - **`std::expected` in the public API**: explicit failures, not exceptions.
 - **Standard library first**: use `std::vector`, `std::array`, the `std::string` family, `std::optional`, and `std::println` directly instead of custom wrappers.
@@ -116,7 +116,7 @@ Cleanup priorities before adding large subsystems:
 
 1. Handle keyboard and mouse input.
 2. Add a non-blocking/polling event-loop variant if the renderer needs one.
-3. Carry the Win32 error code in `aru::window::Error`.
+3. Carry the Win32 error code in `winaru::Error`.
 4. Handle resize (`WM_SIZE`).
 5. Add unit tests in `test/`.
 6. Clean up the duplicate logs in `Application::init()`.

@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <array>
 #include <expected>
@@ -8,12 +8,12 @@ module;
 
 #include <utility>
 
-export module aru.rhi:render_pass;
+export module renaru:render_pass;
 
 import :device;
 import :swapchain;
 
-export namespace aru::rhi {
+export namespace renaru {
     class RenderPass {
         public:
             using ResultType = std::expected<RenderPass, Error>;
@@ -85,7 +85,7 @@ export namespace aru::rhi {
                     std::forward<Func>(func)();
                 }catch(...){
                     this->endRender();
-                    const aru::rhi::Error error = aru::rhi::Error::RenderPassRecordingFailed;
+                    const renaru::Error error = renaru::Error::RenderPassRecordingFailed;
                     if (mOwner != nullptr){
                         mOwner->noteError(error);
                     }
@@ -101,7 +101,7 @@ export namespace aru::rhi {
 
             std::expected<void, Error> beginRender(const std::array<float, 4>& clearColor) const{
                 if (this->empty() || mOwner == nullptr){
-                    return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
+                    return std::unexpected(renaru::Error::RenderPassRecordingFailed);
                 }
 
                 const vk::CommandBuffer commandBuffer = mOwner->activeCommandBuffer();
@@ -110,7 +110,7 @@ export namespace aru::rhi {
                 if (static_cast<VkCommandBuffer>(commandBuffer) == nullptr ||
                     static_cast<VkFramebuffer>(framebuffer) == nullptr ||
                     extent.width == 0 || extent.height == 0){
-                    return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
+                    return std::unexpected(renaru::Error::RenderPassRecordingFailed);
                 }
 
                 vk::ClearColorValue colorValue(clearColor);
@@ -128,7 +128,7 @@ export namespace aru::rhi {
                     commandBuffer.beginRenderPass(info, vk::SubpassContents::eInline,
                                                   VULKAN_HPP_DEFAULT_DISPATCHER);
                 }catch(...){
-                    return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
+                    return std::unexpected(renaru::Error::RenderPassRecordingFailed);
                 }
                 return {};
             }
@@ -144,7 +144,7 @@ export namespace aru::rhi {
                 try{
                     commandBuffer.endRenderPass(VULKAN_HPP_DEFAULT_DISPATCHER);
                 }catch(...){
-                    mOwner->noteError(aru::rhi::Error::RenderPassRecordingFailed);
+                    mOwner->noteError(renaru::Error::RenderPassRecordingFailed);
                 }
             }
 
@@ -166,10 +166,10 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
 // RenderPass membutuhkan tipe lengkap Swapchain/RenderPass dari partisi ini.
-std::expected<aru::rhi::RenderPass, aru::rhi::Error>
-aru::rhi::Device::createRenderPass(const aru::rhi::Swapchain& swapchain) const{
+std::expected<renaru::RenderPass, renaru::Error>
+renaru::Device::createRenderPass(const renaru::Swapchain& swapchain) const{
     if (this->empty() || swapchain.empty()){
-        return std::unexpected(aru::rhi::Error::RenderPassCreationFailed);
+        return std::unexpected(renaru::Error::RenderPassCreationFailed);
     }
 
     vk::AttachmentDescription colorAttachment;
@@ -211,7 +211,7 @@ aru::rhi::Device::createRenderPass(const aru::rhi::Swapchain& swapchain) const{
     try{
         created = this->mDevice.createRenderPass(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return std::unexpected(aru::rhi::Error::RenderPassCreationFailed);
+        return std::unexpected(renaru::Error::RenderPassCreationFailed);
     }
 
     std::println("Aru RHI: RenderPass(created!!)");

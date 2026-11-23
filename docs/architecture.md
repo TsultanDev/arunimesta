@@ -11,13 +11,13 @@ Currently there are three subprojects:
 ```text
 ./
 ├── aru/            # executable + module aru (facade)
-├── aru_window/     # static library aru.window (Win32 windowing)
-└── aru_rhi/        # static library aru.rhi (Vulkan presentation foundation)
+├── winaru/         # static library winaru (Win32 windowing)
+└── renaru/         # static library renaru (Vulkan presentation foundation)
 ```
 
-All three targets are active. The root `CMakeLists.txt` registers `aru_window`, `aru_rhi`, and `aru`; the `aru` facade re-exports `aru.window` and `aru.rhi`. Standard-library types (containers, strings, error wrappers, printing) are used directly by engine code instead of a project-specific standard-library module.
+All three targets are active. The root `CMakeLists.txt` registers `winaru`, `renaru`, and `aru`; the `aru` facade re-exports `winaru` and `renaru`. Standard-library types (containers, strings, error wrappers, printing) are used directly by engine code instead of a project-specific standard-library module.
 
-The Vulkan renderer (`aru.rhi`) provides the presentation foundation. The remaining rendering work is tracked in [roadmap.md](roadmap.md).
+The Vulkan renderer (`renaru`) provides the presentation foundation. The remaining rendering work is tracked in [roadmap.md](roadmap.md).
 
 ## Module Map
 
@@ -31,11 +31,11 @@ The Vulkan renderer (`aru.rhi`) provides the presentation foundation. The remain
             │      module aru          │
             │      (lib.cppm)          │
             │   export import          │
-            │   aru.window, aru.rhi    │
+            │   winaru, renaru         │
             └───┬──────────────┬───────┘
                 │              │
   ┌─────────────▼────────┐  ┌──▼─────────────────────────────────────────┐
-  │ module aru.window    │  │ module aru.rhi                              │
+  │ module winaru        │  │ module renaru                              │
   │ :error, :window      │  │ :error :instance :surface :adapter :device  │
   │ Window (Win32)       │  │ :frame :queue :resource :swapchain          │
   │                      │  │ :render_pass :framebuffer :command_pool    │
@@ -48,20 +48,20 @@ The Vulkan renderer (`aru.rhi`) provides the presentation foundation. The remain
 - `aru/src/lib.cppm` is the **facade**:
   ```cpp
   export module aru;
-  export import aru.window;
-  export import aru.rhi;
+  export import winaru;
+  export import renaru;
   ```
-- `main.cpp` only needs to do `import aru;` and gets `aru.window` plus `aru.rhi`.
-- The executable links both static libraries: `target_link_libraries(aru PRIVATE aru_window aru_rhi)`.
+- `main.cpp` only needs to do `import aru;` and gets `winaru` plus `renaru`.
+- The executable links both static libraries: `target_link_libraries(aru PRIVATE winaru renaru)`.
 
 The facade keeps the public import surface small: consumers import a single name (`aru`) and receive both engine modules.
 
-### Module `aru.rhi` (presentation foundation)
+### Module `renaru` (presentation foundation)
 
-- The static library target `aru_rhi` is registered in the root `CMakeLists.txt` and links `Vulkan::Headers` and `aru_window`.
+- The static library target `renaru` is registered in the root `CMakeLists.txt` and links `Vulkan::Headers` and `winaru`.
 - `src/lib.cppm` is the facade:
   ```cpp
-  export module aru.rhi;
+  export module renaru;
   export import :error;
   export import :instance;
   export import :surface;
@@ -76,40 +76,40 @@ The facade keeps the public import surface small: consumers import a single name
   export import :command_pool;
   export import :command_buffer;
   ```
-- `src/error.cppm` is the partition `aru.rhi:error`. It owns the formattable `Error` enum; other RHI partitions `export import :error;`.
-- `src/instance.cppm` is the partition `aru.rhi:instance`. It exports `QueueFlags` with `constexpr` bitwise operators and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
-- `src/surface.cppm` is the partition `aru.rhi:surface`. It exports `Surface` and defines `Instance::createSurface(const Window&)`; it imports `:instance` and `aru.window`.
-- `src/adapter.cppm` is the partition `aru.rhi:adapter`. It exports `Adapter` and defines `Instance::requestAdapter(const Surface&)`; it selects the first graphics + present queue family.
-- `src/device.cppm` is the partition `aru.rhi:device`. It exports `Device`, defines `Adapter::createDevice(const Adapter&)` and `Device::acquire(callback)`, and caches swapchain/frame/sync state; it enables `VK_KHR_swapchain`.
-- `src/frame.cppm` is the partition `aru.rhi:frame`. It defines the `Device` frame helpers: lazy fence/semaphore creation, fence wait/reset, image acquisition, image/frame observers, and frame index rollover.
-- `src/queue.cppm` is the partition `aru.rhi:queue`. It exports `Queue` and defines `Device::requestQueue(QueueFlags)`, validating flags with the `constexpr` bitwise helpers; `submit()`/`present()` are defined in `:command_buffer`.
-- `src/resource.cppm` is the partition `aru.rhi:resource`. It exports `Resource` and `ResourceKind`; `Resource` is a tagged union of `ImageData { image, view }` and `BufferData { buffer, view }`, with an ownership flag for safe copies.
-- `src/swapchain.cppm` is the partition `aru.rhi:swapchain`. It exports `Swapchain` and defines `Device::createSwapchain(width, height)` and `Device::createSwapchainImages(swapchain)`.
-- `src/render_pass.cppm` is the partition `aru.rhi:render_pass`. It exports `RenderPass`, defines `Device::createRenderPass(swapchain)`, and implements `render(callback)` / `render(clearColor, callback)` around `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`.
-- `src/framebuffer.cppm` is the partition `aru.rhi:framebuffer`. It exports `Framebuffer` and defines `Device::createFramebuffer(renderPass, image)`.
-- `src/command_pool.cppm` is the partition `aru.rhi:command_pool`. It exports `CommandPool` and defines `Device::createCommandPool(queue)`; pools are created with `eResetCommandBuffer` for the queue's family.
-- `src/command_buffer.cppm` is the partition `aru.rhi:command_buffer`. It exports `CommandBuffer`, defines `Device::allocateCommandBuffers(pool, count)`, implements `record(callback)` (reset + begin + callback + end), and defines `Queue::submit(buffer)` / `Queue::present()` with the frame semaphores.
+- `src/error.cppm` is the partition `renaru:error`. It owns the formattable `Error` enum; other RHI partitions `export import :error;`.
+- `src/instance.cppm` is the partition `renaru:instance`. It exports `QueueFlags` with `constexpr` bitwise operators and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
+- `src/surface.cppm` is the partition `renaru:surface`. It exports `Surface` and defines `Instance::createSurface(const Window&)`; it imports `:instance` and `winaru`.
+- `src/adapter.cppm` is the partition `renaru:adapter`. It exports `Adapter` and defines `Instance::requestAdapter(const Surface&)`; it selects the first graphics + present queue family.
+- `src/device.cppm` is the partition `renaru:device`. It exports `Device`, defines `Adapter::createDevice(const Adapter&)` and `Device::acquire(callback)`, and caches swapchain/frame/sync state; it enables `VK_KHR_swapchain`.
+- `src/frame.cppm` is the partition `renaru:frame`. It defines the `Device` frame helpers: lazy fence/semaphore creation, fence wait/reset, image acquisition, image/frame observers, and frame index rollover.
+- `src/queue.cppm` is the partition `renaru:queue`. It exports `Queue` and defines `Device::requestQueue(QueueFlags)`, validating flags with the `constexpr` bitwise helpers; `submit()`/`present()` are defined in `:command_buffer`.
+- `src/resource.cppm` is the partition `renaru:resource`. It exports `Resource` and `ResourceKind`; `Resource` is a tagged union of `ImageData { image, view }` and `BufferData { buffer, view }`, with an ownership flag for safe copies.
+- `src/swapchain.cppm` is the partition `renaru:swapchain`. It exports `Swapchain` and defines `Device::createSwapchain(width, height)` and `Device::createSwapchainImages(swapchain)`.
+- `src/render_pass.cppm` is the partition `renaru:render_pass`. It exports `RenderPass`, defines `Device::createRenderPass(swapchain)`, and implements `render(callback)` / `render(clearColor, callback)` around `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`.
+- `src/framebuffer.cppm` is the partition `renaru:framebuffer`. It exports `Framebuffer` and defines `Device::createFramebuffer(renderPass, image)`.
+- `src/command_pool.cppm` is the partition `renaru:command_pool`. It exports `CommandPool` and defines `Device::createCommandPool(queue)`; pools are created with `eResetCommandBuffer` for the queue's family.
+- `src/command_buffer.cppm` is the partition `renaru:command_buffer`. It exports `CommandBuffer`, defines `Device::allocateCommandBuffers(pool, count)`, implements `record(callback)` (reset + begin + callback + end), and defines `Queue::submit(buffer)` / `Queue::present()` with the frame semaphores.
 - `Instance::create(std::string_view appName)` takes a UTF-8 application name and returns `std::expected<Instance, Error>`; `applicationName()` returns `const std::string&`.
 - All RHI factories return `std::expected<T, Error>`; `Device::createSwapchainImages()` returns `std::expected<std::vector<Resource>, Error>` and `Device::allocateCommandBuffers()` returns `std::expected<std::vector<CommandBuffer>, Error>`.
 - The API version comes from `vkEnumerateInstanceVersion`, not from the caller; Vulkan 1.0 falls back to `VK_API_VERSION_1_0`.
-- `aru_rhi/vulkan.hpp` also defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic dispatcher has one consistent layout.
-- Vulkan-Hpp uses **dynamic dispatch** (`VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`). The dispatcher storage is defined exactly once in `src/instance.cppm`; other translation units include `aru_rhi/vulkan.hpp`, which only declares it `extern`.
+- `renaru/vulkan.hpp` also defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic dispatcher has one consistent layout.
+- Vulkan-Hpp uses **dynamic dispatch** (`VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`). The dispatcher storage is defined exactly once in `src/instance.cppm`; other translation units include `renaru/vulkan.hpp`, which only declares it `extern`.
 - Move-only ownership: copy constructor and copy assignment are deleted because Vulkan handles are raw; move steals the handles and empties the source. Destructors destroy only owned handles (`Instance`, `Surface`, `Device`, `Swapchain`, `RenderPass`, `Framebuffer`, and owned `Resource` views/buffers); `Adapter` and `Queue` are non-owning views but are still move-only. All helper tags (`CopyTag`, `MoveTag`, `InitTag`) have been removed.
 - Setup order in `main.cpp`: window → instance → surface → adapter → device → queue → swapchain → swapchain images → render pass → framebuffers → command pool → command buffers. Reverse declaration order destroys buffers before their pool.
 - Frame order in `main.cpp`: `Window::pollEvents()` → `Device::acquire(callback)` → `CommandBuffer::record(callback)` → `RenderPass::render(callback)` → `Queue::submit(buffer)` → `Queue::present()`. See [api/frame.md](api/frame.md).
 
-### Module `aru.window` (active)
+### Module `winaru` (active)
 
-- The static library target `aru_window` has a `CMakeLists.txt`, is registered in the root `CMakeLists.txt`, and is linked into the `aru` executable.
-- `src/window.cppm` is the partition `aru.window:window`. It implements `Window::create()` (both overloads), `createFromWindow()`, move construction/assignment, and `event_loop()`.
+- The static library target `winaru` has a `CMakeLists.txt`, is registered in the root `CMakeLists.txt`, and is linked into the `aru` executable.
+- `src/window.cppm` is the partition `winaru:window`. It implements `Window::create()` (both overloads), `createFromWindow()`, move construction/assignment, and `event_loop()`.
 - `src/lib.cppm` is the facade and re-exports the partitions:
   ```cpp
-  export module aru.window;
+  export module winaru;
   export import :error;
   export import :window;
   ```
-- `src/error.cppm` is the partition `aru.window:error`. It owns the formattable `Error` enum; `window.cppm` re-exports it.
-- `aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
+- `src/error.cppm` is the partition `winaru:error`. It owns the formattable `Error` enum; `window.cppm` re-exports it.
+- `aru/src/lib.cppm` re-exports `winaru`, so consumers can use it through `import aru;`.
 - The implementation uses the Win32 Unicode APIs: `RegisterClassW`, `CreateWindowExW`, `DefWindowProcW`, `GetMessageW`, and `DispatchMessageW`.
 - `Window::ResultType` is `std::expected<Window, Error>`. `create(const char*, uint32_t, uint32_t)` treats a narrow title as UTF-8 and converts it with `MultiByteToWideChar(CP_UTF8, ...)`; a `create(const char16_t*, uint32_t, uint32_t)` overload also exists, and `windowTitle()` returns `const std::wstring&`. `Error` is formattable, so `std::println("{}", err)` works.
 - Move-only ownership: `HWND` is a raw handle, so the copy constructor and copy assignment are deleted; the move constructor and move assignment steal the handle and empty the source. `createFromWindow()` creates a genuinely new OS window.
@@ -128,7 +128,7 @@ Engine-owned types (`Window`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource
 - The public API takes UTF-8 text. With Clang, the source and execution character sets are UTF-8.
 - Text uses standard-library types: `std::string`, `std::u8string`, `std::u16string`, `std::u32string`, `std::wstring`, and `std::string_view`. There is no project-specific string type.
 - Win32 `...W` APIs take UTF-16. `Window::create(const char*, ...)` converts a UTF-8 title with `MultiByteToWideChar(CP_UTF8, ...)` before calling `CreateWindowExW`; `windowTitle()` exposes the stored `const std::wstring&`. There is also a direct `create(const char16_t*, ...)` overload.
-- `UNICODE` and `_UNICODE` are defined for the `aru_window` target in `aru_window/CMakeLists.txt`.
+- `UNICODE` and `_UNICODE` are defined for the `winaru` target in `winaru/CMakeLists.txt`.
 - **Never mix ANSI (`...A`) and Unicode (`...W`) Win32 APIs for the same window.** Doing so corrupts text: an earlier version created the window with `CreateWindowExA`, but the window procedure called `DefWindowProcW`. `DefWindowProcW` re-read the ANSI title pointer as UTF-16, so the bytes of `"Arunimesta"` were displayed as CJK characters (`U+7241 U+6E75 ...`). Using the `W` APIs consistently fixes this.
 
 ## `Application` Design Patterns
@@ -224,11 +224,11 @@ There is no `Application::run()` in this iteration yet. `main.cpp` currently exe
 
 ## Build and Module Boundaries
 
-- The root `CMakeLists.txt` adds `aru_window`, `aru_rhi`, and `aru`.
+- The root `CMakeLists.txt` adds `winaru`, `renaru`, and `aru`.
 - Each module registers its `.cppm` files through `FILE_SET CXX_MODULES`.
 - Standard headers are included in the **global module fragment** (`module;` ... `export module ...;`) so they do not leak to consumers.
-- `aru` depends on both libraries: `target_link_libraries(aru PRIVATE aru_window aru_rhi)`.
-- The `aru` facade re-exports `aru.window` and `aru.rhi`, so `import aru;` provides `Window`, `Instance`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource`, `Swapchain`, `RenderPass`, and `Framebuffer`. Standard-library types come from headers such as `<expected>`, `<optional>`, `<string>`, `<string_view>`, `<vector>`, `<array>`, and `<print>`.
+- `aru` depends on both libraries: `target_link_libraries(aru PRIVATE winaru renaru)`.
+- The `aru` facade re-exports `winaru` and `renaru`, so `import aru;` provides `Window`, `Instance`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource`, `Swapchain`, `RenderPass`, and `Framebuffer`. Standard-library types come from headers such as `<expected>`, `<optional>`, `<string>`, `<string_view>`, `<vector>`, `<array>`, and `<print>`.
 
 ## Adding a New Module
 

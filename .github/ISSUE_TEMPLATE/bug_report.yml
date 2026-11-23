@@ -24,8 +24,8 @@ body:
       options:
         - Build / CMake
         - aru (entry point / facade)
-        - aru.window
-        - aru.rhi
+        - winaru
+        - renaru
         - Documentation
         - Other
     validations:

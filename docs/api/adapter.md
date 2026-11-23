@@ -1,6 +1,6 @@
-# `aru::rhi::Adapter` API Reference
+# `renaru::Adapter` API Reference
 
-`Adapter` is the physical-device wrapper in the `aru.rhi:adapter` module partition (`aru_rhi/src/adapter.cppm`). It is selected from an `Instance` and a `Surface` and returned in a `std::expected<Adapter, Error>`.
+`Adapter` is the physical-device wrapper in the `renaru:adapter` module partition (`renaru/src/adapter.cppm`). It is selected from an `Instance` and a `Surface` and returned in a `std::expected<Adapter, Error>`.
 
 ## Creation
 
@@ -16,7 +16,7 @@ if (!adapter) {
 
 `requestAdapter()` enumerates physical devices, then walks their queue families. The first family that has `VK_QUEUE_GRAPHICS_BIT` **and** supports presentation on the given surface wins. The `vk::Instance`, `vk::PhysicalDevice`, `vk::SurfaceKHR`, and family index are stored for later device/queue creation.
 
-`AdapterNotFound` is returned as `std::unexpected(Error::AdapterNotFound)` when no physical device satisfies both conditions. It is formattable through `std::formatter<aru::rhi::Error, char>`.
+`AdapterNotFound` is returned as `std::unexpected(Error::AdapterNotFound)` when no physical device satisfies both conditions. It is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 

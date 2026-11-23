@@ -1,4 +1,4 @@
-export module aru.rhi;
+export module renaru;
 export import :error;
 export import :instance;
 export import :surface;

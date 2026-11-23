@@ -1,6 +1,6 @@
-# `aru::rhi::Device` API Reference
+# `renaru::Device` API Reference
 
-`Device` is the logical-device wrapper in the `aru.rhi:device` module partition (`aru_rhi/src/device.cppm`). It is created from an `Adapter` and returned in a `std::expected<Device, Error>`.
+`Device` is the logical-device wrapper in the `renaru:device` module partition (`renaru/src/device.cppm`). It is created from an `Adapter` and returned in a `std::expected<Device, Error>`.
 
 ## Creation
 
@@ -12,7 +12,7 @@ if (!device) {
 }
 ```
 
-`createDevice()` creates one queue from the adapter's graphics + present family and enables `VK_KHR_swapchain`. `DeviceCreationFailed` is returned as `std::unexpected(Error::DeviceCreationFailed)` if either adapter is empty or `vk::createDevice` throws; it is formattable through `std::formatter<aru::rhi::Error, char>`.
+`createDevice()` creates one queue from the adapter's graphics + present family and enables `VK_KHR_swapchain`. `DeviceCreationFailed` is returned as `std::unexpected(Error::DeviceCreationFailed)` if either adapter is empty or `vk::createDevice` throws; it is formattable through `std::formatter<renaru::Error, char>`.
 
 The object stores the parent instance, physical device, surface, logical device, and queue family index so that `requestQueue()` can validate and fetch queues. It also caches the swapchain, per-image framebuffers, and frame synchronization state (fences, semaphores, `frame_index`) used by `acquire()`; see [frame.md](frame.md).
 

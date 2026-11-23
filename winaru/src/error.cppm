@@ -3,9 +3,9 @@ module;
 #include <format>
 #include <string_view>
 
-export module aru.window:error;
+export module winaru:error;
 
-export namespace aru::window {
+export namespace winaru {
     enum class Error {
         None = 0,
         ClassRegistrationFailed = 1,
@@ -16,18 +16,18 @@ export namespace aru::window {
 // Supaya println("Error! : {}", err) bisa mencetak Error langsung.
 export namespace std {
     template<>
-    struct formatter<aru::window::Error> : formatter<string_view> {
+    struct formatter<winaru::Error> : formatter<string_view> {
         template<typename FormatContext>
-        auto format(const aru::window::Error& error, FormatContext& ctx) const {
+        auto format(const winaru::Error& error, FormatContext& ctx) const {
             string_view text = "unknown";
             switch (error) {
-                case aru::window::Error::None:
+                case winaru::Error::None:
                     text = "none";
                     break;
-                case aru::window::Error::ClassRegistrationFailed:
+                case winaru::Error::ClassRegistrationFailed:
                     text = "class registration failed";
                     break;
-                case aru::window::Error::WindowCreationFailed:
+                case winaru::Error::WindowCreationFailed:
                     text = "window creation failed";
                     break;
             }

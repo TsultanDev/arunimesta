@@ -1,11 +1,11 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 #include <limits>
 
-export module aru.rhi:frame;
+export module renaru:frame;
 
 import :device;
 
@@ -14,9 +14,9 @@ import :device;
 // Focus di sini hanya plumbing Vulkan; pemanggilannya ada di acquire/record/
 // render/submit/present sesuai prototipe di main.cpp.
 
-std::expected<void, aru::rhi::Error> aru::rhi::Device::ensureFrameResources() const{
+std::expected<void, renaru::Error> renaru::Device::ensureFrameResources() const{
     if (this->empty() || static_cast<VkSwapchainKHR>(this->mSwapchain) == nullptr){
-        return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
     if (this->mImageAvailableSemaphores.size() == MaxFramesInFlight &&
         this->mRenderFinishedSemaphores.size() == MaxFramesInFlight &&
@@ -42,20 +42,20 @@ std::expected<void, aru::rhi::Error> aru::rhi::Device::ensureFrameResources() co
         }
     }catch(...){
         this->destroyFrameResources();
-        return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
     if (this->mImageAvailableSemaphores.size() != MaxFramesInFlight ||
         this->mRenderFinishedSemaphores.size() != MaxFramesInFlight ||
         this->mInFlightFences.size() != MaxFramesInFlight){
         this->destroyFrameResources();
-        return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
     return {};
 }
 
-void aru::rhi::Device::destroyFrameResources() const noexcept{
+void renaru::Device::destroyFrameResources() const noexcept{
     const bool hasDevice = static_cast<VkDevice>(this->mDevice) != nullptr;
 
     if (hasDevice){
@@ -81,15 +81,15 @@ void aru::rhi::Device::destroyFrameResources() const noexcept{
     this->mInFlightFences.clear();
 }
 
-std::expected<void, aru::rhi::Error> aru::rhi::Device::beginFrame() const{
+std::expected<void, renaru::Error> renaru::Device::beginFrame() const{
     if (auto ready = this->ensureFrameResources(); !ready){
         return ready;
     }
     if (this->mFrameIndex >= this->mInFlightFences.size()){
-        return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
-    this->mLastError = aru::rhi::Error::None;
+    this->mLastError = renaru::Error::None;
     this->mActiveCommandBuffer = vk::CommandBuffer{};
 
     const vk::Fence fence = this->mInFlightFences[this->mFrameIndex];
@@ -99,13 +99,13 @@ std::expected<void, aru::rhi::Error> aru::rhi::Device::beginFrame() const{
         const vk::Result waited = this->mDevice.waitForFences(
             1, &fence, VK_TRUE, timeout, VULKAN_HPP_DEFAULT_DISPATCHER);
         if (waited != vk::Result::eSuccess){
-            return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
         }
 
         const vk::Result reset = this->mDevice.resetFences(
             1, &fence, VULKAN_HPP_DEFAULT_DISPATCHER);
         if (reset != vk::Result::eSuccess){
-            return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
         }
 
         const vk::Result acquired = this->mDevice.acquireNextImageKHR(
@@ -114,16 +114,16 @@ std::expected<void, aru::rhi::Error> aru::rhi::Device::beginFrame() const{
             vk::Fence{}, &this->mCurrentImage, VULKAN_HPP_DEFAULT_DISPATCHER);
         if (acquired != vk::Result::eSuccess &&
             acquired != vk::Result::eSuboptimalKHR){
-            return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
         }
     }catch(...){
-        return std::unexpected(aru::rhi::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
     return {};
 }
 
-void aru::rhi::Device::waitIdle() const noexcept{
+void renaru::Device::waitIdle() const noexcept{
     if (this->empty()){
         return;
     }
@@ -134,7 +134,7 @@ void aru::rhi::Device::waitIdle() const noexcept{
     }
 }
 
-void aru::rhi::Device::finishFrame() const noexcept{
+void renaru::Device::finishFrame() const noexcept{
     if (!this->mInFlightFences.empty()){
         this->mFrameIndex = (this->mFrameIndex + 1) %
                             static_cast<std::uint32_t>(this->mInFlightFences.size());
@@ -142,7 +142,7 @@ void aru::rhi::Device::finishFrame() const noexcept{
     this->mActiveCommandBuffer = vk::CommandBuffer{};
 }
 
-void aru::rhi::Device::registerSwapchain(vk::SwapchainKHR swapchain,
+void renaru::Device::registerSwapchain(vk::SwapchainKHR swapchain,
                                          vk::Extent2D extent,
                                          std::uint32_t imageCount) const noexcept{
     this->mSwapchain = swapchain;
@@ -154,74 +154,74 @@ void aru::rhi::Device::registerSwapchain(vk::SwapchainKHR swapchain,
     this->destroyFrameResources();
 }
 
-void aru::rhi::Device::registerFramebuffer(vk::Framebuffer framebuffer) const noexcept{
+void renaru::Device::registerFramebuffer(vk::Framebuffer framebuffer) const noexcept{
     if (static_cast<VkFramebuffer>(framebuffer) != nullptr){
         this->mFramebuffers.push_back(framebuffer);
     }
 }
 
-vk::SwapchainKHR aru::rhi::Device::swapchainHandle() const noexcept{
+vk::SwapchainKHR renaru::Device::swapchainHandle() const noexcept{
     return this->mSwapchain;
 }
 
-vk::Framebuffer aru::rhi::Device::framebufferForCurrentImage() const noexcept{
+vk::Framebuffer renaru::Device::framebufferForCurrentImage() const noexcept{
     if (this->mCurrentImage >= this->mFramebuffers.size()){
         return vk::Framebuffer{};
     }
     return this->mFramebuffers[this->mCurrentImage];
 }
 
-vk::Extent2D aru::rhi::Device::frameExtent() const noexcept{
+vk::Extent2D renaru::Device::frameExtent() const noexcept{
     return this->mFrameExtent;
 }
 
-vk::Semaphore aru::rhi::Device::imageAvailableSemaphore() const noexcept{
+vk::Semaphore renaru::Device::imageAvailableSemaphore() const noexcept{
     if (this->mFrameIndex >= this->mImageAvailableSemaphores.size()){
         return vk::Semaphore{};
     }
     return this->mImageAvailableSemaphores[this->mFrameIndex];
 }
 
-vk::Semaphore aru::rhi::Device::renderFinishedSemaphore() const noexcept{
+vk::Semaphore renaru::Device::renderFinishedSemaphore() const noexcept{
     if (this->mFrameIndex >= this->mRenderFinishedSemaphores.size()){
         return vk::Semaphore{};
     }
     return this->mRenderFinishedSemaphores[this->mFrameIndex];
 }
 
-vk::Fence aru::rhi::Device::currentFence() const noexcept{
+vk::Fence renaru::Device::currentFence() const noexcept{
     if (this->mFrameIndex >= this->mInFlightFences.size()){
         return vk::Fence{};
     }
     return this->mInFlightFences[this->mFrameIndex];
 }
 
-std::uint32_t aru::rhi::Device::currentImageIndex() const noexcept{
+std::uint32_t renaru::Device::currentImageIndex() const noexcept{
     return this->mCurrentImage;
 }
 
-std::uint32_t aru::rhi::Device::frameIndex() const noexcept{
+std::uint32_t renaru::Device::frameIndex() const noexcept{
     return this->mFrameIndex;
 }
 
-vk::CommandBuffer aru::rhi::Device::activeCommandBuffer() const noexcept{
+vk::CommandBuffer renaru::Device::activeCommandBuffer() const noexcept{
     return this->mActiveCommandBuffer;
 }
 
-void aru::rhi::Device::setActiveCommandBuffer(vk::CommandBuffer buffer) const noexcept{
+void renaru::Device::setActiveCommandBuffer(vk::CommandBuffer buffer) const noexcept{
     this->mActiveCommandBuffer = buffer;
 }
 
-void aru::rhi::Device::clearActiveCommandBuffer() const noexcept{
+void renaru::Device::clearActiveCommandBuffer() const noexcept{
     this->mActiveCommandBuffer = vk::CommandBuffer{};
 }
 
-void aru::rhi::Device::noteError(aru::rhi::Error error) const noexcept{
-    if (this->mLastError == aru::rhi::Error::None){
+void renaru::Device::noteError(renaru::Error error) const noexcept{
+    if (this->mLastError == renaru::Error::None){
         this->mLastError = error;
     }
 }
 
-aru::rhi::Error aru::rhi::Device::lastError() const noexcept{
+renaru::Error renaru::Device::lastError() const noexcept{
     return this->mLastError;
 }

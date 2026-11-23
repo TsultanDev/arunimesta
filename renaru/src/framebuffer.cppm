@@ -1,19 +1,19 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 
 #include <cstdint>
 #include <utility>
 
-export module aru.rhi:framebuffer;
+export module renaru:framebuffer;
 
 import :device;
 import :resource;
 import :render_pass;
 
-export namespace aru::rhi {
+export namespace renaru {
     class Framebuffer {
         public:
             using ResultType = std::expected<Framebuffer, Error>;
@@ -83,24 +83,24 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
 // Framebuffer membutuhkan tipe lengkap RenderPass/Resource/Framebuffer di sini.
-std::expected<aru::rhi::Framebuffer, aru::rhi::Error>
-aru::rhi::Device::createFramebuffer(const aru::rhi::RenderPass& renderPass,
-                                    const aru::rhi::Resource& image) const{
+std::expected<renaru::Framebuffer, renaru::Error>
+renaru::Device::createFramebuffer(const renaru::RenderPass& renderPass,
+                                    const renaru::Resource& image) const{
     if (this->empty() || renderPass.empty() || image.empty()){
-        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
-    if (image.kind() != aru::rhi::ResourceKind::Image){
-        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
+    if (image.kind() != renaru::ResourceKind::Image){
+        return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
     const vk::ImageView attachment = image.imageViewHandle();
     if (static_cast<VkImageView>(attachment) == nullptr){
-        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
     const vk::Extent2D extent = image.extent();
     if (extent.width == 0 || extent.height == 0){
-        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
     vk::FramebufferCreateInfo info;
@@ -115,7 +115,7 @@ aru::rhi::Device::createFramebuffer(const aru::rhi::RenderPass& renderPass,
     try{
         created = this->mDevice.createFramebuffer(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return std::unexpected(aru::rhi::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
     this->registerFramebuffer(created);

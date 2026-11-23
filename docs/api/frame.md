@@ -28,7 +28,7 @@ check(device.acquire([&]() mutable {
 
 ## What Happens Automatically
 
-`Device::acquire(callback)` is implemented in `device.cppm`; its frame state lives in the `aru.rhi:frame` partition (`aru_rhi/src/frame.cppm`):
+`Device::acquire(callback)` is implemented in `device.cppm`; its frame state lives in the `renaru:frame` partition (`renaru/src/frame.cppm`):
 
 1. Lazily create `MaxFramesInFlight` (2) image-available semaphores, render-finished semaphores, and in-flight fences. Fences start signaled.
 2. Wait on the fence for the current `frame_index`, then reset it.
@@ -52,7 +52,7 @@ check(device.acquire([&]() mutable {
 | `CommandSubmissionFailed` | `vkQueueSubmit` failed or the required sync handles are missing. |
 | `FramePresentationFailed` | `vkQueuePresentKHR` failed or the swapchain/semaphore is missing. |
 
-All are formattable through `std::formatter<aru::rhi::Error, char>`.
+All are formattable through `std::formatter<renaru::Error, char>`.
 
 ## Observers
 

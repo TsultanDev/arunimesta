@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 #include <print>
@@ -9,13 +9,13 @@ module;
 #include <utility>
 #include <vector>
 
-export module aru.rhi:command_buffer;
+export module renaru:command_buffer;
 
 import :device;
 import :command_pool;
 import :queue;
 
-export namespace aru::rhi {
+export namespace renaru {
     // CommandBuffer adalah wrapper untuk satu vk::CommandBuffer primary.
     // Buffer dialokasikan sekaligus dari CommandPool oleh
     // Device::allocateCommandBuffers(); setiap wrapper membebaskan handle-nya
@@ -60,7 +60,7 @@ export namespace aru::rhi {
                     std::forward<Func>(func)();
                 }catch(...){
                     this->endRecording();
-                    const aru::rhi::Error error = aru::rhi::Error::CommandBufferRecordingFailed;
+                    const renaru::Error error = renaru::Error::CommandBufferRecordingFailed;
                     if (mOwner != nullptr){
                         mOwner->noteError(error);
                     }
@@ -134,14 +134,14 @@ export namespace aru::rhi {
 
             std::expected<void, Error> beginRecording(){
                 if (this->empty() || mOwner == nullptr || mOwner->empty()){
-                    return std::unexpected(aru::rhi::Error::CommandBufferRecordingFailed);
+                    return std::unexpected(renaru::Error::CommandBufferRecordingFailed);
                 }
 
                 // Pool dibuat dengan eResetCommandBuffer, jadi reset diperbolehkan.
                 // Di state awal reset boleh gagal; begin() tetap bisa dipanggil.
                 (void)this->reset();
                 if (!this->begin()){
-                    return std::unexpected(aru::rhi::Error::CommandBufferRecordingFailed);
+                    return std::unexpected(renaru::Error::CommandBufferRecordingFailed);
                 }
 
                 mOwner->setActiveCommandBuffer(this->mBuffer);
@@ -177,14 +177,14 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Device/Queue didefinisikan di partisi sebelumnya,
 // tetapi alokasi dan submit membutuhkan tipe lengkap CommandBuffer di sini.
-std::expected<std::vector<aru::rhi::CommandBuffer>, aru::rhi::Error>
-aru::rhi::Device::allocateCommandBuffers(const aru::rhi::CommandPool& commandPool,
+std::expected<std::vector<renaru::CommandBuffer>, renaru::Error>
+renaru::Device::allocateCommandBuffers(const renaru::CommandPool& commandPool,
                                          std::uint32_t count) const{
     if (this->empty() || commandPool.empty() || count == 0){
-        return std::unexpected(aru::rhi::Error::CommandBufferAllocationFailed);
+        return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
     if (static_cast<VkDevice>(commandPool.deviceHandle()) != static_cast<VkDevice>(this->mDevice)){
-        return std::unexpected(aru::rhi::Error::CommandBufferAllocationFailed);
+        return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
 
     vk::CommandBufferAllocateInfo info;
@@ -196,7 +196,7 @@ aru::rhi::Device::allocateCommandBuffers(const aru::rhi::CommandPool& commandPoo
     try{
         allocated = this->mDevice.allocateCommandBuffers(info, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return std::unexpected(aru::rhi::Error::CommandBufferAllocationFailed);
+        return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
     if (allocated.size() != count){
         for (const vk::CommandBuffer& buffer : allocated){
@@ -205,7 +205,7 @@ aru::rhi::Device::allocateCommandBuffers(const aru::rhi::CommandPool& commandPoo
                                                  VULKAN_HPP_DEFAULT_DISPATCHER);
             }
         }
-        return std::unexpected(aru::rhi::Error::CommandBufferAllocationFailed);
+        return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
 
     std::vector<CommandBuffer> result;
@@ -220,13 +220,13 @@ aru::rhi::Device::allocateCommandBuffers(const aru::rhi::CommandPool& commandPoo
     return result;
 }
 
-std::expected<void, aru::rhi::Error> aru::rhi::Queue::submit(
-    const aru::rhi::CommandBuffer& buffer) const{
+std::expected<void, renaru::Error> renaru::Queue::submit(
+    const renaru::CommandBuffer& buffer) const{
     if (this->empty() || mOwner == nullptr || mOwner->empty() || buffer.empty()){
-        return std::unexpected(aru::rhi::Error::CommandSubmissionFailed);
+        return std::unexpected(renaru::Error::CommandSubmissionFailed);
     }
     if (static_cast<VkDevice>(buffer.deviceHandle()) != static_cast<VkDevice>(mOwner->handle())){
-        return std::unexpected(aru::rhi::Error::CommandSubmissionFailed);
+        return std::unexpected(renaru::Error::CommandSubmissionFailed);
     }
 
     const vk::CommandBuffer commandBuffer = buffer.handle();
@@ -236,7 +236,7 @@ std::expected<void, aru::rhi::Error> aru::rhi::Queue::submit(
     if (static_cast<VkSemaphore>(waitSemaphore) == nullptr ||
         static_cast<VkSemaphore>(signalSemaphore) == nullptr ||
         static_cast<VkFence>(fence) == nullptr){
-        return std::unexpected(aru::rhi::Error::CommandSubmissionFailed);
+        return std::unexpected(renaru::Error::CommandSubmissionFailed);
     }
 
     vk::PipelineStageFlags waitStages[] = {
@@ -255,15 +255,15 @@ std::expected<void, aru::rhi::Error> aru::rhi::Queue::submit(
     try{
         this->mQueue.submit(info, fence, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        mOwner->noteError(aru::rhi::Error::CommandSubmissionFailed);
-        return std::unexpected(aru::rhi::Error::CommandSubmissionFailed);
+        mOwner->noteError(renaru::Error::CommandSubmissionFailed);
+        return std::unexpected(renaru::Error::CommandSubmissionFailed);
     }
     return {};
 }
 
-std::expected<void, aru::rhi::Error> aru::rhi::Queue::present() const{
+std::expected<void, renaru::Error> renaru::Queue::present() const{
     if (this->empty() || mOwner == nullptr || mOwner->empty()){
-        return std::unexpected(aru::rhi::Error::FramePresentationFailed);
+        return std::unexpected(renaru::Error::FramePresentationFailed);
     }
 
     const vk::SwapchainKHR swapchain = mOwner->swapchainHandle();
@@ -271,7 +271,7 @@ std::expected<void, aru::rhi::Error> aru::rhi::Queue::present() const{
     const vk::Semaphore waitSemaphore = mOwner->renderFinishedSemaphore();
     if (static_cast<VkSwapchainKHR>(swapchain) == nullptr ||
         static_cast<VkSemaphore>(waitSemaphore) == nullptr){
-        return std::unexpected(aru::rhi::Error::FramePresentationFailed);
+        return std::unexpected(renaru::Error::FramePresentationFailed);
     }
 
     vk::PresentInfoKHR info;
@@ -284,12 +284,12 @@ std::expected<void, aru::rhi::Error> aru::rhi::Queue::present() const{
     try{
         const vk::Result result = this->mQueue.presentKHR(info, VULKAN_HPP_DEFAULT_DISPATCHER);
         if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR){
-            mOwner->noteError(aru::rhi::Error::FramePresentationFailed);
-            return std::unexpected(aru::rhi::Error::FramePresentationFailed);
+            mOwner->noteError(renaru::Error::FramePresentationFailed);
+            return std::unexpected(renaru::Error::FramePresentationFailed);
         }
     }catch(...){
-        mOwner->noteError(aru::rhi::Error::FramePresentationFailed);
-        return std::unexpected(aru::rhi::Error::FramePresentationFailed);
+        mOwner->noteError(renaru::Error::FramePresentationFailed);
+        return std::unexpected(renaru::Error::FramePresentationFailed);
     }
     return {};
 }

@@ -1,6 +1,6 @@
 module;
 
-#include <aru_rhi/vulkan.hpp>
+#include <renaru/vulkan.hpp>
 
 #include <expected>
 #include <vector>
@@ -10,12 +10,12 @@ module;
 #include <iterator>
 #include <utility>
 
-export module aru.rhi:device;
+export module renaru:device;
 
 import :instance;
 import :adapter;
 
-export namespace aru::rhi {
+export namespace renaru {
     // Forward declaration: tipe lengkap ada di partisi masing-masing.
     class Queue;
     class Resource;
@@ -26,7 +26,7 @@ export namespace aru::rhi {
     class CommandBuffer;
 }
 
-export namespace aru::rhi {
+export namespace renaru {
     class Device {
         public:
             using ResultType = std::expected<Device, Error>;
@@ -228,9 +228,9 @@ export namespace aru::rhi {
 
 // Definisi lintas partisi: Adapter didefinisikan di :adapter, tetapi
 // pembuatan Device membutuhkan tipe lengkap Device dari partisi ini.
-std::expected<aru::rhi::Device, aru::rhi::Error> aru::rhi::Adapter::createDevice(const aru::rhi::Adapter& adapter) const{
+std::expected<renaru::Device, renaru::Error> renaru::Adapter::createDevice(const renaru::Adapter& adapter) const{
     if (this->empty() || adapter.empty()){
-        return std::unexpected(aru::rhi::Error::DeviceCreationFailed);
+        return std::unexpected(renaru::Error::DeviceCreationFailed);
     }
 
     const float priority = 1.0F;
@@ -250,7 +250,7 @@ std::expected<aru::rhi::Device, aru::rhi::Error> aru::rhi::Adapter::createDevice
     try{
         created = adapter.mPhysicalDevice.createDevice(createInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }catch(...){
-        return std::unexpected(aru::rhi::Error::DeviceCreationFailed);
+        return std::unexpected(renaru::Error::DeviceCreationFailed);
     }
 
     std::println("Aru RHI: Device(created!!)");

@@ -1,6 +1,6 @@
-# `aru::rhi::Framebuffer` API Reference
+# `renaru::Framebuffer` API Reference
 
-`Framebuffer` is the Vulkan framebuffer wrapper in the `aru.rhi:framebuffer` module partition (`aru_rhi/src/framebuffer.cppm`). One framebuffer is created per swapchain image.
+`Framebuffer` is the Vulkan framebuffer wrapper in the `renaru:framebuffer` module partition (`renaru/src/framebuffer.cppm`). One framebuffer is created per swapchain image.
 
 ## Creation
 
@@ -19,7 +19,7 @@ if (!framebuffer) {
 - `image.extent().width` / `image.extent().height` as its dimensions.
 - One layer.
 
-`FramebufferCreationFailed` is returned as `std::unexpected(Error::FramebufferCreationFailed)` on invalid input or `vk::createFramebuffer` failure; it is formattable through `std::formatter<aru::rhi::Error, char>`.
+`FramebufferCreationFailed` is returned as `std::unexpected(Error::FramebufferCreationFailed)` on invalid input or `vk::createFramebuffer` failure; it is formattable through `std::formatter<renaru::Error, char>`.
 
 ### Typical loop
 
@@ -35,7 +35,7 @@ if (!renderPass) {
     std::terminate();
 }
 
-std::vector<aru::rhi::Framebuffer> framebuffers;
+std::vector<renaru::Framebuffer> framebuffers;
 framebuffers.reserve(images->size());
 
 for (const auto& image : *images) {

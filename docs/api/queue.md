@@ -1,13 +1,13 @@
-# `aru::rhi::Queue` API Reference
+# `renaru::Queue` API Reference
 
-`Queue` is the queue wrapper in the `aru.rhi:queue` module partition (`aru_rhi/src/queue.cppm`). It is requested from a `Device` with a combination of `QueueFlags` and returned in a `std::expected<Queue, Error>`.
+`Queue` is the queue wrapper in the `renaru:queue` module partition (`renaru/src/queue.cppm`). It is requested from a `Device` with a combination of `QueueFlags` and returned in a `std::expected<Queue, Error>`.
 
 ## `QueueFlags` and bitwise operators
 
-`QueueFlags` and its operators live in `aru.rhi:instance` (`src/instance.cppm`) so both devices and consumers can use them. The operators are `constexpr`, so combinations can be compile-time constants:
+`QueueFlags` and its operators live in `renaru:instance` (`src/instance.cppm`) so both devices and consumers can use them. The operators are `constexpr`, so combinations can be compile-time constants:
 
 ```cpp
-constexpr auto flags = aru::rhi::QueueFlags::Graphics | aru::rhi::QueueFlags::Present;
+constexpr auto flags = renaru::QueueFlags::Graphics | renaru::QueueFlags::Present;
 auto queue = device.requestQueue(flags);
 if (!queue) {
     std::println("queue: {}", queue.error());
@@ -33,7 +33,7 @@ These are the spellings used by `main.cpp`.
 
 ## Creation
 
-`Device::requestQueue(flags)` checks the selected family against the requested bits (`Present` uses `getSurfaceSupportKHR`) and calls `getQueue(family, 0)`. `QueueRequestFailed` is returned as `std::unexpected(Error::QueueRequestFailed)` on any mismatch; it is formattable through `std::formatter<aru::rhi::Error, char>`.
+`Device::requestQueue(flags)` checks the selected family against the requested bits (`Present` uses `getSurfaceSupportKHR`) and calls `getQueue(family, 0)`. `QueueRequestFailed` is returned as `std::unexpected(Error::QueueRequestFailed)` on any mismatch; it is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 

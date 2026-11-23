@@ -1,19 +1,19 @@
-# `aru::rhi::Instance` API Reference
+# `renaru::Instance` API Reference
 
-`Instance` is the Vulkan instance wrapper in the `aru.rhi:instance` module partition (`aru_rhi/src/instance.cppm`). It is created through a static factory and returned in a `std::expected<Instance, Error>`.
+`Instance` is the Vulkan instance wrapper in the `renaru:instance` module partition (`renaru/src/instance.cppm`). It is created through a static factory and returned in a `std::expected<Instance, Error>`.
 
 The module uses **Vulkan-Hpp dynamic dispatch**: `vkGetInstanceProcAddr` and the instance entry points are resolved at runtime with `VULKAN_HPP_DISPATCH_LOADER_DYNAMIC`. No `vulkan-1.lib` link is required.
 
 ## Header / Module
 
 ```cpp
-import aru.rhi;      // facade, re-exports aru.rhi:instance
+import renaru;      // facade, re-exports renaru:instance
 #include <expected>
 #include <string>
 #include <string_view>
 ```
 
-For additional `aru_rhi` translation units that need Vulkan types, include `aru_rhi/vulkan.hpp`. That header sets up dynamic dispatch and declares the dispatcher as `extern`. The single definition (main storage) lives in `src/instance.cppm`.
+For additional `renaru` translation units that need Vulkan types, include `renaru/vulkan.hpp`. That header sets up dynamic dispatch and declares the dispatcher as `extern`. The single definition (main storage) lives in `src/instance.cppm`.
 
 ## API
 
@@ -28,7 +28,7 @@ Creates the Vulkan instance.
 - `VK_KHR_surface` and `VK_KHR_win32_surface` are enabled so that `createSurface()` works.
 
 ```cpp
-auto instance = aru::rhi::Instance::create("Arunimesta");
+auto instance = renaru::Instance::create("Arunimesta");
 if (!instance) {
     std::println("error: {}", instance.error());
     std::terminate();
@@ -48,7 +48,7 @@ if (!instance) {
 | `DeviceCreationFailed` | `vk::createDevice` threw or the adapter was empty. |
 | `QueueRequestFailed` | The requested queue flags are unavailable on the selected family. |
 
-`Error` lives in the `aru.rhi:error` partition (`src/error.cppm`) together with its `std::formatter<Error, char>` specialization, so it can be printed with `std::println`. The `aru.rhi` facade re-exports that partition.
+`Error` lives in the `renaru:error` partition (`src/error.cppm`) together with its `std::formatter<Error, char>` specialization, so it can be printed with `std::println`. The `renaru` facade re-exports that partition.
 
 Failures are returned as `std::unexpected(Error::X)`.
 
@@ -56,7 +56,7 @@ Failures are returned as `std::unexpected(Error::X)`.
 
 | Function | Defined in | Description |
 | :--- | :--- | :--- |
-| `createSurface(const aru::window::Window&)` | `:surface` | Creates a Win32 Vulkan surface. |
+| `createSurface(const winaru::Window&)` | `:surface` | Creates a Win32 Vulkan surface. |
 | `requestAdapter(const Surface&)` | `:adapter` | Selects a physical device with graphics + present support. |
 
 ### Accessors
@@ -80,7 +80,7 @@ Only one object owns a given Vulkan handle; use `std::move` to transfer ownershi
 
 ## Build Notes
 
-- `aru_rhi/CMakeLists.txt` registers `src/lib.cppm` and `src/instance.cppm` in a `FILE_SET CXX_MODULES`, links `Vulkan::Headers` publicly, and adds `include/` for `aru_rhi/vulkan.hpp`.
+- `renaru/CMakeLists.txt` registers `src/lib.cppm` and `src/instance.cppm` in a `FILE_SET CXX_MODULES`, links `Vulkan::Headers` publicly, and adds `include/` for `renaru/vulkan.hpp`.
 - The module is registered in the root `CMakeLists.txt`.
 
 ## Limitations

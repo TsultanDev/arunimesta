@@ -1,6 +1,6 @@
-# `aru::rhi::CommandBuffer` API Reference
+# `renaru::CommandBuffer` API Reference
 
-`CommandBuffer` is the Vulkan command-buffer wrapper in the `aru.rhi:command_buffer` module partition (`aru_rhi/src/command_buffer.cppm`). Command buffers are allocated in one batch from a `CommandPool` and returned as `std::vector<CommandBuffer>` inside a `std::expected`.
+`CommandBuffer` is the Vulkan command-buffer wrapper in the `renaru:command_buffer` module partition (`renaru/src/command_buffer.cppm`). Command buffers are allocated in one batch from a `CommandPool` and returned as `std::vector<CommandBuffer>` inside a `std::expected`.
 
 ## Allocation
 
@@ -18,7 +18,7 @@ if (!buffers) {
 - the pool belongs to a different logical device;
 - `vk::allocateCommandBuffers` throws or returns a different number of buffers.
 
-The error is formattable through `std::formatter<aru::rhi::Error, char>`.
+The error is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 
@@ -54,7 +54,7 @@ if (!result) {
     std::terminate();
 }
 
-std::vector<aru::rhi::CommandBuffer> buffers = std::move(*result);
+std::vector<renaru::CommandBuffer> buffers = std::move(*result);
 check(buffers[0].record([&]() {
     check(renderPass.render([]() {
         // draw commands will be added here

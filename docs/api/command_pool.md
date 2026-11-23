@@ -1,6 +1,6 @@
-# `aru::rhi::CommandPool` API Reference
+# `renaru::CommandPool` API Reference
 
-`CommandPool` is the Vulkan command-pool wrapper in the `aru.rhi:command_pool` module partition (`aru_rhi/src/command_pool.cppm`). A pool belongs to one queue family and is the allocation source for command buffers.
+`CommandPool` is the Vulkan command-pool wrapper in the `renaru:command_pool` module partition (`renaru/src/command_pool.cppm`). A pool belongs to one queue family and is the allocation source for command buffers.
 
 ## Creation
 
@@ -18,7 +18,7 @@ if (!pool) {
 - the queue belongs to a different logical device or queue family;
 - `vk::createCommandPool` throws.
 
-The pool is created with `vk::CommandPoolCreateFlagBits::eResetCommandBuffer`, so individual command buffers can be reset with `CommandBuffer::reset()`. The error is formattable through `std::formatter<aru::rhi::Error, char>`.
+The pool is created with `vk::CommandPoolCreateFlagBits::eResetCommandBuffer`, so individual command buffers can be reset with `CommandBuffer::reset()`. The error is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 

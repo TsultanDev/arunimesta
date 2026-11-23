@@ -1,6 +1,6 @@
-# `aru::rhi::Swapchain` API Reference
+# `renaru::Swapchain` API Reference
 
-`Swapchain` is the Vulkan swapchain wrapper in the `aru.rhi:swapchain` module partition (`aru_rhi/src/swapchain.cppm`). It is created by `Device` from the surface and the window size.
+`Swapchain` is the Vulkan swapchain wrapper in the `renaru:swapchain` module partition (`renaru/src/swapchain.cppm`). It is created by `Device` from the surface and the window size.
 
 ## Creation
 
@@ -21,7 +21,7 @@ if (!swapchain) {
 - Requests `minImageCount + 1` images, capped by `maxImageCount`.
 - Enables `COLOR_ATTACHMENT` usage and opaque composite alpha.
 
-`SwapchainCreationFailed` is returned as `std::unexpected(Error::SwapchainCreationFailed)` on any query failure or `vk::createSwapchainKHR` exception. It is formattable through `std::formatter<aru::rhi::Error, char>`.
+`SwapchainCreationFailed` is returned as `std::unexpected(Error::SwapchainCreationFailed)` on any query failure or `vk::createSwapchainKHR` exception. It is formattable through `std::formatter<renaru::Error, char>`.
 
 ## Swapchain Images
 

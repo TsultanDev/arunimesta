@@ -11,18 +11,18 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [building.md](building.md) | Prerequisites, building with presets or manually, and troubleshooting. |
 | [coding-style.md](coding-style.md) | Naming conventions, `.cppm` file layout, and factory/pimpl patterns. |
 | [api/application.md](api/application.md) | `aru::Application` API reference. |
-| [api/window.md](api/window.md) | `aru::window::Window` API reference (active). |
-| [api/instance.md](api/instance.md) | `aru::rhi::Instance` API reference (Vulkan instance, dynamic dispatch). |
-| [api/surface.md](api/surface.md) | `aru::rhi::Surface` API reference (Win32 Vulkan surface). |
-| [api/adapter.md](api/adapter.md) | `aru::rhi::Adapter` API reference (physical device selection). |
-| [api/device.md](api/device.md) | `aru::rhi::Device` API reference (logical device). |
-| [api/queue.md](api/queue.md) | `aru::rhi::Queue` API reference and `QueueFlags` bitwise operators. |
-| [api/swapchain.md](api/swapchain.md) | `aru::rhi::Swapchain` API reference (format/extent/image selection). |
-| [api/resource.md](api/resource.md) | `aru::rhi::Resource` tagged union (image + view / buffer + view). |
-| [api/render_pass.md](api/render_pass.md) | `aru::rhi::RenderPass` API reference. |
-| [api/framebuffer.md](api/framebuffer.md) | `aru::rhi::Framebuffer` API reference and per-image creation loop. |
-| [api/command_pool.md](api/command_pool.md) | `aru::rhi::CommandPool` API reference (queue-family pool, reset). |
-| [api/command_buffer.md](api/command_buffer.md) | `aru::rhi::CommandBuffer` API reference (batch allocation, record lifecycle). |
+| [api/window.md](api/window.md) | `winaru::Window` API reference (active). |
+| [api/instance.md](api/instance.md) | `renaru::Instance` API reference (Vulkan instance, dynamic dispatch). |
+| [api/surface.md](api/surface.md) | `renaru::Surface` API reference (Win32 Vulkan surface). |
+| [api/adapter.md](api/adapter.md) | `renaru::Adapter` API reference (physical device selection). |
+| [api/device.md](api/device.md) | `renaru::Device` API reference (logical device). |
+| [api/queue.md](api/queue.md) | `renaru::Queue` API reference and `QueueFlags` bitwise operators. |
+| [api/swapchain.md](api/swapchain.md) | `renaru::Swapchain` API reference (format/extent/image selection). |
+| [api/resource.md](api/resource.md) | `renaru::Resource` tagged union (image + view / buffer + view). |
+| [api/render_pass.md](api/render_pass.md) | `renaru::RenderPass` API reference. |
+| [api/framebuffer.md](api/framebuffer.md) | `renaru::Framebuffer` API reference and per-image creation loop. |
+| [api/command_pool.md](api/command_pool.md) | `renaru::CommandPool` API reference (queue-family pool, reset). |
+| [api/command_buffer.md](api/command_buffer.md) | `renaru::CommandBuffer` API reference (batch allocation, record lifecycle). |
 | [api/frame.md](api/frame.md) | Frame loop prototype: acquire → record → render → submit → present, plus sync state. |
 | [roadmap.md](roadmap.md) | Status, milestones, and development plans. |
 
@@ -37,7 +37,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 
 ## Documentation Principles
 
-- **In sync with the code**: examples and API names must match the source in `aru/`, `aru_window/`, and `aru_rhi/`.
+- **In sync with the code**: examples and API names must match the source in `aru/`, `winaru/`, and `renaru/`.
 - **Honest about status**: parts that are not implemented are explicitly marked.
 - **Practical**: each document answers the questions that come up when building or developing the engine.
 - **Language**: English, using standard technical terminology.

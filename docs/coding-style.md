@@ -13,8 +13,8 @@ This document summarizes the conventions used (and targeted) by the Arunimesta c
 | Enum type | `PascalCase` | `Flags`, `ApplicationError` |
 | Enum value | `PascalCase` | `None`, `Resizable` |
 | Concept | `lowercase` | *(none in the engine yet)* |
-| Namespace | `lowercase` | `aru`, `aru::window`, `aru::rhi` |
-| Module | `lowercase.dot` | `aru`, `aru.window`, `aru.window:window` |
+| Namespace | `lowercase` | `aru`, `winaru`, `renaru` |
+| Module | `lowercase.dot` | `aru`, `winaru`, `winaru:window` |
 | Module file | `lowercase.cppm` | `application.cppm` |
 | Macro | `UPPER_SNAKE_CASE` | *(none in the engine yet)* |
 
@@ -131,7 +131,7 @@ Requirements:
 
 ## Error Handling
 
-- Use `std::expected<T, E>` with `std::unexpected(...)` for recoverable failures, with a meaningful error type (`ApplicationError`, `aru::window::Error`, `aru::rhi::Error`).
+- Use `std::expected<T, E>` with `std::unexpected(...)` for recoverable failures, with a meaningful error type (`ApplicationError`, `winaru::Error`, `renaru::Error`).
 - Use `std::optional<T>` when a value may be absent; prefer the standard library over custom result/option wrappers.
 - Avoid `throw` at public API boundaries.
 - Do not ignore an `expected` result; check it or propagate it with `transform` / `and_then`.
@@ -167,7 +167,7 @@ std::println(stdout, "Aru: Window(created!!), title: {}", title);
 - Use the explicit Unicode (`...W`) Win32 APIs: `RegisterClassExW`, `CreateWindowExW`, `DefWindowProcW`, `PeekMessageW`, `DispatchMessageW`.
 - Never mix ANSI (`...A`) and Unicode (`...W`) APIs for the same window. Mixing them corrupts text; for example, a title created with `CreateWindowExA` and handled by `DefWindowProcW` is re-read as UTF-16 and can appear as CJK characters.
 - Narrow public APIs take UTF-8 text (`const char*`, `std::string`, or `std::string_view`). Convert to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` before calling a `...W` function; `Window` also accepts a `const char16_t*` title and returns `const std::wstring&` from `windowTitle()`.
-- Define `UNICODE` and `_UNICODE` for targets that include `<Windows.h>` (see `aru_window/CMakeLists.txt`).
+- Define `UNICODE` and `_UNICODE` for targets that include `<Windows.h>` (see `winaru/CMakeLists.txt`).
 
 ## Formatting
 

@@ -1,6 +1,6 @@
-# `aru::rhi::Resource` API Reference
+# `renaru::Resource` API Reference
 
-`Resource` is a tagged union in the `aru.rhi:resource` module partition (`aru_rhi/src/resource.cppm`). It holds either an image plus its image view, or a buffer plus its buffer view.
+`Resource` is a tagged union in the `renaru:resource` module partition (`renaru/src/resource.cppm`). It holds either an image plus its image view, or a buffer plus its buffer view.
 
 ## Union Layout
 
@@ -44,7 +44,7 @@ if (!bufferResource) {
 
 `createImageResource()` creates a 2D `vk::ImageView` with a color subresource range. The `vk::Image` itself is borrowed (typically from a swapchain); the view is owned.
 
-`createBufferResource()` creates an exclusive `vk::Buffer` and a `vk::BufferView` over the whole buffer. Both are owned. `ResourceCreationFailed` is returned as `std::unexpected(Error::ResourceCreationFailed)` on failure; it is formattable through `std::formatter<aru::rhi::Error, char>`.
+`createBufferResource()` creates an exclusive `vk::Buffer` and a `vk::BufferView` over the whole buffer. Both are owned. `ResourceCreationFailed` is returned as `std::unexpected(Error::ResourceCreationFailed)` on failure; it is formattable through `std::formatter<renaru::Error, char>`.
 
 `Device::createSwapchainImages()` uses `createImageResource()` internally, so callers normally receive image resources rather than creating them directly. It returns `std::expected<std::vector<Resource>, Error>`.
 
