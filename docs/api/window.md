@@ -18,7 +18,7 @@ import aru;          // re-exports aru.window
 
 <p align="center"><em>The current window created by <code>aru.window</code>; no rendering is implemented yet.</em></p>
 
-Rule of Five: copy and move **constructors are implemented**. The copy constructor duplicates title/metadata (not the `HWND`); the move constructor steals the handle. Assignment and the `copy()` / `move()` member functions are also available. Creating another real OS window is a separate operation: `createFromWindow()`.
+`Window` is move-only: the copy constructor and copy assignment are deleted because `HWND` is a raw handle. The move constructor and move assignment steal the handle and empty the source; use `std::move` to transfer ownership. Creating another real OS window is a separate operation: `createFromWindow()`.
 
 ## Error type
 
@@ -58,7 +58,7 @@ UTF-16 overload; the title is used as-is (mapped to `wchar_t`, which is 16-bit o
 
 ### `static std::expected<Window, Error> createFromWindow(const Window& source)`
 
-Creates a **new OS window** using the source window's title, width, and height. This is different from copy assignment or `copy()`: it calls WinAPI again and produces a distinct `HWND`.
+Creates a **new OS window** using the source window's title, width, and height. Since copying is deleted, this is the only way to obtain a second window with the same configuration: it calls WinAPI again and produces a distinct `HWND`.
 
 ```cpp
 auto second = aru::window::Window::createFromWindow(window);
@@ -69,16 +69,16 @@ if (!second) {
 // second->handle() != window.handle()
 ```
 
-### `Window& operator=(const Window& source)` and `Window copy() const`
+### Copy is deleted
 
-Copy assignment / `copy()` deep-copy the metadata and the title `std::wstring`. The source is unchanged. They deliberately do **not** copy the `HWND`: a copied object has the same configuration but no OS window. Use `createFromWindow()` when a real second window is needed.
+`Window(const Window&)` and `Window& operator=(const Window&)` are deleted: duplicating a raw `HWND` would produce two owners of the same OS window. Use `createFromWindow()` when a real second window is needed.
 
-### `Window& operator=(Window&& source) noexcept` and `Window move() noexcept`
+### `Window& operator=(Window&& source) noexcept`
 
-Move assignment / `move()` steal the `HWND`, `HINSTANCE`, title, width, and height. The source window becomes empty (`handle() == nullptr`).
+Move assignment steals the `HWND`, `HINSTANCE`, title, width, and height. The source window becomes empty (`handle() == nullptr`). There is no `move()` member function; use `std::move`.
 
 ```cpp
-auto moved = window.move();   // window is now empty
+auto moved = std::move(window);   // window is now empty
 ```
 
 ### `void event_loop()`
@@ -125,9 +125,9 @@ See [frame.md](frame.md) for the frame-loop prototype.
 | Operation | Status | Notes |
 | :--- | :--- | :--- |
 | Constructor | Private | Use `create()` / `createFromWindow()` |
-| Copy constructor | Public | Copies title/metadata, not the `HWND`; same as `b = a;` / `b = a.copy()` |
-| Move constructor | `noexcept` | Steals the handle and empties the source; same as `b = std::move(a);` / `b = a.move()` |
-| Copy assignment | Public | Copies title/metadata; does not duplicate the OS window |
+| Copy constructor | Deleted | `HWND` is a raw handle |
+| Move constructor | `noexcept` | Steals the handle and empties the source; same as `b = std::move(a);` |
+| Copy assignment | Deleted | `HWND` is a raw handle |
 | Move assignment | `noexcept` | Steals the handle; source becomes empty |
 | Destructor | Public | `DestroyWindow` is called only when `hwnd != nullptr` |
 

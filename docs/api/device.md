@@ -34,15 +34,13 @@ The object stores the parent instance, physical device, surface, logical device,
 | `std::expected<CommandPool, Error> createCommandPool(const Queue& queue) const` | Creates a resettable command pool for the queue's family (defined in `:command_pool`). |
 | `std::expected<std::vector<CommandBuffer>, Error> allocateCommandBuffers(const CommandPool& pool, std::uint32_t count) const` | Allocates `count` primary command buffers from the pool (defined in `:command_buffer`). |
 | `std::expected<void, Error> acquire(Func&& callback)` | Waits/resets the in-flight fence, acquires the next swapchain image, runs the callback, then advances `frame_index` (see [frame.md](frame.md)). |
-| `Device copy() const` | Metadata-only copy (see below). |
-| `Device move() noexcept` | Transfers the device handle; source becomes empty. |
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies instance, physical device, surface, family index, and cached swapchain/framebuffer metadata, but **not** the `vk::Device` or sync objects; the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals all owned handles, sync vectors, and the family index; source is emptied. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::Device` and the sync objects are raw handles. |
+| Move constructor / move assignment | Steals all owned handles, sync vectors, and the family index; source is emptied. `noexcept`. |
 | Destructor | Destroys sync objects, then calls `destroy()` only when a `vk::Device` handle is held, and clears the borrowed handles. |
 
 Only one object owns a logical device. The surface and instance are borrowed; keep `Surface` and `Instance` alive longer than `Device`.

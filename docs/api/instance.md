@@ -68,15 +68,15 @@ Failures are returned as `std::unexpected(Error::X)`.
 | `const std::string& applicationName() const noexcept` | Copy of the application name. |
 | `bool empty() const noexcept` | `true` when no instance handle is held. |
 
-### Rule of Five
+### Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Deep-copies `applicationName` and `apiVersion`. The copy does **not** own the Vulkan handle and is therefore `empty()`. |
-| Move constructor / move assignment / `move()` | Steals the `vk::Instance` handle and the string, then empties the source. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::Instance` is a raw handle. |
+| Move constructor / move assignment | Steals the `vk::Instance` handle and the string, then empties the source. `noexcept`. |
 | Destructor | Calls `Instance::destroy()` only when a handle is held. |
 
-Copy exists so that `Instance` fits standard containers and value semantics. Only one object owns a given Vulkan handle; use `move()` to transfer ownership.
+Only one object owns a given Vulkan handle; use `std::move` to transfer ownership or store `Instance` in a container.
 
 ## Build Notes
 

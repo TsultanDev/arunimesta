@@ -41,7 +41,7 @@ int main() {
     framebuffers.reserve(swapchainImages.size());
     for (const auto& image : swapchainImages) {
         auto framebuffer = unwrap(device.createFramebuffer(renderPass, image));
-        framebuffers.push_back(framebuffer.move());
+        framebuffers.push_back(std::move(framebuffer));
     }
 
     auto command_pool = unwrap(device.createCommandPool(queue));

@@ -17,25 +17,18 @@ export namespace aru::rhi {
     // CommandPool memiliki vk::CommandPool untuk satu queue family.
     // Flag eResetCommandBuffer memungkinkan reset per command buffer.
     class CommandPool {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<CommandPool, Error>;
 
-            CommandPool(const CommandPool& other) : CommandPool(other, CopyTag{}) {}
+            // vk::CommandPool adalah raw handle: salinan tidak diizinkan.
+            CommandPool(const CommandPool&) = delete;
+            CommandPool& operator=(const CommandPool&) = delete;
 
-            CommandPool(CommandPool&& other) noexcept : CommandPool(std::move(other), MoveTag{}) {}
-
-            CommandPool& operator=(const CommandPool& other){
-                if (this != &other){
-                    CommandPool fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            CommandPool(CommandPool&& other) noexcept :
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mPool(std::exchange(other.mPool, vk::CommandPool{})),
+                mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0}))
+            {}
 
             CommandPool& operator=(CommandPool&& other) noexcept{
                 if (this != &other){
@@ -48,10 +41,6 @@ export namespace aru::rhi {
             }
 
             ~CommandPool(){ this->release(); }
-
-            CommandPool copy() const { return CommandPool(*this, CopyTag{}); }
-
-            CommandPool move() noexcept { return CommandPool(std::move(*this), MoveTag{}); }
 
             vk::CommandPool handle() const noexcept { return this->mPool; }
 
@@ -78,22 +67,10 @@ export namespace aru::rhi {
             friend class Device;
 
             CommandPool(vk::Device device, vk::CommandPool pool,
-                        std::uint32_t queueFamilyIndex, InitTag) noexcept :
+                        std::uint32_t queueFamilyIndex) noexcept :
                 mDevice(device),
                 mPool(pool),
                 mQueueFamily(queueFamilyIndex)
-            {}
-
-            CommandPool(const CommandPool& other, CopyTag) noexcept :
-                mDevice(other.mDevice),
-                mPool(),
-                mQueueFamily(other.mQueueFamily)
-            {}
-
-            CommandPool(CommandPool&& other, MoveTag) noexcept :
-                mDevice(std::exchange(other.mDevice, vk::Device{})),
-                mPool(std::exchange(other.mPool, vk::CommandPool{})),
-                mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0}))
             {}
 
             void release() noexcept{
@@ -139,5 +116,5 @@ aru::rhi::Device::createCommandPool(const aru::rhi::Queue& queue) const{
 
     std::println("Aru RHI: CommandPool(created!!) family={}", this->mQueueFamily);
 
-    return CommandPool(this->mDevice, created, this->mQueueFamily, CommandPool::InitTag{});
+    return CommandPool(this->mDevice, created, this->mQueueFamily);
 }

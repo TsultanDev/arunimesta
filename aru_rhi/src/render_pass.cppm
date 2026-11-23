@@ -15,31 +15,25 @@ import :swapchain;
 
 export namespace aru::rhi {
     class RenderPass {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<RenderPass, Error>;
 
-            RenderPass(const RenderPass& other) : RenderPass(other, CopyTag{}) {}
+            // vk::RenderPass adalah raw handle: salinan tidak diizinkan.
+            RenderPass(const RenderPass&) = delete;
+            RenderPass& operator=(const RenderPass&) = delete;
 
-            RenderPass(RenderPass&& other) noexcept : RenderPass(std::move(other), MoveTag{}) {}
-
-            RenderPass& operator=(const RenderPass& other){
-                if (this != &other){
-                    RenderPass fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            RenderPass(RenderPass&& other) noexcept :
+                mOwner(std::exchange(other.mOwner, nullptr)),
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mRenderPass(std::exchange(other.mRenderPass, vk::RenderPass{})),
+                mClearColor(std::exchange(other.mClearColor, std::array<float, 4>{}))
+            {}
 
             RenderPass& operator=(RenderPass&& other) noexcept{
                 if (this != &other){
                     this->release();
                     this->mOwner = std::exchange(other.mOwner, nullptr);
-                    this->mDevice = other.mDevice;
+                    this->mDevice = std::exchange(other.mDevice, vk::Device{});
                     this->mRenderPass = std::exchange(other.mRenderPass, vk::RenderPass{});
                     this->mClearColor = std::exchange(other.mClearColor, std::array<float, 4>{});
                 }
@@ -47,10 +41,6 @@ export namespace aru::rhi {
             }
 
             ~RenderPass(){ this->release(); }
-
-            RenderPass copy() const { return RenderPass(*this, CopyTag{}); }
-
-            RenderPass move() noexcept { return RenderPass(std::move(*this), MoveTag{}); }
 
             // Prototipe: render_pass.render([]{ ... }) memakai clear color
             // default; overload dengan array warna menerima RGBA float.
@@ -77,26 +67,11 @@ export namespace aru::rhi {
         private:
             friend class Device;
 
-            RenderPass(const Device* owner, vk::Device device, vk::RenderPass renderPass,
-                       InitTag) noexcept :
+            RenderPass(const Device* owner, vk::Device device, vk::RenderPass renderPass) noexcept :
                 mOwner(owner),
                 mDevice(device),
                 mRenderPass(renderPass),
                 mClearColor({0.3F, 0.3F, 0.3F, 1.0F})
-            {}
-
-            RenderPass(const RenderPass& other, CopyTag) noexcept :
-                mOwner(other.mOwner),
-                mDevice(other.mDevice),
-                mRenderPass(),
-                mClearColor(other.mClearColor)
-            {}
-
-            RenderPass(RenderPass&& other, MoveTag) noexcept :
-                mOwner(std::exchange(other.mOwner, nullptr)),
-                mDevice(other.mDevice),
-                mRenderPass(std::exchange(other.mRenderPass, vk::RenderPass{})),
-                mClearColor(std::exchange(other.mClearColor, std::array<float, 4>{}))
             {}
 
             template<typename Func>
@@ -241,5 +216,5 @@ aru::rhi::Device::createRenderPass(const aru::rhi::Swapchain& swapchain) const{
 
     std::println("Aru RHI: RenderPass(created!!)");
 
-    return RenderPass(this, this->mDevice, created, RenderPass::InitTag{});
+    return RenderPass(this, this->mDevice, created);
 }

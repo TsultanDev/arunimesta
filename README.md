@@ -221,7 +221,7 @@ arunimesta/
 | :--- | :--- | :--- | :--- |
 | `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `aru.window` and `aru.rhi`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
-| `aru.window` | Static library | ✅ | Win32 window creation, `std::expected`-based errors, copy/move by assignment, `createFromWindow()`, and event loop. |
+| `aru.window` | Static library | ✅ | Win32 window creation, `std::expected`-based errors, move-only ownership, `createFromWindow()`, and event loop. |
 | `aru.rhi` | Static library | ✅ | Vulkan-Hpp with dynamic dispatch: instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer, command pool, command buffers, empty-frame loop with sync objects. |
 
 > `aru` links `aru_window` and `aru_rhi`. The `aru` facade re-exports `aru.window` and `aru.rhi`. Standard-library types are used directly in every module.
@@ -294,7 +294,7 @@ auto window = std::move(*windowResult);
 window.event_loop();
 ```
 
-Narrow titles are UTF-8, so non-ASCII text such as `世界` is supported. Rule of Five is implemented: copy duplicates the title/metadata (not the `HWND`), move transfers the handle. `window.copy()`, `window.move()`, and assignment are also available. To make a real second OS window, use `Window::createFromWindow(window)`.
+Narrow titles are UTF-8, so non-ASCII text such as `世界` is supported. `HWND` is a raw handle, so copying is deleted: there is no `window.copy()` and neither copy constructor nor copy assignment is available. Move transfers the handle and empties the source; use `std::move(window)` or move assignment. There is no `move()` member function. To make a real second OS window, use `Window::createFromWindow(window)`.
 
 Vulkan RHI setup (see [`docs/api/swapchain.md`](docs/api/swapchain.md), [`docs/api/resource.md`](docs/api/resource.md), [`docs/api/render_pass.md`](docs/api/render_pass.md), [`docs/api/framebuffer.md`](docs/api/framebuffer.md), [`docs/api/command_pool.md`](docs/api/command_pool.md), [`docs/api/command_buffer.md`](docs/api/command_buffer.md), and [`docs/api/frame.md`](docs/api/frame.md) for the full flow):
 
@@ -307,12 +307,12 @@ std::vector<aru::rhi::Framebuffer> framebuffers;
 framebuffers.reserve(imagesResult->size());
 for (const auto& image : *imagesResult) {
     auto framebufferResult = device.createFramebuffer(renderPassResult.value(), image);
-    framebuffers.push_back(framebufferResult->move()); // transfer ownership into the vector
+    framebuffers.push_back(std::move(*framebufferResult)); // transfer ownership into the vector
 }
 
 auto poolResult = device.createCommandPool(queue);
 if (!poolResult) { std::terminate(); }
-auto commandPool = poolResult->move();
+auto commandPool = std::move(*poolResult);
 
 auto buffersResult = device.allocateCommandBuffers(commandPool, imagesResult->size());
 if (!buffersResult) { std::terminate(); }
@@ -363,7 +363,7 @@ References: [`docs/api/application.md`](docs/api/application.md), [`docs/api/win
 - [x] C++23 named modules and module partitions
 - [x] `Application` with a `std::expected` factory and `unique_ptr` pimpl
 - [x] Standard-library types only: `std::expected`, `std::optional`, `std::string`, `std::vector`, `std::array`
-- [x] Re-enable and implement `aru.window`: RAII window creation, copy/move by assignment, and blocking event loop
+- [x] Re-enable and implement `aru.window`: RAII window creation, move-only ownership, and blocking event loop
 - [x] Vulkan RHI: instance, surface, adapter/device, queue
 - [x] Vulkan swapchain, image views, resource union, render pass, and framebuffers
 - [x] Command pools and per-image command buffers with record lifecycle

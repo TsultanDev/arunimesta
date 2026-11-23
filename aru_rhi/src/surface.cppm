@@ -15,40 +15,28 @@ import :instance;
 
 export namespace aru::rhi {
     class Surface {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<Surface, Error>;
 
-            Surface(const Surface& other) : Surface(other, CopyTag{}) {}
+            // vk::SurfaceKHR adalah raw handle: salinan tidak diizinkan.
+            Surface(const Surface&) = delete;
+            Surface& operator=(const Surface&) = delete;
 
-            Surface(Surface&& other) noexcept : Surface(std::move(other), MoveTag{}) {}
-
-            Surface& operator=(const Surface& other){
-                if (this != &other){
-                    Surface fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            Surface(Surface&& other) noexcept :
+                mInstance(std::exchange(other.mInstance, vk::Instance{})),
+                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{}))
+            {}
 
             Surface& operator=(Surface&& other) noexcept{
                 if (this != &other){
                     this->release();
-                    this->mInstance = other.mInstance;
+                    this->mInstance = std::exchange(other.mInstance, vk::Instance{});
                     this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
                 }
                 return *this;
             }
 
             ~Surface(){ this->release(); }
-
-            Surface copy() const { return Surface(*this, CopyTag{}); }
-
-            Surface move() noexcept { return Surface(std::move(*this), MoveTag{}); }
 
             vk::SurfaceKHR handle() const noexcept { return this->mSurface; }
 
@@ -60,19 +48,9 @@ export namespace aru::rhi {
             // Instance::createSurface() adalah satu-satunya jalan pembuatan.
             friend class Instance;
 
-            Surface(vk::Instance instance, vk::SurfaceKHR surface, InitTag) noexcept :
+            Surface(vk::Instance instance, vk::SurfaceKHR surface) noexcept :
                 mInstance(instance),
                 mSurface(surface)
-            {}
-
-            Surface(const Surface& other, CopyTag) :
-                mInstance(other.mInstance),
-                mSurface()
-            {}
-
-            Surface(Surface&& other, MoveTag) noexcept :
-                mInstance(other.mInstance),
-                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{}))
             {}
 
             void release() noexcept{
@@ -80,6 +58,7 @@ export namespace aru::rhi {
                     this->mInstance.destroySurfaceKHR(this->mSurface, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
                     this->mSurface = vk::SurfaceKHR{};
                 }
+                this->mInstance = vk::Instance{};
             }
 
             vk::Instance mInstance;
@@ -108,5 +87,5 @@ aru::rhi::Surface::ResultType aru::rhi::Instance::createSurface(const aru::windo
 
     std::println("Aru RHI: Surface(created!!)");
 
-    return Surface(this->mInstance, created, Surface::InitTag{});
+    return Surface(this->mInstance, created);
 }

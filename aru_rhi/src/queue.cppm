@@ -20,25 +20,25 @@ export namespace aru::rhi {
 
 export namespace aru::rhi {
     class Queue {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<Queue, Error>;
 
-            Queue(const Queue& other) : Queue(other, CopyTag{}) {}
+            // Didefinisikan di :command_buffer karena butuh CommandBuffer lengkap.
+            std::expected<void, Error> submit(const CommandBuffer& buffer) const;
+            std::expected<void, Error> present() const;
 
-            Queue(Queue&& other) noexcept : Queue(std::move(other), MoveTag{}) {}
+            // vk::Queue tidak dimiliki aplikasi, tetapi handle-nya tetap raw:
+            // salinan tidak diizinkan.
+            Queue(const Queue&) = delete;
+            Queue& operator=(const Queue&) = delete;
 
-            Queue& operator=(const Queue& other){
-                if (this != &other){
-                    Queue fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            Queue(Queue&& other) noexcept :
+                mOwner(std::exchange(other.mOwner, nullptr)),
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mQueue(std::exchange(other.mQueue, vk::Queue{})),
+                mFlags(std::exchange(other.mFlags, QueueFlags::None)),
+                mFamily(std::exchange(other.mFamily, std::uint32_t{0}))
+            {}
 
             Queue& operator=(Queue&& other) noexcept{
                 if (this != &other){
@@ -52,14 +52,6 @@ export namespace aru::rhi {
             }
 
             ~Queue() = default;
-
-            Queue copy() const { return Queue(*this, CopyTag{}); }
-
-            Queue move() noexcept { return Queue(std::move(*this), MoveTag{}); }
-
-            // Didefinisikan di :command_buffer karena butuh CommandBuffer lengkap.
-            std::expected<void, Error> submit(const CommandBuffer& buffer) const;
-            std::expected<void, Error> present() const;
 
             vk::Queue handle() const noexcept { return this->mQueue; }
 
@@ -75,28 +67,12 @@ export namespace aru::rhi {
             friend class Device;
 
             Queue(const Device* owner, vk::Device device, vk::Queue queue,
-                  QueueFlags flags, std::uint32_t familyIndex, InitTag) noexcept :
+                  QueueFlags flags, std::uint32_t familyIndex) noexcept :
                 mOwner(owner),
                 mDevice(device),
                 mQueue(queue),
                 mFlags(flags),
                 mFamily(familyIndex)
-            {}
-
-            Queue(const Queue& other, CopyTag) :
-                mOwner(other.mOwner),
-                mDevice(other.mDevice),
-                mQueue(other.mQueue),
-                mFlags(other.mFlags),
-                mFamily(other.mFamily)
-            {}
-
-            Queue(Queue&& other, MoveTag) noexcept :
-                mOwner(std::exchange(other.mOwner, nullptr)),
-                mDevice(std::exchange(other.mDevice, vk::Device{})),
-                mQueue(std::exchange(other.mQueue, vk::Queue{})),
-                mFlags(std::exchange(other.mFlags, QueueFlags::None)),
-                mFamily(std::exchange(other.mFamily, std::uint32_t{0}))
             {}
 
             const Device* mOwner;
@@ -145,5 +121,5 @@ std::expected<aru::rhi::Queue, aru::rhi::Error> aru::rhi::Device::requestQueue(a
 
     std::println("Aru RHI: Queue(requested!!) family={}", this->mQueueFamily);
 
-    return Queue(this, this->mDevice, queue, flags, this->mQueueFamily, Queue::InitTag{});
+    return Queue(this, this->mDevice, queue, flags, this->mQueueFamily);
 }

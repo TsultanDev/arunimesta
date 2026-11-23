@@ -29,15 +29,13 @@ The pool is created with `vk::CommandPoolCreateFlagBits::eResetCommandBuffer`, s
 | `std::uint32_t queueFamilyIndex() const noexcept` | Queue family the pool was created for. |
 | `bool empty() const noexcept` | `true` when no pool handle is held. |
 | `bool reset(vk::CommandPoolResetFlags flags = {}) noexcept` | Resets every command buffer allocated from this pool; `false` when empty or on failure. |
-| `CommandPool copy() const` | Metadata-only copy (see below). |
-| `CommandPool move() noexcept` | Transfers the handle; source becomes empty. |
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies the device and family index but not the `vk::CommandPool`; the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals the handle and empties the source. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::CommandPool` is a raw handle. |
+| Move constructor / move assignment | Steals the handle and empties the source. `noexcept`. |
 | Destructor | Calls `destroyCommandPool()` only when a handle is held. |
 
 Destroy all command buffers allocated from the pool before destroying the pool. In `main.cpp` the declarations are `command_pool` then `command_buffers`, so reverse declaration order is correct.

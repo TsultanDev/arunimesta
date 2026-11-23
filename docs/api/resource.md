@@ -61,18 +61,16 @@ if (!bufferResource) {
 | `vk::BufferView bufferViewHandle() const noexcept` | Buffer view, or `{}` when not a buffer resource. |
 | `vk::Extent2D extent() const noexcept` | Extent stored for image resources; used by framebuffer creation. |
 | `vk::DeviceSize bufferSize() const noexcept` | Size stored for buffer resources. |
-| `Resource copy() const` | Copies handles as non-owning references. |
-| `Resource move() noexcept` | Transfers ownership; source becomes empty. |
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies the active union member and metadata, but sets the ownership flag to `false`. The copy keeps usable handles without double-destroying. |
-| Move constructor / move assignment / `move()` | Steals the active member, metadata, and ownership flag; source becomes empty. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; resource handles are raw Vulkan handles. |
+| Move constructor / move assignment | Steals the active union member, metadata, and ownership flag; source becomes empty. `noexcept`. |
 | Destructor | Destroys only owned handles: `ImageView` for images; `BufferView` then `Buffer` for buffers. |
 
-This differs from `Swapchain`/`Framebuffer`, whose copies are `empty()`. It allows `for (const auto& image : swapchain_images)` and passing `Resource` by value without risking a double destroy.
+All engine resource wrappers are move-only. Iterate swapchain images by `const auto&` in `main.cpp`; transfer ownership with `std::move` when storing them.
 
 ## Limitations
 

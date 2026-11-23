@@ -32,22 +32,20 @@ The error is formattable through `std::formatter<aru::rhi::Error, char>`.
 | `bool begin(vk::CommandBufferUsageFlags flags = {}) noexcept` | Starts recording; `false` when empty or on failure. |
 | `void end() noexcept` | Ends recording; silently ignores an empty buffer or a Vulkan error. |
 | `bool reset(vk::CommandBufferResetFlags flags = {}) noexcept` | Resets the buffer for reuse; requires the pool's `eResetCommandBuffer` flag. |
-| `CommandBuffer copy() const` | Metadata-only copy (see below). |
-| `CommandBuffer move() noexcept` | Transfers the handle; source becomes empty. |
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies the owner pointer, device and pool handles, but not the `vk::CommandBuffer`; the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals the handle and empties the source. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::CommandBuffer` is a raw handle. |
+| Move constructor / move assignment | Steals the handle and empties the source. `noexcept`. |
 | Destructor | Calls `freeCommandBuffers()` for its own handle when non-null. |
 
 ## Ownership and Lifetime
 
 A `CommandBuffer` frees its own handle, while the `CommandPool` frees the pool itself. Keep the pool alive longer than every buffer allocated from it. In `main.cpp` the buffers are declared after the pool, so they are destroyed first.
 
-Use `move()` when transferring buffers into a container:
+Use `std::move` when transferring buffers into a container:
 
 ```cpp
 auto result = device.allocateCommandBuffers(pool, swapchainImages.size());

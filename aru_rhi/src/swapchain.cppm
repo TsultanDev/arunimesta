@@ -17,43 +17,34 @@ import :resource;
 
 export namespace aru::rhi {
     class Swapchain {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<Swapchain, Error>;
 
-            Swapchain(const Swapchain& other) : Swapchain(other, CopyTag{}) {}
+            // vk::SwapchainKHR adalah raw handle: salinan tidak diizinkan.
+            Swapchain(const Swapchain&) = delete;
+            Swapchain& operator=(const Swapchain&) = delete;
 
-            Swapchain(Swapchain&& other) noexcept : Swapchain(std::move(other), MoveTag{}) {}
-
-            Swapchain& operator=(const Swapchain& other){
-                if (this != &other){
-                    Swapchain fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            Swapchain(Swapchain&& other) noexcept :
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mSwapchain(std::exchange(other.mSwapchain, vk::SwapchainKHR{})),
+                mFormat(other.mFormat),
+                mExtent(std::exchange(other.mExtent, vk::Extent2D{})),
+                mImageCount(std::exchange(other.mImageCount, std::uint32_t{0}))
+            {}
 
             Swapchain& operator=(Swapchain&& other) noexcept{
                 if (this != &other){
                     this->release();
-                    this->mDevice = other.mDevice;
+                    this->mDevice = std::exchange(other.mDevice, vk::Device{});
                     this->mSwapchain = std::exchange(other.mSwapchain, vk::SwapchainKHR{});
                     this->mFormat = other.mFormat;
-                    this->mExtent = other.mExtent;
+                    this->mExtent = std::exchange(other.mExtent, vk::Extent2D{});
                     this->mImageCount = std::exchange(other.mImageCount, std::uint32_t{0});
                 }
                 return *this;
             }
 
             ~Swapchain(){ this->release(); }
-
-            Swapchain copy() const { return Swapchain(*this, CopyTag{}); }
-
-            Swapchain move() noexcept { return Swapchain(std::move(*this), MoveTag{}); }
 
             vk::SwapchainKHR handle() const noexcept { return this->mSwapchain; }
 
@@ -72,7 +63,7 @@ export namespace aru::rhi {
 
             Swapchain(vk::Device device, vk::SwapchainKHR swapchain,
                       vk::Format format, vk::Extent2D extent,
-                      std::uint32_t imageCount, InitTag) noexcept :
+                      std::uint32_t imageCount) noexcept :
                 mDevice(device),
                 mSwapchain(swapchain),
                 mFormat(format),
@@ -80,27 +71,14 @@ export namespace aru::rhi {
                 mImageCount(imageCount)
             {}
 
-            Swapchain(const Swapchain& other, CopyTag) noexcept :
-                mDevice(other.mDevice),
-                mSwapchain(),
-                mFormat(other.mFormat),
-                mExtent(other.mExtent),
-                mImageCount(other.mImageCount)
-            {}
-
-            Swapchain(Swapchain&& other, MoveTag) noexcept :
-                mDevice(other.mDevice),
-                mSwapchain(std::exchange(other.mSwapchain, vk::SwapchainKHR{})),
-                mFormat(other.mFormat),
-                mExtent(other.mExtent),
-                mImageCount(std::exchange(other.mImageCount, std::uint32_t{0}))
-            {}
-
             void release() noexcept{
-                if (static_cast<VkSwapchainKHR>(this->mSwapchain) != nullptr){
+                if (static_cast<VkSwapchainKHR>(this->mSwapchain) != nullptr &&
+                    static_cast<VkDevice>(this->mDevice) != nullptr){
                     this->mDevice.destroySwapchainKHR(this->mSwapchain, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
                     this->mSwapchain = vk::SwapchainKHR{};
                 }
+                this->mDevice = vk::Device{};
+                this->mExtent = vk::Extent2D{};
                 this->mImageCount = 0;
             }
 
@@ -199,7 +177,7 @@ aru::rhi::Device::createSwapchain(std::uint32_t width, std::uint32_t height) con
 
     this->registerSwapchain(created, extent, imageCount);
 
-    return Swapchain(this->mDevice, created, chosenFormat.format, extent, imageCount, Swapchain::InitTag{});
+    return Swapchain(this->mDevice, created, chosenFormat.format, extent, imageCount);
 }
 
 std::expected<std::vector<aru::rhi::Resource>, aru::rhi::Error>
@@ -242,7 +220,7 @@ aru::rhi::Device::createSwapchainImages(const aru::rhi::Swapchain& swapchain) co
         }
 
         resources.push_back(aru::rhi::Resource(
-            this->mDevice, image, view, swapchain.extent(), aru::rhi::Resource::InitTag{}
+            this->mDevice, image, view, swapchain.extent()
         ));
     }
 

@@ -28,17 +28,15 @@ if (!adapter) {
 | `std::uint32_t queueFamilyIndex() const noexcept` | Graphics + present queue family index. |
 | `bool empty() const noexcept` | `true` when no physical device is held. |
 | `std::expected<Device, Error> createDevice(const Adapter& adapter) const` | Creates a logical device (defined in `:device`). |
-| `Adapter copy() const` | Metadata-only copy (see below). |
-| `Adapter move() noexcept` | Transfers the handles; source becomes empty. |
 
 The `createDevice(const Adapter&)` parameter echoes the call style in `main.cpp` (`adapter.createDevice(adapter)`); the object itself already carries the needed handles.
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies only the instance handle. Physical device, surface, and family index are reset, so the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals all handles and the family index; source is emptied. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; the adapter holds raw Vulkan handles. |
+| Move constructor / move assignment | Steals all handles and the family index; source is emptied. `noexcept`. |
 | Destructor | Defaulted; the adapter owns no Vulkan resource. |
 
 The physical device and surface are borrowed from `Instance`/`Surface`. Keep those objects alive for the adapter's lifetime.

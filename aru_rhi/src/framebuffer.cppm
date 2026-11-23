@@ -15,30 +15,24 @@ import :render_pass;
 
 export namespace aru::rhi {
     class Framebuffer {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<Framebuffer, Error>;
 
-            Framebuffer(const Framebuffer& other) : Framebuffer(other, CopyTag{}) {}
+            // vk::Framebuffer adalah raw handle: salinan tidak diizinkan.
+            Framebuffer(const Framebuffer&) = delete;
+            Framebuffer& operator=(const Framebuffer&) = delete;
 
-            Framebuffer(Framebuffer&& other) noexcept : Framebuffer(std::move(other), MoveTag{}) {}
-
-            Framebuffer& operator=(const Framebuffer& other){
-                if (this != &other){
-                    Framebuffer fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            Framebuffer(Framebuffer&& other) noexcept :
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mFramebuffer(std::exchange(other.mFramebuffer, vk::Framebuffer{})),
+                mWidth(std::exchange(other.mWidth, std::uint32_t{0})),
+                mHeight(std::exchange(other.mHeight, std::uint32_t{0}))
+            {}
 
             Framebuffer& operator=(Framebuffer&& other) noexcept{
                 if (this != &other){
                     this->release();
-                    this->mDevice = other.mDevice;
+                    this->mDevice = std::exchange(other.mDevice, vk::Device{});
                     this->mFramebuffer = std::exchange(other.mFramebuffer, vk::Framebuffer{});
                     this->mWidth = std::exchange(other.mWidth, std::uint32_t{0});
                     this->mHeight = std::exchange(other.mHeight, std::uint32_t{0});
@@ -47,10 +41,6 @@ export namespace aru::rhi {
             }
 
             ~Framebuffer(){ this->release(); }
-
-            Framebuffer copy() const { return Framebuffer(*this, CopyTag{}); }
-
-            Framebuffer move() noexcept { return Framebuffer(std::move(*this), MoveTag{}); }
 
             vk::Framebuffer handle() const noexcept { return this->mFramebuffer; }
 
@@ -66,32 +56,20 @@ export namespace aru::rhi {
             friend class Device;
 
             Framebuffer(vk::Device device, vk::Framebuffer framebuffer,
-                        std::uint32_t width, std::uint32_t height, InitTag) noexcept :
+                        std::uint32_t width, std::uint32_t height) noexcept :
                 mDevice(device),
                 mFramebuffer(framebuffer),
                 mWidth(width),
                 mHeight(height)
             {}
 
-            Framebuffer(const Framebuffer& other, CopyTag) noexcept :
-                mDevice(other.mDevice),
-                mFramebuffer(),
-                mWidth(other.mWidth),
-                mHeight(other.mHeight)
-            {}
-
-            Framebuffer(Framebuffer&& other, MoveTag) noexcept :
-                mDevice(other.mDevice),
-                mFramebuffer(std::exchange(other.mFramebuffer, vk::Framebuffer{})),
-                mWidth(std::exchange(other.mWidth, std::uint32_t{0})),
-                mHeight(std::exchange(other.mHeight, std::uint32_t{0}))
-            {}
-
             void release() noexcept{
-                if (static_cast<VkFramebuffer>(this->mFramebuffer) != nullptr){
+                if (static_cast<VkFramebuffer>(this->mFramebuffer) != nullptr &&
+                    static_cast<VkDevice>(this->mDevice) != nullptr){
                     this->mDevice.destroyFramebuffer(this->mFramebuffer, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
                     this->mFramebuffer = vk::Framebuffer{};
                 }
+                this->mDevice = vk::Device{};
                 this->mWidth = 0;
                 this->mHeight = 0;
             }
@@ -142,5 +120,5 @@ aru::rhi::Device::createFramebuffer(const aru::rhi::RenderPass& renderPass,
 
     this->registerFramebuffer(created);
 
-    return Framebuffer(this->mDevice, created, extent.width, extent.height, Framebuffer::InitTag{});
+    return Framebuffer(this->mDevice, created, extent.width, extent.height);
 }

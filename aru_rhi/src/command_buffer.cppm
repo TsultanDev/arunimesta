@@ -21,25 +21,19 @@ export namespace aru::rhi {
     // Device::allocateCommandBuffers(); setiap wrapper membebaskan handle-nya
     // sendiri, jadi CommandPool harus tetap hidup lebih lama dari buffer.
     class CommandBuffer {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<CommandBuffer, Error>;
 
-            CommandBuffer(const CommandBuffer& other) : CommandBuffer(other, CopyTag{}) {}
+            // vk::CommandBuffer adalah raw handle: salinan tidak diizinkan.
+            CommandBuffer(const CommandBuffer&) = delete;
+            CommandBuffer& operator=(const CommandBuffer&) = delete;
 
-            CommandBuffer(CommandBuffer&& other) noexcept : CommandBuffer(std::move(other), MoveTag{}) {}
-
-            CommandBuffer& operator=(const CommandBuffer& other){
-                if (this != &other){
-                    CommandBuffer fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            CommandBuffer(CommandBuffer&& other) noexcept :
+                mOwner(std::exchange(other.mOwner, nullptr)),
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mPool(std::exchange(other.mPool, vk::CommandPool{})),
+                mBuffer(std::exchange(other.mBuffer, vk::CommandBuffer{}))
+            {}
 
             CommandBuffer& operator=(CommandBuffer&& other) noexcept{
                 if (this != &other){
@@ -53,10 +47,6 @@ export namespace aru::rhi {
             }
 
             ~CommandBuffer(){ this->release(); }
-
-            CommandBuffer copy() const { return CommandBuffer(*this, CopyTag{}); }
-
-            CommandBuffer move() noexcept { return CommandBuffer(std::move(*this), MoveTag{}); }
 
             // Prototipe: command_buffer.record([]{ ... }) otomatis reset +
             // vkBeginCommandBuffer, menjalankan closure, lalu vkEndCommandBuffer.
@@ -135,25 +125,11 @@ export namespace aru::rhi {
             friend class Device;
 
             CommandBuffer(const Device* owner, vk::Device device, vk::CommandPool pool,
-                          vk::CommandBuffer buffer, InitTag) noexcept :
+                          vk::CommandBuffer buffer) noexcept :
                 mOwner(owner),
                 mDevice(device),
                 mPool(pool),
                 mBuffer(buffer)
-            {}
-
-            CommandBuffer(const CommandBuffer& other, CopyTag) noexcept :
-                mOwner(other.mOwner),
-                mDevice(other.mDevice),
-                mPool(other.mPool),
-                mBuffer()
-            {}
-
-            CommandBuffer(CommandBuffer&& other, MoveTag) noexcept :
-                mOwner(std::exchange(other.mOwner, nullptr)),
-                mDevice(std::exchange(other.mDevice, vk::Device{})),
-                mPool(std::exchange(other.mPool, vk::CommandPool{})),
-                mBuffer(std::exchange(other.mBuffer, vk::CommandBuffer{}))
             {}
 
             std::expected<void, Error> beginRecording(){
@@ -236,7 +212,7 @@ aru::rhi::Device::allocateCommandBuffers(const aru::rhi::CommandPool& commandPoo
     result.reserve(allocated.size());
     for (const vk::CommandBuffer& buffer : allocated){
         result.push_back(CommandBuffer(this, this->mDevice, commandPool.handle(),
-                                       buffer, CommandBuffer::InitTag{}));
+                                       buffer));
     }
 
     std::println("Aru RHI: CommandBuffers(allocated!!) count={}", result.size());

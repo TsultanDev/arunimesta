@@ -94,14 +94,14 @@ The facade keeps the public import surface small: consumers import a single name
 - The API version comes from `vkEnumerateInstanceVersion`, not from the caller; Vulkan 1.0 falls back to `VK_API_VERSION_1_0`.
 - `aru_rhi/vulkan.hpp` also defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic dispatcher has one consistent layout.
 - Vulkan-Hpp uses **dynamic dispatch** (`VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`). The dispatcher storage is defined exactly once in `src/instance.cppm`; other translation units include `aru_rhi/vulkan.hpp`, which only declares it `extern`.
-- Rule of Five: copy duplicates metadata but not the owned Vulkan handle; move steals the handle and empties the source. Destructors destroy only owned handles (`Instance`, `Surface`, `Device`, `Swapchain`, `RenderPass`, `Framebuffer`, and owned `Resource` views/buffers); `Adapter` and `Queue` are non-owning views. A copied `Resource` keeps its handles but is marked non-owning to avoid double destruction.
+- Move-only ownership: copy constructor and copy assignment are deleted because Vulkan handles are raw; move steals the handles and empties the source. Destructors destroy only owned handles (`Instance`, `Surface`, `Device`, `Swapchain`, `RenderPass`, `Framebuffer`, and owned `Resource` views/buffers); `Adapter` and `Queue` are non-owning views but are still move-only. All helper tags (`CopyTag`, `MoveTag`, `InitTag`) have been removed.
 - Setup order in `main.cpp`: window → instance → surface → adapter → device → queue → swapchain → swapchain images → render pass → framebuffers → command pool → command buffers. Reverse declaration order destroys buffers before their pool.
 - Frame order in `main.cpp`: `Window::pollEvents()` → `Device::acquire(callback)` → `CommandBuffer::record(callback)` → `RenderPass::render(callback)` → `Queue::submit(buffer)` → `Queue::present()`. See [api/frame.md](api/frame.md).
 
 ### Module `aru.window` (active)
 
 - The static library target `aru_window` has a `CMakeLists.txt`, is registered in the root `CMakeLists.txt`, and is linked into the `aru` executable.
-- `src/window.cppm` is the partition `aru.window:window`. It implements `Window::create()` (both overloads), `createFromWindow()`, `copy()`, `move()`, and `event_loop()`.
+- `src/window.cppm` is the partition `aru.window:window`. It implements `Window::create()` (both overloads), `createFromWindow()`, move construction/assignment, and `event_loop()`.
 - `src/lib.cppm` is the facade and re-exports the partitions:
   ```cpp
   export module aru.window;
@@ -112,15 +112,15 @@ The facade keeps the public import surface small: consumers import a single name
 - `aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
 - The implementation uses the Win32 Unicode APIs: `RegisterClassW`, `CreateWindowExW`, `DefWindowProcW`, `GetMessageW`, and `DispatchMessageW`.
 - `Window::ResultType` is `std::expected<Window, Error>`. `create(const char*, uint32_t, uint32_t)` treats a narrow title as UTF-8 and converts it with `MultiByteToWideChar(CP_UTF8, ...)`; a `create(const char16_t*, uint32_t, uint32_t)` overload also exists, and `windowTitle()` returns `const std::wstring&`. `Error` is formattable, so `std::println("{}", err)` works.
-- Rule of Five: the copy constructor / copy assignment / `copy()` duplicate the title and metadata but not the `HWND`; the move constructor / move assignment / `move()` steal the handle and empty the source. `createFromWindow()` creates a genuinely new OS window.
+- Move-only ownership: `HWND` is a raw handle, so the copy constructor and copy assignment are deleted; the move constructor and move assignment steal the handle and empty the source. `createFromWindow()` creates a genuinely new OS window.
 - The window class name is `ArunimestaWindowClass`; registration is idempotent, so `ERROR_CLASS_ALREADY_EXISTS` is ignored. The destructor calls `DestroyWindow` only when `hwnd != nullptr`; the `std::wstring` title is RAII-managed.
 
-### Ownership and Rule of Five
+### Ownership and Move-Only Semantics
 
-Engine-owned types (`Window`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource`, `Swapchain`, `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`) follow the Rule of Five with explicit `copy()` / `move()` methods:
+Engine-owned types (`Window`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource`, `Swapchain`, `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`) are move-only:
 
-- Copy duplicates metadata but not the owned handle or `HWND`; move steals the handle and empties the source, so destructors destroy only owned handles.
-- Pass these objects to containers through `move()` when handle ownership must transfer, for example `framebuffers.push_back(framebuffer.move())` with a `std::vector<Framebuffer>`.
+- The copy constructor and copy assignment are deleted; move steals the handles and empties the source, so destructors destroy only owned handles.
+- Pass these objects to containers through `std::move` when handle ownership must transfer, for example `framebuffers.push_back(std::move(framebuffer))` with a `std::vector<Framebuffer>`. There are no `copy()` / `move()` member functions.
 - This convention is specific to engine-owned resource wrappers; containers, strings, and error wrappers come from the C++ standard library.
 
 ### Unicode and String Handling
@@ -247,7 +247,7 @@ Define member and free functions directly in the partition that owns them. A dec
 
 | Item | Impact | Plan |
 | :--- | :--- | :--- |
-| `Window` copy does not duplicate the OS window | `copy()` / copy assignment copy metadata only; `handle()` is null on the copy | Use `createFromWindow()` when a real second window is needed |
+| `Window` cannot be copied | Copy constructor and assignment are deleted because `HWND` is a raw handle | Use `createFromWindow()` when a real second window is needed |
 | `event_loop()` blocks | It uses `GetMessageW` until `WM_QUIT`, so it is not used by the render loop | `pollEvents()` exists for per-frame message pumping |
 | No input handling | Keyboard and mouse messages are ignored | Handle `WM_KEYDOWN` / `WM_MOUSEMOVE` and expose events |
 | Empty frame only | The frame loop submits and presents a cleared frame; no draw commands, pipeline, or resize handling | Add a graphics pipeline and per-frame draw recording |

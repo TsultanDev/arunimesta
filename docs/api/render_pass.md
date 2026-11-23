@@ -31,17 +31,15 @@ The current render pass has:
 | `vk::RenderPass handle() const noexcept` | Underlying render pass. |
 | `vk::Device deviceHandle() const noexcept` | Owning device. |
 | `bool empty() const noexcept` | `true` when no render pass handle is held. |
-| `RenderPass copy() const` | Metadata-only copy (see below). |
-| `RenderPass move() noexcept` | Transfers the handle; source becomes empty. |
 
 `render()` is meant to be called inside [`CommandBuffer::record()`](command_buffer.md): it uses the active command buffer, the framebuffer for `Device::currentImageIndex()`, and the cached swapchain extent. It returns `RenderPassRecordingFailed` when any of those is missing or when Vulkan rejects `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`. See [frame.md](frame.md) for the full flow.
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies the owner pointer, device handle, and clear color, but not the `vk::RenderPass`; the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals the render pass and empties the source. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::RenderPass` is a raw handle. |
+| Move constructor / move assignment | Steals the render pass and empties the source. `noexcept`. |
 | Destructor | Calls `destroyRenderPass()` only when a handle is held. |
 
 A `RenderPass` must be destroyed before the `Device` that created it.

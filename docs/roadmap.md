@@ -10,7 +10,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | Named modules | ✅ Done | `aru` + `aru:application` partition, `lib.cppm` facade |
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
 | C++ standard library | ✅ In use | `std::expected` / `std::optional`, `std::string` family, `std::string_view`, `std::vector` / `std::array`, `std::println` / `std::eprintln` used directly |
-| Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `std::expected` errors, copy/move assignment, event loop |
+| Windowing | ✅ Basic | `aru.window` active: Win32 `Window`, `std::expected` errors, move-only ownership, event loop |
 | Vulkan renderer (RHI) | ✅ Basic | `aru.rhi` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`, and an empty-frame loop with fences/semaphores |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
@@ -43,7 +43,7 @@ This document contains the status, milestones, and development plan for Arunimes
 ### M1 — Windowing (done; basic)
 
 - [x] Finish the `Window` class in `aru.window:window`
-- [x] Safe copy/move assignment plus `copy()` / `move()`; full Rule of Five (copy/move constructors implemented)
+- [x] Move-only ownership: copy constructor and copy assignment deleted; move constructor and move assignment implemented
 - [x] Fill in the `aru.window` facade (`lib.cppm`)
 - [x] Register `aru_window` in the root `CMakeLists.txt` and re-export `aru.window`
 - [x] Blocking event loop integration (`GetMessageW`)
@@ -105,7 +105,7 @@ This document contains the status, milestones, and development plan for Arunimes
 - **`std::expected` in the public API**: explicit failures, not exceptions.
 - **Standard library first**: use `std::vector`, `std::array`, the `std::string` family, `std::optional`, and `std::println` directly instead of custom wrappers.
 - **Pimpl + `unique_ptr`**: implementation details hidden, ownership clear.
-- **RAII**: all resources are cleaned up by destructors; engine-owned wrappers follow the Rule of Five with explicit `copy()` / `move()` and transfer ownership with `move()` when stored in containers.
+- **RAII**: all resources are cleaned up by destructors; engine-owned wrappers are move-only (copy is deleted), move transfers ownership and empties the source, and `std::move` is used when stored in containers.
 - **UTF-aware text**: text uses `std::string` and the UTF `std::u8string` / `std::u16string` / `std::u32string` variants, viewed via `std::string_view`; UTF-8 titles are converted to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` at the Win32 boundary.
 - **Unicode-first Win32**: use the `...W` APIs and convert UTF-8 titles to UTF-16 before calling Win32.
 - **Windows-first**: the current presets and targets are Windows x64; other platform support will follow.

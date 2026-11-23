@@ -45,15 +45,13 @@ if (!images) {
 | `vk::Extent2D extent() const noexcept` | Chosen image extent. |
 | `std::uint32_t imageCount() const noexcept` | Number of images requested. |
 | `bool empty() const noexcept` | `true` when no swapchain handle is held. |
-| `Swapchain copy() const` | Metadata-only copy (see below). |
-| `Swapchain move() noexcept` | Transfers the handle; source becomes empty. |
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies device, format, extent, and image count, but **not** the `vk::SwapchainKHR`; the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals the swapchain and resets the source. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::SwapchainKHR` is a raw handle. |
+| Move constructor / move assignment | Steals the swapchain and resets the source. `noexcept`. |
 | Destructor | Calls `destroySwapchainKHR()` only when a handle is held. |
 
 Destroy swapchain image views before the swapchain itself. In `main.cpp`, the `Resource` vector is declared after `swapchain`, so its destructor runs first.

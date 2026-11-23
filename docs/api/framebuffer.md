@@ -44,11 +44,11 @@ for (const auto& image : *images) {
         std::println("framebuffer: {}", framebuffer.error());
         std::terminate();
     }
-    framebuffers.push_back(framebuffer->move()); // transfer ownership into the vector
+    framebuffers.push_back(std::move(*framebuffer)); // transfer ownership into the vector
 }
 ```
 
-`createSwapchainImages()` yields a `std::vector<Resource>` inside a `std::expected`. Use `move()` (or `std::move`) when pushing engine-owned objects into a `std::vector`. A copied `Framebuffer` is empty by design.
+`createSwapchainImages()` yields a `std::vector<Resource>` inside a `std::expected`. Use `std::move` when pushing engine-owned objects into a `std::vector`; these classes have no `copy()` / `move()` member functions.
 
 ## API
 
@@ -59,15 +59,13 @@ for (const auto& image : *images) {
 | `std::uint32_t width() const noexcept` | Framebuffer width. |
 | `std::uint32_t height() const noexcept` | Framebuffer height. |
 | `bool empty() const noexcept` | `true` when no framebuffer handle is held. |
-| `Framebuffer copy() const` | Metadata-only copy (see below). |
-| `Framebuffer move() noexcept` | Transfers the handle; source becomes empty. |
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies device and dimensions but not the `vk::Framebuffer`; the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals the framebuffer and empties the source. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::Framebuffer` is a raw handle. |
+| Move constructor / move assignment | Steals the framebuffer and empties the source. `noexcept`. |
 | Destructor | Calls `destroyFramebuffer()` only when a handle is held. |
 
 Destroy framebuffers before their render pass and device. In `main.cpp`, declaration order gives the correct reverse destruction order: `framebuffers`, `render_pass`, `swapchain_images`, `swapchain`, `device`.

@@ -10,11 +10,6 @@ export import :error;
 
 export namespace aru::window {
     class Window {
-        private:
-            struct AdoptTag {};
-            struct CopyTag {};
-            struct MoveTag {};
-
         public:
             using ResultType = std::expected<Window, Error>;
 
@@ -61,7 +56,7 @@ export namespace aru::window {
                 ShowWindow(handle, SW_SHOW);
                 UpdateWindow(handle);
 
-                return Window(moduleInstance, handle, windowTitle, width, height, AdoptTag{});
+                return Window(moduleInstance, handle, windowTitle, width, height);
             }
 
             // Membuat OS window BARU memakai konfigurasi sumber.
@@ -70,46 +65,35 @@ export namespace aru::window {
                 return create(reinterpret_cast<const char16_t*>(source.title.c_str()), source.width, source.height);
             }
 
-            // Rule of Five: copy menyalin metadata (bukan HWND), move memindahkan handle.
-            Window(const Window& other) : Window(other, CopyTag{}) {}
+            // HWND adalah raw handle: salinan tidak diizinkan.
+            Window(const Window&) = delete;
+            Window& operator=(const Window&) = delete;
 
-            Window(Window&& other) noexcept : Window(std::move(other), MoveTag{}) {}
+            // Move mencuri handle dan mengosongkan sumber.
+            Window(Window&& other) noexcept :
+                instance(std::exchange(other.instance, nullptr)),
+                hwnd(std::exchange(other.hwnd, nullptr)),
+                title(std::move(other.title)),
+                width(std::exchange(other.width, std::uint32_t{0})),
+                height(std::exchange(other.height, std::uint32_t{0})),
+                open(std::exchange(other.open, false))
+            {}
 
-            Window& operator=(const Window& source){
-                if (this == &source) {
-                    return *this;
-                }
-
-                this->release();
-
-                this->instance = source.instance;
-                this->title = source.title;
-                this->width = source.width;
-                this->height = source.height;
-                this->open = false;  // salinan tidak memiliki HWND
-
-                return *this;
-            }
-
-            Window& operator=(Window&& source) noexcept {
-                if (this != &source) {
+            Window& operator=(Window&& other) noexcept {
+                if (this != &other) {
                     this->release();
 
-                    this->instance = std::exchange(source.instance, nullptr);
-                    this->hwnd = std::exchange(source.hwnd, nullptr);
-                    this->title = std::move(source.title);
-                    this->width = std::exchange(source.width, std::uint32_t{0});
-                    this->height = std::exchange(source.height, std::uint32_t{0});
-                    this->open = std::exchange(source.open, false);
-                    // source sekarang kosong.
+                    this->instance = std::exchange(other.instance, nullptr);
+                    this->hwnd = std::exchange(other.hwnd, nullptr);
+                    this->title = std::move(other.title);
+                    this->width = std::exchange(other.width, std::uint32_t{0});
+                    this->height = std::exchange(other.height, std::uint32_t{0});
+                    this->open = std::exchange(other.open, false);
                 }
                 return *this;
             }
 
-            // Pengganti copy/move constructor (prvalue, copy elision).
-            Window copy() const { return Window(*this, CopyTag{}); }
-
-            Window move() noexcept { return Window(std::move(*this), MoveTag{}); }
+            ~Window(){ this->release(); }
 
             void event_loop(){
                 if (!this->open) {
@@ -147,8 +131,6 @@ export namespace aru::window {
                 }
             }
 
-            ~Window(){ this->release(); }
-
             HWND handle() const noexcept { return this->hwnd; }
 
             const std::wstring& windowTitle() const noexcept { return this->title; }
@@ -167,31 +149,13 @@ export namespace aru::window {
         private:
             Window(HINSTANCE instance, HWND hwnd,
                    const std::wstring& title,
-                   std::uint32_t width, std::uint32_t height, AdoptTag) :
+                   std::uint32_t width, std::uint32_t height) :
                 instance(instance),
                 hwnd(hwnd),
                 title(title),
                 width(width),
                 height(height),
                 open(true)
-            {}
-
-            Window(const Window& source, CopyTag) :
-                instance(source.instance),
-                hwnd(nullptr),
-                title(source.title),
-                width(source.width),
-                height(source.height),
-                open(false)
-            {}
-
-            Window(Window&& source, MoveTag) noexcept :
-                instance(std::exchange(source.instance, nullptr)),
-                hwnd(std::exchange(source.hwnd, nullptr)),
-                title(std::move(source.title)),
-                width(std::exchange(source.width, std::uint32_t{0})),
-                height(std::exchange(source.height, std::uint32_t{0})),
-                open(std::exchange(source.open, false))
             {}
 
             static std::wstring utf8ToWide(const char* text){

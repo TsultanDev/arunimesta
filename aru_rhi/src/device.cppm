@@ -28,11 +28,6 @@ export namespace aru::rhi {
 
 export namespace aru::rhi {
     class Device {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<Device, Error>;
 
@@ -79,22 +74,32 @@ export namespace aru::rhi {
                 return {};
             }
 
-            Device(const Device& other) : Device(other, CopyTag{}) {}
+            // vk::Device dan objek sinkronisasi adalah raw handle: salinan tidak diizinkan.
+            Device(const Device&) = delete;
+            Device& operator=(const Device&) = delete;
 
-            Device(Device&& other) noexcept : Device(std::move(other), MoveTag{}) {}
-
-            Device& operator=(const Device& other){
-                if (this != &other){
-                    Device fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            Device(Device&& other) noexcept :
+                mInstance(std::exchange(other.mInstance, vk::Instance{})),
+                mPhysicalDevice(std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{})),
+                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{})),
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0})),
+                mSwapchain(std::exchange(other.mSwapchain, vk::SwapchainKHR{})),
+                mFrameExtent(std::exchange(other.mFrameExtent, vk::Extent2D{})),
+                mFramebuffers(std::exchange(other.mFramebuffers, std::vector<vk::Framebuffer>{})),
+                mImageAvailableSemaphores(std::exchange(other.mImageAvailableSemaphores, std::vector<vk::Semaphore>{})),
+                mRenderFinishedSemaphores(std::exchange(other.mRenderFinishedSemaphores, std::vector<vk::Semaphore>{})),
+                mInFlightFences(std::exchange(other.mInFlightFences, std::vector<vk::Fence>{})),
+                mFrameIndex(std::exchange(other.mFrameIndex, std::uint32_t{0})),
+                mCurrentImage(std::exchange(other.mCurrentImage, std::uint32_t{0})),
+                mActiveCommandBuffer(std::exchange(other.mActiveCommandBuffer, vk::CommandBuffer{})),
+                mLastError(std::exchange(other.mLastError, Error::None))
+            {}
 
             Device& operator=(Device&& other) noexcept{
                 if (this != &other){
                     this->release();
-                    this->mInstance = other.mInstance;
+                    this->mInstance = std::exchange(other.mInstance, vk::Instance{});
                     this->mPhysicalDevice = std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{});
                     this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
                     this->mDevice = std::exchange(other.mDevice, vk::Device{});
@@ -114,10 +119,6 @@ export namespace aru::rhi {
             }
 
             ~Device(){ this->release(); }
-
-            Device copy() const { return Device(*this, CopyTag{}); }
-
-            Device move() noexcept { return Device(std::move(*this), MoveTag{}); }
 
             vk::Device handle() const noexcept { return this->mDevice; }
 
@@ -148,7 +149,7 @@ export namespace aru::rhi {
 
             Device(vk::Instance instance, vk::PhysicalDevice physicalDevice,
                    vk::SurfaceKHR surface, vk::Device device,
-                   std::uint32_t queueFamilyIndex, InitTag) noexcept :
+                   std::uint32_t queueFamilyIndex) noexcept :
                 mInstance(instance),
                 mPhysicalDevice(physicalDevice),
                 mSurface(surface),
@@ -164,42 +165,6 @@ export namespace aru::rhi {
                 mCurrentImage(0),
                 mActiveCommandBuffer(),
                 mLastError(Error::None)
-            {}
-
-            Device(const Device& other, CopyTag) :
-                mInstance(other.mInstance),
-                mPhysicalDevice(other.mPhysicalDevice),
-                mSurface(other.mSurface),
-                mDevice(),
-                mQueueFamily(other.mQueueFamily),
-                mSwapchain(other.mSwapchain),
-                mFrameExtent(other.mFrameExtent),
-                mFramebuffers(other.mFramebuffers),
-                mImageAvailableSemaphores(),
-                mRenderFinishedSemaphores(),
-                mInFlightFences(),
-                mFrameIndex(other.mFrameIndex),
-                mCurrentImage(other.mCurrentImage),
-                mActiveCommandBuffer(),
-                mLastError(other.mLastError)
-            {}
-
-            Device(Device&& other, MoveTag) noexcept :
-                mInstance(other.mInstance),
-                mPhysicalDevice(std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{})),
-                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{})),
-                mDevice(std::exchange(other.mDevice, vk::Device{})),
-                mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0})),
-                mSwapchain(std::exchange(other.mSwapchain, vk::SwapchainKHR{})),
-                mFrameExtent(std::exchange(other.mFrameExtent, vk::Extent2D{})),
-                mFramebuffers(std::exchange(other.mFramebuffers, std::vector<vk::Framebuffer>{})),
-                mImageAvailableSemaphores(std::exchange(other.mImageAvailableSemaphores, std::vector<vk::Semaphore>{})),
-                mRenderFinishedSemaphores(std::exchange(other.mRenderFinishedSemaphores, std::vector<vk::Semaphore>{})),
-                mInFlightFences(std::exchange(other.mInFlightFences, std::vector<vk::Fence>{})),
-                mFrameIndex(std::exchange(other.mFrameIndex, std::uint32_t{0})),
-                mCurrentImage(std::exchange(other.mCurrentImage, std::uint32_t{0})),
-                mActiveCommandBuffer(std::exchange(other.mActiveCommandBuffer, vk::CommandBuffer{})),
-                mLastError(std::exchange(other.mLastError, Error::None))
             {}
 
             void release() noexcept{
@@ -291,5 +256,5 @@ std::expected<aru::rhi::Device, aru::rhi::Error> aru::rhi::Adapter::createDevice
     std::println("Aru RHI: Device(created!!)");
 
     return Device(adapter.mInstance, adapter.mPhysicalDevice, adapter.mSurface,
-                  created, adapter.mQueueFamily, Device::InitTag{});
+                  created, adapter.mQueueFamily);
 }

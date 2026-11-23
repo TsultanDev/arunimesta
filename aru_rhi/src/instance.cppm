@@ -67,11 +67,6 @@ export namespace aru::rhi {
 
 export namespace aru::rhi {
     class Instance {
-        private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
         public:
             using ResultType = std::expected<Instance, Error>;
 
@@ -84,17 +79,15 @@ export namespace aru::rhi {
             std::expected<Surface, Error> createSurface(const aru::window::Window& window);
             std::expected<Adapter, Error> requestAdapter(const Surface& surface);
 
-            Instance(const Instance& other) : Instance(other, CopyTag{}) {}
+            // vk::Instance adalah raw handle: salinan tidak diizinkan.
+            Instance(const Instance&) = delete;
+            Instance& operator=(const Instance&) = delete;
 
-            Instance(Instance&& other) noexcept : Instance(std::move(other), MoveTag{}) {}
-
-            Instance& operator=(const Instance& other){
-                if (this != &other){
-                    Instance fresh(other, CopyTag{});
-                    *this = std::move(fresh);
-                }
-                return *this;
-            }
+            Instance(Instance&& other) noexcept :
+                mInstance(std::exchange(other.mInstance, vk::Instance{})),
+                mApplicationName(std::move(other.mApplicationName)),
+                mApiVersion(std::exchange(other.mApiVersion, std::uint32_t{VK_API_VERSION_1_0}))
+            {}
 
             Instance& operator=(Instance&& other) noexcept{
                 if (this != &other){
@@ -108,10 +101,6 @@ export namespace aru::rhi {
 
             ~Instance(){ this->release(); }
 
-            Instance copy() const { return Instance(*this, CopyTag{}); }
-
-            Instance move() noexcept { return Instance(std::move(*this), MoveTag{}); }
-
             vk::Instance handle() const noexcept { return this->mInstance; }
 
             std::uint32_t apiVersion() const noexcept { return this->mApiVersion; }
@@ -122,22 +111,10 @@ export namespace aru::rhi {
 
         private:
             Instance(vk::Instance handle, std::string&& name,
-                     std::uint32_t version, InitTag) noexcept :
+                     std::uint32_t version) noexcept :
                 mInstance(handle),
                 mApplicationName(std::move(name)),
                 mApiVersion(version)
-            {}
-
-            Instance(const Instance& other, CopyTag) :
-                mInstance(),
-                mApplicationName(other.mApplicationName),
-                mApiVersion(other.mApiVersion)
-            {}
-
-            Instance(Instance&& other, MoveTag) noexcept :
-                mInstance(std::exchange(other.mInstance, vk::Instance{})),
-                mApplicationName(std::move(other.mApplicationName)),
-                mApiVersion(std::exchange(other.mApiVersion, std::uint32_t{VK_API_VERSION_1_0}))
             {}
 
             static ResultType createImpl(const std::string& appName){
@@ -186,7 +163,7 @@ export namespace aru::rhi {
 
                 std::println("Aru RHI: Instance(created!!)");
 
-                return Instance(created, std::string(appName), availableVersion, InitTag{});
+                return Instance(created, std::string(appName), availableVersion);
             }
 
             void release() noexcept{

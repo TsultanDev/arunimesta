@@ -31,15 +31,13 @@ if (!surface) {
 | `vk::SurfaceKHR handle() const noexcept` | The underlying Vulkan surface. |
 | `vk::Instance instanceHandle() const noexcept` | The instance that owns the surface. |
 | `bool empty() const noexcept` | `true` when no surface handle is held. |
-| `Surface copy() const` | Metadata-only copy (see below). |
-| `Surface move() noexcept` | Transfers the handle; source becomes empty. |
 
-## Rule of Five
+## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment / `copy()` | Copies the instance handle but **not** the surface handle; the copy is `empty()`. |
-| Move constructor / move assignment / `move()` | Steals the `vk::SurfaceKHR` handle and empties the source. `noexcept`. |
+| Copy constructor / copy assignment | Deleted; `vk::SurfaceKHR` is a raw handle. |
+| Move constructor / move assignment | Steals the `vk::SurfaceKHR` handle and empties the source. `noexcept`. |
 | Destructor | Calls `destroySurfaceKHR()` only when a handle is held. |
 
 Only one object owns a given `vk::SurfaceKHR`. The surface must be destroyed before its instance; keep `Surface` declared after `Instance` in scope so the destructor order is correct.

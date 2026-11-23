@@ -23,14 +23,9 @@ export namespace aru::rhi {
     //   - Image  : { vk::Image image, vk::ImageView view }
     //   - Buffer : { vk::Buffer buffer, vk::BufferView view }
     // Image dari swapchain dipinjam; ImageView dimiliki. Buffer dan BufferView
-    // keduanya dimiliki. Salinan tidak memiliki handle (mOwns = false), supaya
-    // Resource tetap bisa dilewatkan oleh value tanpa double-destroy.
+    // keduanya dimiliki. Resource bersifat move-only karena handle-nya raw.
     class Resource {
         private:
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
             struct ImageData {
                 vk::Image image;
                 vk::ImageView view;
@@ -41,19 +36,41 @@ export namespace aru::rhi {
                 vk::BufferView view;
             };
 
+            union Data {
+                ImageData image;
+                BufferData buffer;
+
+                Data() noexcept : image{} {}
+                ~Data() {}
+            };
+
         public:
             using ResultType = std::expected<Resource, Error>;
 
-            Resource(const Resource& other) : Resource(other, CopyTag{}) {}
+            // Handle Vulkan raw: salinan tidak diizinkan.
+            Resource(const Resource&) = delete;
+            Resource& operator=(const Resource&) = delete;
 
-            Resource(Resource&& other) noexcept : Resource(std::move(other), MoveTag{}) {}
-
-            Resource& operator=(const Resource& other){
-                if (this != &other){
-                    Resource fresh(other, CopyTag{});
-                    *this = std::move(fresh);
+            Resource(Resource&& other) noexcept :
+                mData(),
+                mKind(other.mKind),
+                mDevice(other.mDevice),
+                mExtent(other.mExtent),
+                mSize(other.mSize),
+                mOwns(other.mOwns)
+            {
+                switch (other.mKind){
+                    case ResourceKind::Image:
+                        std::construct_at(&this->mData.image, other.mData.image);
+                        break;
+                    case ResourceKind::Buffer:
+                        std::destroy_at(&this->mData.image);
+                        std::construct_at(&this->mData.buffer, other.mData.buffer);
+                        break;
+                    default:
+                        break;
                 }
-                return *this;
+                other.reset();
             }
 
             Resource& operator=(Resource&& other) noexcept{
@@ -83,10 +100,6 @@ export namespace aru::rhi {
             }
 
             ~Resource(){ this->release(); }
-
-            Resource copy() const { return Resource(*this, CopyTag{}); }
-
-            Resource move() noexcept { return Resource(std::move(*this), MoveTag{}); }
 
             ResourceKind kind() const noexcept { return this->mKind; }
 
@@ -127,16 +140,8 @@ export namespace aru::rhi {
         private:
             friend class Device;
 
-            union Data {
-                ImageData image;
-                BufferData buffer;
-
-                Data() noexcept : image{} {}
-                ~Data() {}
-            };
-
             Resource(vk::Device device, vk::Image image, vk::ImageView view,
-                     vk::Extent2D extent, InitTag) noexcept :
+                     vk::Extent2D extent) noexcept :
                 mData(),
                 mKind(ResourceKind::Image),
                 mDevice(device),
@@ -148,7 +153,7 @@ export namespace aru::rhi {
             }
 
             Resource(vk::Device device, vk::Buffer buffer, vk::BufferView view,
-                     vk::DeviceSize size, InitTag) noexcept :
+                     vk::DeviceSize size) noexcept :
                 mData(),
                 mKind(ResourceKind::Buffer),
                 mDevice(device),
@@ -158,49 +163,6 @@ export namespace aru::rhi {
             {
                 std::destroy_at(&this->mData.image);
                 std::construct_at(&this->mData.buffer, BufferData{buffer, view});
-            }
-
-            Resource(const Resource& other, CopyTag) noexcept :
-                mData(),
-                mKind(other.mKind),
-                mDevice(other.mDevice),
-                mExtent(other.mExtent),
-                mSize(other.mSize),
-                mOwns(false)
-            {
-                switch (other.mKind){
-                    case ResourceKind::Image:
-                        std::construct_at(&this->mData.image, other.mData.image);
-                        break;
-                    case ResourceKind::Buffer:
-                        std::destroy_at(&this->mData.image);
-                        std::construct_at(&this->mData.buffer, other.mData.buffer);
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            Resource(Resource&& other, MoveTag) noexcept :
-                mData(),
-                mKind(other.mKind),
-                mDevice(other.mDevice),
-                mExtent(other.mExtent),
-                mSize(other.mSize),
-                mOwns(other.mOwns)
-            {
-                switch (other.mKind){
-                    case ResourceKind::Image:
-                        std::construct_at(&this->mData.image, other.mData.image);
-                        break;
-                    case ResourceKind::Buffer:
-                        std::destroy_at(&this->mData.image);
-                        std::construct_at(&this->mData.buffer, other.mData.buffer);
-                        break;
-                    default:
-                        break;
-                }
-                other.reset();
             }
 
             void clearActive() noexcept{
@@ -281,7 +243,7 @@ aru::rhi::Device::createImageResource(vk::Image image, vk::Format format, vk::Ex
         return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
-    return Resource(this->mDevice, image, view, extent, Resource::InitTag{});
+    return Resource(this->mDevice, image, view, extent);
 }
 
 std::expected<aru::rhi::Resource, aru::rhi::Error>
@@ -313,5 +275,5 @@ aru::rhi::Device::createBufferResource(vk::DeviceSize size, vk::BufferUsageFlags
         return std::unexpected(aru::rhi::Error::ResourceCreationFailed);
     }
 
-    return Resource(this->mDevice, buffer, view, size, Resource::InitTag{});
+    return Resource(this->mDevice, buffer, view, size);
 }
