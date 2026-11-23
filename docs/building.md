@@ -56,13 +56,13 @@ cmake --build --preset build-release
 Debug executable:
 
 ```bash
-./build/clang-x64-debug/modules/aru/aru.exe
+./build/clang-x64-debug/aru/aru.exe
 ```
 
 Release executable:
 
 ```bash
-./build/clang-x64-release/modules/aru/aru.exe
+./build/clang-x64-release/aru/aru.exe
 ```
 
 ## Manual Build
@@ -77,7 +77,7 @@ cmake -S . -B build/manual -G Ninja \
 cmake --build build/manual
 ```
 
-The result is located at `build/manual/modules/aru/aru.exe`.
+The result is located at `build/manual/aru/aru.exe`.
 
 ## Clean Rebuild
 
@@ -105,15 +105,15 @@ There is no separate standard-library module or target. Engine code uses the C++
 
 ## Module `aru_window` (active)
 
-`modules/aru_window` contains the Win32 windowing module `aru.window`. It is registered in the root `CMakeLists.txt` and re-exported by the `aru` facade:
+`aru_window` contains the Win32 windowing module `aru.window`. It is registered in the root `CMakeLists.txt` and re-exported by the `aru` facade:
 
 ```cmake
 # Root CMakeLists.txt
-add_subdirectory("modules/aru_window")
-add_subdirectory("modules/aru_rhi")
-add_subdirectory("modules/aru")
+add_subdirectory("aru_window")
+add_subdirectory("aru_rhi")
+add_subdirectory("aru")
 
-# modules/aru/CMakeLists.txt
+# aru/CMakeLists.txt
 target_link_libraries(aru PRIVATE aru_window aru_rhi)
 ```
 
@@ -138,4 +138,4 @@ The target defines `UNICODE` and `_UNICODE`, and links `user32` and `gdi32`. Win
 - External library includes go in the global module fragment, not after `export module`.
 - Debug builds enable `std::println` logging; Release builds do not.
 - The `aru_window` target defines `UNICODE` and `_UNICODE`; keep Win32 code on the Unicode (`...W`) APIs.
-- `modules/aru_window` and `modules/aru_rhi` are active targets; new partitions must be added to their `FILE_SET CXX_MODULES` lists.
+- `aru_window` and `aru_rhi` are active targets; new partitions must be added to their `FILE_SET CXX_MODULES` lists.

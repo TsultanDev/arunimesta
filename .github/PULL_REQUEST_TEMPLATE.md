@@ -20,7 +20,7 @@
 - [ ] `cmake --preset clang-x64-debug`
 - [ ] `cmake --build --preset build-debug`
 - [ ] `cmake --build --preset build-release` (if build config or conditional logging changed)
-- [ ] Ran `modules/aru/aru.exe` and verified the affected behavior
+- [ ] Ran `build/clang-x64-debug/aru/aru.exe` and verified the affected behavior
 - [ ] Added or updated a temporary runtime probe, then removed it before committing
 
 Describe the verification in a sentence or two. Include command output or screenshots when useful.

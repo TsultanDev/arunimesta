@@ -1,6 +1,6 @@
 # `aru::rhi::Surface` API Reference
 
-`Surface` is the Win32 Vulkan surface wrapper in the `aru.rhi:surface` module partition (`modules/aru_rhi/src/surface.cppm`). It is created from an `Instance` and an existing `aru::window::Window`, and returned in a `std::expected<Surface, Error>`.
+`Surface` is the Win32 Vulkan surface wrapper in the `aru.rhi:surface` module partition (`aru_rhi/src/surface.cppm`). It is created from an `Instance` and an existing `aru::window::Window`, and returned in a `std::expected<Surface, Error>`.
 
 ## Creation
 

@@ -19,7 +19,7 @@ This document contains the status, milestones, and development plan for Arunimes
 
 ### M0 — Foundation (done)
 
-- [x] Modular workspace structure under `modules/`
+- [x] Modular workspace structure with top-level `aru/`, `aru_window/`, and `aru_rhi/` subprojects
 - [x] C++23 named modules and facade
 - [x] Clang x64 Debug/Release build presets
 - [x] `Application` with `std::expected` and pimpl
@@ -45,7 +45,7 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] Finish the `Window` class in `aru.window:window`
 - [x] Safe copy/move assignment plus `copy()` / `move()`; full Rule of Five (copy/move constructors implemented)
 - [x] Fill in the `aru.window` facade (`lib.cppm`)
-- [x] Register `modules/aru_window` in the root `CMakeLists.txt` and re-export `aru.window`
+- [x] Register `aru_window` in the root `CMakeLists.txt` and re-export `aru.window`
 - [x] Blocking event loop integration (`GetMessageW`)
 - [x] Unicode window titles (UTF-8 → UTF-16 via `MultiByteToWideChar(CP_UTF8, ...)`)
 - [x] Create and destroy windows safely (RAII with null checks)

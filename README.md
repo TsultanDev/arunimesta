@@ -58,7 +58,7 @@ The `aru` executable creates a Win32 window, a Vulkan instance, surface, adapter
 - **Win32 windowing**: `aru.window` creates and shows a window via `Window::create()`, provides a blocking `event_loop()` and a non-blocking `pollEvents()` for render loops, and exits when the window is destroyed.
 - **Unicode window titles**: narrow UTF-8 titles are converted to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` and stored as `std::wstring`; a `const char16_t*` overload is available too.
 - **CMake Presets**: Clang LLVM x64 presets for Debug and Release, complete with `compile_commands.json` for clangd.
-- **Modular structure**: each module lives in `modules/<module_name>` with its own `CMakeLists.txt`.
+- **Modular structure**: each subsystem is a top-level subproject (`aru/`, `aru_window/`, `aru_rhi/`) with its own `CMakeLists.txt`.
 
 ---
 
@@ -126,7 +126,7 @@ cmake --build --preset build-release
 ### 4. Run
 
 ```bash
-./build/clang-x64-debug/modules/aru/aru.exe
+./build/clang-x64-debug/aru/aru.exe
 ```
 
 The current demo creates a Win32 window, a Vulkan instance, surface, adapter, device, graphics/present queue, swapchain, image views, a render pass, framebuffers, a command pool, per-image command buffers, then pumps Win32 messages with `pollEvents()` and runs the `acquire → record → render → submit → present` loop.
@@ -174,39 +174,38 @@ arunimesta/
 │       ├── command_buffer.md        # CommandBuffer API reference
 │       └── frame.md                 # Frame loop prototype reference
 │
-├── modules/                         # All build targets
-│   ├── aru/                         # Executable — entry point
-│   │   ├── CMakeLists.txt
-│   │   └── src/
-│   │       ├── lib.cppm             # export module aru; (facade)
-│   │       ├── application.cppm     # export module aru:application;
-│   │       └── main.cpp             # int main()
-│   │
-│   └── aru_window/                  # Static library — windowing (Win32)
-│       ├── CMakeLists.txt
-│       └── src/
-│           ├── lib.cppm             # export module aru.window; (facade)
-│           ├── error.cppm           # aru.window:error (formattable Error)
-│           └── window.cppm          # Win32 window + event loop
-│   │
-│   └── aru_rhi/                     # Static library — Vulkan RHI
-│       ├── CMakeLists.txt
-│       ├── include/aru_rhi/vulkan.hpp # Shared Vulkan-Hpp + dynamic dispatch
-│       └── src/
-│           ├── lib.cppm             # export module aru.rhi; (facade)
-│           ├── error.cppm           # aru.rhi:error (formattable Error)
-│           ├── instance.cppm        # Instance + QueueFlags
-│           ├── surface.cppm         # Win32 Surface
-│           ├── adapter.cppm         # Physical device selection
-│           ├── device.cppm          # Logical device + factories
-│           ├── frame.cppm           # Fence/semaphore/frame_index state
-│           ├── queue.cppm           # Queue + requestQueue(), submit/present
-│           ├── resource.cppm        # Resource tagged union (image/buffer)
-│           ├── swapchain.cppm       # Swapchain + image views
-│           ├── render_pass.cppm     # RenderPass
-│           ├── framebuffer.cppm     # Framebuffer
-│           ├── command_pool.cppm    # CommandPool (queue-family pool)
-│           └── command_buffer.cppm  # CommandBuffer (primary buffers)
+├── aru/                             # Executable — entry point
+│   ├── CMakeLists.txt
+│   └── src/
+│       ├── lib.cppm                 # export module aru; (facade)
+│       ├── application.cppm         # export module aru:application;
+│       └── main.cpp                 # int main()
+│
+├── aru_window/                      # Static library — windowing (Win32)
+│   ├── CMakeLists.txt
+│   └── src/
+│       ├── lib.cppm                 # export module aru.window; (facade)
+│       ├── error.cppm               # aru.window:error (formattable Error)
+│       └── window.cppm              # Win32 window + event loop
+│
+├── aru_rhi/                         # Static library — Vulkan RHI
+│   ├── CMakeLists.txt
+│   ├── include/aru_rhi/vulkan.hpp   # Shared Vulkan-Hpp + dynamic dispatch
+│   └── src/
+│       ├── lib.cppm                 # export module aru.rhi; (facade)
+│       ├── error.cppm               # aru.rhi:error (formattable Error)
+│       ├── instance.cppm            # Instance + QueueFlags
+│       ├── surface.cppm             # Win32 Surface
+│       ├── adapter.cppm             # Physical device selection
+│       ├── device.cppm              # Logical device + factories
+│       ├── frame.cppm               # Fence/semaphore/frame_index state
+│       ├── queue.cppm               # Queue + requestQueue(), submit/present
+│       ├── resource.cppm            # Resource tagged union (image/buffer)
+│       ├── swapchain.cppm           # Swapchain + image views
+│       ├── render_pass.cppm         # RenderPass
+│       ├── framebuffer.cppm         # Framebuffer
+│       ├── command_pool.cppm        # CommandPool (queue-family pool)
+│       └── command_buffer.cppm      # CommandBuffer (primary buffers)
 │
 ├── assets/                          # Logo and documentation images
 │   ├── logo.png                     # Project logo (README header)
@@ -225,13 +224,13 @@ arunimesta/
 | `aru.window` | Static library | ✅ | Win32 window creation, `std::expected`-based errors, copy/move by assignment, `createFromWindow()`, and event loop. |
 | `aru.rhi` | Static library | ✅ | Vulkan-Hpp with dynamic dispatch: instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer, command pool, command buffers, empty-frame loop with sync objects. |
 
-> `modules/aru` links `aru_window` and `aru_rhi`. The `aru` facade re-exports `aru.window` and `aru.rhi`. Standard-library types are used directly in every module.
+> `aru` links `aru_window` and `aru_rhi`. The `aru` facade re-exports `aru.window` and `aru.rhi`. Standard-library types are used directly in every module.
 
 ---
 
 ## Usage Example
 
-The code currently in `modules/aru/src/main.cpp`:
+The code currently in `aru/src/main.cpp`:
 
 ```cpp
 #include <array>

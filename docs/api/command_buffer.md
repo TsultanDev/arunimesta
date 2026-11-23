@@ -1,6 +1,6 @@
 # `aru::rhi::CommandBuffer` API Reference
 
-`CommandBuffer` is the Vulkan command-buffer wrapper in the `aru.rhi:command_buffer` module partition (`modules/aru_rhi/src/command_buffer.cppm`). Command buffers are allocated in one batch from a `CommandPool` and returned as `std::vector<CommandBuffer>` inside a `std::expected`.
+`CommandBuffer` is the Vulkan command-buffer wrapper in the `aru.rhi:command_buffer` module partition (`aru_rhi/src/command_buffer.cppm`). Command buffers are allocated in one batch from a `CommandPool` and returned as `std::vector<CommandBuffer>` inside a `std::expected`.
 
 ## Allocation
 

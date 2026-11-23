@@ -1,6 +1,6 @@
 # `aru::rhi::RenderPass` API Reference
 
-`RenderPass` is the Vulkan render pass wrapper in the `aru.rhi:render_pass` module partition (`modules/aru_rhi/src/render_pass.cppm`). It is created from a `Swapchain`.
+`RenderPass` is the Vulkan render pass wrapper in the `aru.rhi:render_pass` module partition (`aru_rhi/src/render_pass.cppm`). It is created from a `Swapchain`.
 
 ## Creation
 

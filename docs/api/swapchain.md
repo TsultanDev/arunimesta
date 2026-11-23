@@ -1,6 +1,6 @@
 # `aru::rhi::Swapchain` API Reference
 
-`Swapchain` is the Vulkan swapchain wrapper in the `aru.rhi:swapchain` module partition (`modules/aru_rhi/src/swapchain.cppm`). It is created by `Device` from the surface and the window size.
+`Swapchain` is the Vulkan swapchain wrapper in the `aru.rhi:swapchain` module partition (`aru_rhi/src/swapchain.cppm`). It is created by `Device` from the surface and the window size.
 
 ## Creation
 

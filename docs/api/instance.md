@@ -1,6 +1,6 @@
 # `aru::rhi::Instance` API Reference
 
-`Instance` is the Vulkan instance wrapper in the `aru.rhi:instance` module partition (`modules/aru_rhi/src/instance.cppm`). It is created through a static factory and returned in a `std::expected<Instance, Error>`.
+`Instance` is the Vulkan instance wrapper in the `aru.rhi:instance` module partition (`aru_rhi/src/instance.cppm`). It is created through a static factory and returned in a `std::expected<Instance, Error>`.
 
 The module uses **Vulkan-Hpp dynamic dispatch**: `vkGetInstanceProcAddr` and the instance entry points are resolved at runtime with `VULKAN_HPP_DISPATCH_LOADER_DYNAMIC`. No `vulkan-1.lib` link is required.
 
@@ -80,7 +80,7 @@ Copy exists so that `Instance` fits standard containers and value semantics. Onl
 
 ## Build Notes
 
-- `modules/aru_rhi/CMakeLists.txt` registers `src/lib.cppm` and `src/instance.cppm` in a `FILE_SET CXX_MODULES`, links `Vulkan::Headers` publicly, and adds `include/` for `aru_rhi/vulkan.hpp`.
+- `aru_rhi/CMakeLists.txt` registers `src/lib.cppm` and `src/instance.cppm` in a `FILE_SET CXX_MODULES`, links `Vulkan::Headers` publicly, and adds `include/` for `aru_rhi/vulkan.hpp`.
 - The module is registered in the root `CMakeLists.txt`.
 
 ## Limitations

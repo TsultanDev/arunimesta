@@ -1,6 +1,6 @@
 # `aru::rhi::Framebuffer` API Reference
 
-`Framebuffer` is the Vulkan framebuffer wrapper in the `aru.rhi:framebuffer` module partition (`modules/aru_rhi/src/framebuffer.cppm`). One framebuffer is created per swapchain image.
+`Framebuffer` is the Vulkan framebuffer wrapper in the `aru.rhi:framebuffer` module partition (`aru_rhi/src/framebuffer.cppm`). One framebuffer is created per swapchain image.
 
 ## Creation
 

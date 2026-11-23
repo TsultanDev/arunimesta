@@ -1,6 +1,6 @@
 # `aru::rhi::Device` API Reference
 
-`Device` is the logical-device wrapper in the `aru.rhi:device` module partition (`modules/aru_rhi/src/device.cppm`). It is created from an `Adapter` and returned in a `std::expected<Device, Error>`.
+`Device` is the logical-device wrapper in the `aru.rhi:device` module partition (`aru_rhi/src/device.cppm`). It is created from an `Adapter` and returned in a `std::expected<Device, Error>`.
 
 ## Creation
 

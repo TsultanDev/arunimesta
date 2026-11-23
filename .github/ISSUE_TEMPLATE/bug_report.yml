@@ -54,7 +54,7 @@ body:
       value: |
         1. `cmake --preset clang-x64-debug`
         2. `cmake --build --preset build-debug`
-        3. Run `./build/clang-x64-debug/modules/aru/aru.exe`
+        3. Run `./build/clang-x64-debug/aru/aru.exe`
         4. ...
     validations:
       required: true

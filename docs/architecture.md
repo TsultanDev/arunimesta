@@ -4,12 +4,12 @@ This document describes the current code structure of Arunimesta, the main desig
 
 ## Overview
 
-Arunimesta is a C++23 project that uses **named modules**. The code is split per subsystem under `modules/`, and each module has its own CMake target.
+Arunimesta is a C++23 project that uses **named modules**. Each subsystem is a top-level subproject at the repository root with its own CMake target.
 
-Currently there are three modules:
+Currently there are three subprojects:
 
 ```text
-modules/
+./
 ├── aru/            # executable + module aru (facade)
 ├── aru_window/     # static library aru.window (Win32 windowing)
 └── aru_rhi/        # static library aru.rhi (Vulkan presentation foundation)
@@ -45,7 +45,7 @@ The Vulkan renderer (`aru.rhi`) provides the presentation foundation. The remain
 
 ### Module `aru`
 
-- `modules/aru/src/lib.cppm` is the **facade**:
+- `aru/src/lib.cppm` is the **facade**:
   ```cpp
   export module aru;
   export import aru.window;
@@ -109,7 +109,7 @@ The facade keeps the public import surface small: consumers import a single name
   export import :window;
   ```
 - `src/error.cppm` is the partition `aru.window:error`. It owns the formattable `Error` enum; `window.cppm` re-exports it.
-- `modules/aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
+- `aru/src/lib.cppm` re-exports `aru.window`, so consumers can use it through `import aru;`.
 - The implementation uses the Win32 Unicode APIs: `RegisterClassW`, `CreateWindowExW`, `DefWindowProcW`, `GetMessageW`, and `DispatchMessageW`.
 - `Window::ResultType` is `std::expected<Window, Error>`. `create(const char*, uint32_t, uint32_t)` treats a narrow title as UTF-8 and converts it with `MultiByteToWideChar(CP_UTF8, ...)`; a `create(const char16_t*, uint32_t, uint32_t)` overload also exists, and `windowTitle()` returns `const std::wstring&`. `Error` is formattable, so `std::println("{}", err)` works.
 - Rule of Five: the copy constructor / copy assignment / `copy()` duplicate the title and metadata but not the `HWND`; the move constructor / move assignment / `move()` steal the handle and empty the source. `createFromWindow()` creates a genuinely new OS window.
@@ -128,7 +128,7 @@ Engine-owned types (`Window`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource
 - The public API takes UTF-8 text. With Clang, the source and execution character sets are UTF-8.
 - Text uses standard-library types: `std::string`, `std::u8string`, `std::u16string`, `std::u32string`, `std::wstring`, and `std::string_view`. There is no project-specific string type.
 - Win32 `...W` APIs take UTF-16. `Window::create(const char*, ...)` converts a UTF-8 title with `MultiByteToWideChar(CP_UTF8, ...)` before calling `CreateWindowExW`; `windowTitle()` exposes the stored `const std::wstring&`. There is also a direct `create(const char16_t*, ...)` overload.
-- `UNICODE` and `_UNICODE` are defined for the `aru_window` target in `modules/aru_window/CMakeLists.txt`.
+- `UNICODE` and `_UNICODE` are defined for the `aru_window` target in `aru_window/CMakeLists.txt`.
 - **Never mix ANSI (`...A`) and Unicode (`...W`) Win32 APIs for the same window.** Doing so corrupts text: an earlier version created the window with `CreateWindowExA`, but the window procedure called `DefWindowProcW`. `DefWindowProcW` re-read the ANSI title pointer as UTF-16, so the bytes of `"Arunimesta"` were displayed as CJK characters (`U+7241 U+6E75 ...`). Using the `W` APIs consistently fixes this.
 
 ## `Application` Design Patterns
@@ -224,7 +224,7 @@ There is no `Application::run()` in this iteration yet. `main.cpp` currently exe
 
 ## Build and Module Boundaries
 
-- The root `CMakeLists.txt` adds `modules/aru_window`, `modules/aru_rhi`, and `modules/aru`.
+- The root `CMakeLists.txt` adds `aru_window`, `aru_rhi`, and `aru`.
 - Each module registers its `.cppm` files through `FILE_SET CXX_MODULES`.
 - Standard headers are included in the **global module fragment** (`module;` ... `export module ...;`) so they do not leak to consumers.
 - `aru` depends on both libraries: `target_link_libraries(aru PRIVATE aru_window aru_rhi)`.
@@ -234,7 +234,7 @@ There is no `Application::run()` in this iteration yet. `main.cpp` currently exe
 
 General steps:
 
-1. Create the directory `modules/<name>/src`.
+1. Create the top-level directory `<name>/src`.
 2. Add a partition file, for example `foo.cppm` with `export module aru:foo;`.
 3. Add a facade `lib.cppm` with `export module aru; export import :foo;` (or a separate module if it is not part of `aru`).
 4. Create the module's `CMakeLists.txt` with `add_library(...)` and `target_sources(... FILE_SET CXX_MODULES ...)`.

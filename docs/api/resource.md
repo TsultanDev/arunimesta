@@ -1,6 +1,6 @@
 # `aru::rhi::Resource` API Reference
 
-`Resource` is a tagged union in the `aru.rhi:resource` module partition (`modules/aru_rhi/src/resource.cppm`). It holds either an image plus its image view, or a buffer plus its buffer view.
+`Resource` is a tagged union in the `aru.rhi:resource` module partition (`aru_rhi/src/resource.cppm`). It holds either an image plus its image view, or a buffer plus its buffer view.
 
 ## Union Layout
 

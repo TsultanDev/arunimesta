@@ -1,6 +1,6 @@
 # Frame Loop API Reference
 
-The frame loop is the prototype call chain in `modules/aru/src/main.cpp`:
+The frame loop is the prototype call chain in `aru/src/main.cpp`:
 
 ```cpp
 check(device.acquire([&]() mutable {
@@ -28,7 +28,7 @@ check(device.acquire([&]() mutable {
 
 ## What Happens Automatically
 
-`Device::acquire(callback)` is implemented in `device.cppm`; its frame state lives in the `aru.rhi:frame` partition (`modules/aru_rhi/src/frame.cppm`):
+`Device::acquire(callback)` is implemented in `device.cppm`; its frame state lives in the `aru.rhi:frame` partition (`aru_rhi/src/frame.cppm`):
 
 1. Lazily create `MaxFramesInFlight` (2) image-available semaphores, render-finished semaphores, and in-flight fences. Fences start signaled.
 2. Wait on the fence for the current `frame_index`, then reset it.

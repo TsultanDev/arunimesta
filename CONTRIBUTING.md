@@ -27,7 +27,7 @@ See [`docs/building.md`](docs/building.md) for toolchain checks and troubleshoot
 ```bash
 cmake --preset clang-x64-debug
 cmake --build --preset build-debug
-./build/clang-x64-debug/modules/aru/aru.exe
+./build/clang-x64-debug/aru/aru.exe
 ```
 
 Release:
@@ -94,9 +94,9 @@ Please search existing issues first. Include your commit hash, Clang/CMake/Ninja
 ## Project Layout
 
 ```text
-modules/aru/        executable and public facade
-modules/aru_window/ aru.window (Win32 window + event loop)
-modules/aru_rhi/    aru.rhi (instance, surface, adapter, device, queue)
+aru/                executable and public facade
+aru_window/         aru.window (Win32 window + event loop)
+aru_rhi/            aru.rhi (instance, surface, adapter, device, queue)
 docs/               architecture, build guide, coding style, API references
 ```
 

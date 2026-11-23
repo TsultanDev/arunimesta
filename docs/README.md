@@ -37,7 +37,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 
 ## Documentation Principles
 
-- **In sync with the code**: examples and API names must match the source in `modules/`.
+- **In sync with the code**: examples and API names must match the source in `aru/`, `aru_window/`, and `aru_rhi/`.
 - **Honest about status**: parts that are not implemented are explicitly marked.
 - **Practical**: each document answers the questions that come up when building or developing the engine.
 - **Language**: English, using standard technical terminology.

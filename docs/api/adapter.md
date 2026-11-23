@@ -1,6 +1,6 @@
 # `aru::rhi::Adapter` API Reference
 
-`Adapter` is the physical-device wrapper in the `aru.rhi:adapter` module partition (`modules/aru_rhi/src/adapter.cppm`). It is selected from an `Instance` and a `Surface` and returned in a `std::expected<Adapter, Error>`.
+`Adapter` is the physical-device wrapper in the `aru.rhi:adapter` module partition (`aru_rhi/src/adapter.cppm`). It is selected from an `Instance` and a `Surface` and returned in a `std::expected<Adapter, Error>`.
 
 ## Creation
 

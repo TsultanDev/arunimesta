@@ -1,6 +1,6 @@
 # `aru::rhi::Queue` API Reference
 
-`Queue` is the queue wrapper in the `aru.rhi:queue` module partition (`modules/aru_rhi/src/queue.cppm`). It is requested from a `Device` with a combination of `QueueFlags` and returned in a `std::expected<Queue, Error>`.
+`Queue` is the queue wrapper in the `aru.rhi:queue` module partition (`aru_rhi/src/queue.cppm`). It is requested from a `Device` with a combination of `QueueFlags` and returned in a `std::expected<Queue, Error>`.
 
 ## `QueueFlags` and bitwise operators
 

@@ -27,8 +27,8 @@ Notes:
 
 - C++ modules use the `.cppm` extension.
 - The entry point uses `.cpp`.
-- Each module lives in `modules/<module_name>/src/`.
-- Non-module headers/sources (if added later) go in `modules/<module_name>/include/`.
+- Each module lives in a top-level `<module_name>/src/`.
+- Non-module headers/sources (if added later) go in a top-level `<module_name>/include/`.
 
 ## `.cppm` File Layout
 
@@ -168,7 +168,7 @@ std::println(stdout, "Aru: Window(created!!), title: {}", title);
 - Use the explicit Unicode (`...W`) Win32 APIs: `RegisterClassExW`, `CreateWindowExW`, `DefWindowProcW`, `PeekMessageW`, `DispatchMessageW`.
 - Never mix ANSI (`...A`) and Unicode (`...W`) APIs for the same window. Mixing them corrupts text; for example, a title created with `CreateWindowExA` and handled by `DefWindowProcW` is re-read as UTF-16 and can appear as CJK characters.
 - Narrow public APIs take UTF-8 text (`const char*`, `std::string`, or `std::string_view`). Convert to UTF-16 with `MultiByteToWideChar(CP_UTF8, ...)` before calling a `...W` function; `Window` also accepts a `const char16_t*` title and returns `const std::wstring&` from `windowTitle()`.
-- Define `UNICODE` and `_UNICODE` for targets that include `<Windows.h>` (see `modules/aru_window/CMakeLists.txt`).
+- Define `UNICODE` and `_UNICODE` for targets that include `<Windows.h>` (see `aru_window/CMakeLists.txt`).
 
 ## Formatting
 

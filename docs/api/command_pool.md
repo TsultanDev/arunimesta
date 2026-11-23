@@ -1,6 +1,6 @@
 # `aru::rhi::CommandPool` API Reference
 
-`CommandPool` is the Vulkan command-pool wrapper in the `aru.rhi:command_pool` module partition (`modules/aru_rhi/src/command_pool.cppm`). A pool belongs to one queue family and is the allocation source for command buffers.
+`CommandPool` is the Vulkan command-pool wrapper in the `aru.rhi:command_pool` module partition (`aru_rhi/src/command_pool.cppm`). A pool belongs to one queue family and is the allocation source for command buffers.
 
 ## Creation
 
