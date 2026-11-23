@@ -40,26 +40,25 @@ module;                              // global module fragment
 
 export module aru:widget;            // module / partition declaration
 
-namespace aru {
-    struct Widget_T;                 // impl forward declaration
-    export class Widget;             // public class declaration
+export namespace aru {
+    class Widget {                   // public class, defined directly
+        public:
+            explicit Widget(std::uint32_t id) noexcept : mId(id) {}
+            std::uint32_t id() const noexcept { return mId; }
+
+        private:
+            std::uint32_t mId;
+    };
 }
-
-struct aru::Widget_T {               // impl definition (not exported)
-    // ...
-};
-
-class aru::Widget {                  // public class definition
-    // ...
-};
 ```
 
 Rules:
 
 1. Includes **must** be in the global module fragment (`module;` through `export module ...;`).
 2. Do not put `#include` after `export module`, because it will be exposed to consumers.
-3. Define the `_T` struct before the `unique_ptr<_T>` member is destroyed; this order lets the compiler see the complete type.
-4. Declare everything consumers need with `export`.
+3. Define member and free functions directly where they are declared. Do not split a declaration from its definition unless the member belongs to a class from another partition and needs a complete type from this partition.
+4. Use a forward declaration only for a type owned by another partition when importing its full definition would create a cycle.
+5. Declare everything consumers need with `export`.
 
 ## Facade and Partitions
 

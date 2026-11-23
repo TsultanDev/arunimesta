@@ -14,22 +14,43 @@ import :device;
 import :swapchain;
 
 export namespace aru::rhi {
-    class RenderPass;
-}
-
-export namespace aru::rhi {
     class RenderPass {
+        private:
+            struct CopyTag {};
+            struct MoveTag {};
+            struct InitTag {};
+
         public:
             using ResultType = std::expected<RenderPass, Error>;
 
-            RenderPass(const RenderPass& other);
-            RenderPass(RenderPass&& other) noexcept;
-            RenderPass& operator=(const RenderPass& other);
-            RenderPass& operator=(RenderPass&& other) noexcept;
-            ~RenderPass();
+            RenderPass(const RenderPass& other) : RenderPass(other, CopyTag{}) {}
 
-            RenderPass copy() const;
-            RenderPass move() noexcept;
+            RenderPass(RenderPass&& other) noexcept : RenderPass(std::move(other), MoveTag{}) {}
+
+            RenderPass& operator=(const RenderPass& other){
+                if (this != &other){
+                    RenderPass fresh(other, CopyTag{});
+                    *this = std::move(fresh);
+                }
+                return *this;
+            }
+
+            RenderPass& operator=(RenderPass&& other) noexcept{
+                if (this != &other){
+                    this->release();
+                    this->mOwner = std::exchange(other.mOwner, nullptr);
+                    this->mDevice = other.mDevice;
+                    this->mRenderPass = std::exchange(other.mRenderPass, vk::RenderPass{});
+                    this->mClearColor = std::exchange(other.mClearColor, std::array<float, 4>{});
+                }
+                return *this;
+            }
+
+            ~RenderPass(){ this->release(); }
+
+            RenderPass copy() const { return RenderPass(*this, CopyTag{}); }
+
+            RenderPass move() noexcept { return RenderPass(std::move(*this), MoveTag{}); }
 
             // Prototipe: render_pass.render([]{ ... }) memakai clear color
             // default; overload dengan array warna menerima RGBA float.
@@ -43,24 +64,40 @@ export namespace aru::rhi {
                 return this->renderImpl(clearColor, std::forward<Func>(func));
             }
 
-            void setClearColor(std::array<float, 4> color) noexcept;
-            std::array<float, 4> clearColor() const noexcept;
+            void setClearColor(std::array<float, 4> color) noexcept { this->mClearColor = color; }
 
-            vk::RenderPass handle() const noexcept;
-            vk::Device deviceHandle() const noexcept;
-            bool empty() const noexcept;
+            std::array<float, 4> clearColor() const noexcept { return this->mClearColor; }
+
+            vk::RenderPass handle() const noexcept { return this->mRenderPass; }
+
+            vk::Device deviceHandle() const noexcept { return this->mDevice; }
+
+            bool empty() const noexcept { return static_cast<VkRenderPass>(this->mRenderPass) == nullptr; }
 
         private:
             friend class Device;
 
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
             RenderPass(const Device* owner, vk::Device device, vk::RenderPass renderPass,
-                       InitTag tag) noexcept;
-            RenderPass(const RenderPass& other, CopyTag tag) noexcept;
-            RenderPass(RenderPass&& other, MoveTag tag) noexcept;
+                       InitTag) noexcept :
+                mOwner(owner),
+                mDevice(device),
+                mRenderPass(renderPass),
+                mClearColor({0.3F, 0.3F, 0.3F, 1.0F})
+            {}
+
+            RenderPass(const RenderPass& other, CopyTag) noexcept :
+                mOwner(other.mOwner),
+                mDevice(other.mDevice),
+                mRenderPass(),
+                mClearColor(other.mClearColor)
+            {}
+
+            RenderPass(RenderPass&& other, MoveTag) noexcept :
+                mOwner(std::exchange(other.mOwner, nullptr)),
+                mDevice(other.mDevice),
+                mRenderPass(std::exchange(other.mRenderPass, vk::RenderPass{})),
+                mClearColor(std::exchange(other.mClearColor, std::array<float, 4>{}))
+            {}
 
             template<typename Func>
             std::expected<void, Error> renderImpl(const std::array<float, 4>& clearColor,
@@ -87,10 +124,63 @@ export namespace aru::rhi {
                 return {};
             }
 
-            std::expected<void, Error> beginRender(const std::array<float, 4>& clearColor) const;
-            void endRender() const noexcept;
+            std::expected<void, Error> beginRender(const std::array<float, 4>& clearColor) const{
+                if (this->empty() || mOwner == nullptr){
+                    return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
+                }
 
-            void release() noexcept;
+                const vk::CommandBuffer commandBuffer = mOwner->activeCommandBuffer();
+                const vk::Framebuffer framebuffer = mOwner->framebufferForCurrentImage();
+                const vk::Extent2D extent = mOwner->frameExtent();
+                if (static_cast<VkCommandBuffer>(commandBuffer) == nullptr ||
+                    static_cast<VkFramebuffer>(framebuffer) == nullptr ||
+                    extent.width == 0 || extent.height == 0){
+                    return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
+                }
+
+                vk::ClearColorValue colorValue(clearColor);
+                vk::ClearValue clear;
+                clear.setColor(colorValue);
+
+                vk::RenderPassBeginInfo info;
+                info.setRenderPass(this->mRenderPass);
+                info.setFramebuffer(framebuffer);
+                info.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), extent));
+                info.setClearValueCount(1);
+                info.setPClearValues(&clear);
+
+                try{
+                    commandBuffer.beginRenderPass(info, vk::SubpassContents::eInline,
+                                                  VULKAN_HPP_DEFAULT_DISPATCHER);
+                }catch(...){
+                    return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
+                }
+                return {};
+            }
+
+            void endRender() const noexcept{
+                if (mOwner == nullptr){
+                    return;
+                }
+                const vk::CommandBuffer commandBuffer = mOwner->activeCommandBuffer();
+                if (static_cast<VkCommandBuffer>(commandBuffer) == nullptr){
+                    return;
+                }
+                try{
+                    commandBuffer.endRenderPass(VULKAN_HPP_DEFAULT_DISPATCHER);
+                }catch(...){
+                    mOwner->noteError(aru::rhi::Error::RenderPassRecordingFailed);
+                }
+            }
+
+            void release() noexcept{
+                if (static_cast<VkRenderPass>(this->mRenderPass) != nullptr){
+                    this->mDevice.destroyRenderPass(this->mRenderPass, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+                    this->mRenderPass = vk::RenderPass{};
+                }
+                this->mOwner = nullptr;
+                this->mDevice = vk::Device{};
+            }
 
             const Device* mOwner;
             vk::Device mDevice;
@@ -99,6 +189,8 @@ export namespace aru::rhi {
     };
 }
 
+// Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
+// RenderPass membutuhkan tipe lengkap Swapchain/RenderPass dari partisi ini.
 std::expected<aru::rhi::RenderPass, aru::rhi::Error>
 aru::rhi::Device::createRenderPass(const aru::rhi::Swapchain& swapchain) const{
     if (this->empty() || swapchain.empty()){
@@ -150,144 +242,4 @@ aru::rhi::Device::createRenderPass(const aru::rhi::Swapchain& swapchain) const{
     std::println("Aru RHI: RenderPass(created!!)");
 
     return RenderPass(this, this->mDevice, created, RenderPass::InitTag{});
-}
-
-aru::rhi::RenderPass::RenderPass(const Device* owner, vk::Device device,
-                                 vk::RenderPass renderPass, InitTag) noexcept :
-    mOwner(owner),
-    mDevice(device),
-    mRenderPass(renderPass),
-    mClearColor({0.3F, 0.3F, 0.3F, 1.0F})
-{}
-
-aru::rhi::RenderPass::RenderPass(const RenderPass& other) :
-    RenderPass(other, CopyTag{})
-{}
-
-aru::rhi::RenderPass::RenderPass(RenderPass&& other) noexcept :
-    RenderPass(std::move(other), MoveTag{})
-{}
-
-aru::rhi::RenderPass::RenderPass(const RenderPass& other, CopyTag) noexcept :
-    mOwner(other.mOwner),
-    mDevice(other.mDevice),
-    mRenderPass(),
-    mClearColor(other.mClearColor)
-{}
-
-aru::rhi::RenderPass::RenderPass(RenderPass&& other, MoveTag) noexcept :
-    mOwner(std::exchange(other.mOwner, nullptr)),
-    mDevice(other.mDevice),
-    mRenderPass(std::exchange(other.mRenderPass, vk::RenderPass{})),
-    mClearColor(std::exchange(other.mClearColor, std::array<float, 4>{}))
-{}
-
-aru::rhi::RenderPass& aru::rhi::RenderPass::operator=(const RenderPass& other){
-    if (this != &other){
-        RenderPass fresh(other, CopyTag{});
-        *this = std::move(fresh);
-    }
-    return *this;
-}
-
-aru::rhi::RenderPass& aru::rhi::RenderPass::operator=(RenderPass&& other) noexcept{
-    if (this != &other){
-        this->release();
-        this->mOwner = std::exchange(other.mOwner, nullptr);
-        this->mDevice = other.mDevice;
-        this->mRenderPass = std::exchange(other.mRenderPass, vk::RenderPass{});
-        this->mClearColor = std::exchange(other.mClearColor, std::array<float, 4>{});
-    }
-    return *this;
-}
-
-aru::rhi::RenderPass aru::rhi::RenderPass::copy() const{
-    return RenderPass(*this, CopyTag{});
-}
-
-aru::rhi::RenderPass aru::rhi::RenderPass::move() noexcept{
-    return RenderPass(std::move(*this), MoveTag{});
-}
-
-void aru::rhi::RenderPass::setClearColor(std::array<float, 4> color) noexcept{
-    this->mClearColor = color;
-}
-
-std::array<float, 4> aru::rhi::RenderPass::clearColor() const noexcept{
-    return this->mClearColor;
-}
-
-std::expected<void, aru::rhi::Error>
-aru::rhi::RenderPass::beginRender(const std::array<float, 4>& clearColor) const{
-    if (this->empty() || mOwner == nullptr){
-        return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
-    }
-
-    const vk::CommandBuffer commandBuffer = mOwner->activeCommandBuffer();
-    const vk::Framebuffer framebuffer = mOwner->framebufferForCurrentImage();
-    const vk::Extent2D extent = mOwner->frameExtent();
-    if (static_cast<VkCommandBuffer>(commandBuffer) == nullptr ||
-        static_cast<VkFramebuffer>(framebuffer) == nullptr ||
-        extent.width == 0 || extent.height == 0){
-        return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
-    }
-
-    vk::ClearColorValue colorValue(clearColor);
-    vk::ClearValue clear;
-    clear.setColor(colorValue);
-
-    vk::RenderPassBeginInfo info;
-    info.setRenderPass(this->mRenderPass);
-    info.setFramebuffer(framebuffer);
-    info.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), extent));
-    info.setClearValueCount(1);
-    info.setPClearValues(&clear);
-
-    try{
-        commandBuffer.beginRenderPass(info, vk::SubpassContents::eInline,
-                                      VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        return std::unexpected(aru::rhi::Error::RenderPassRecordingFailed);
-    }
-    return {};
-}
-
-void aru::rhi::RenderPass::endRender() const noexcept{
-    if (mOwner == nullptr){
-        return;
-    }
-    const vk::CommandBuffer commandBuffer = mOwner->activeCommandBuffer();
-    if (static_cast<VkCommandBuffer>(commandBuffer) == nullptr){
-        return;
-    }
-    try{
-        commandBuffer.endRenderPass(VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        mOwner->noteError(aru::rhi::Error::RenderPassRecordingFailed);
-    }
-}
-
-vk::RenderPass aru::rhi::RenderPass::handle() const noexcept{
-    return this->mRenderPass;
-}
-
-vk::Device aru::rhi::RenderPass::deviceHandle() const noexcept{
-    return this->mDevice;
-}
-
-bool aru::rhi::RenderPass::empty() const noexcept{
-    return static_cast<VkRenderPass>(this->mRenderPass) == nullptr;
-}
-
-void aru::rhi::RenderPass::release() noexcept{
-    if (static_cast<VkRenderPass>(this->mRenderPass) != nullptr){
-        this->mDevice.destroyRenderPass(this->mRenderPass, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-        this->mRenderPass = vk::RenderPass{};
-    }
-    this->mOwner = nullptr;
-    this->mDevice = vk::Device{};
-}
-
-aru::rhi::RenderPass::~RenderPass(){
-    this->release();
 }

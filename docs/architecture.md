@@ -241,6 +241,8 @@ General steps:
 5. Register the module in the root `CMakeLists.txt` with `add_subdirectory(...)`.
 6. If the module is used by an executable, add the target dependency in `target_link_libraries`.
 
+Define member and free functions directly in the partition that owns them. A declaration without a body is reserved for a member of a class defined in another partition that needs a complete type here; use forward declarations only to break import cycles.
+
 ## Known Technical Debt
 
 | Item | Impact | Plan |

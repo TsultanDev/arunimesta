@@ -14,44 +14,83 @@ import :instance;
 import :surface;
 
 export namespace aru::rhi {
-    class Adapter;
-}
+    // Forward declaration: tipe lengkap ada di partisi :device.
+    class Device;
 
-export namespace aru::rhi {
     class Adapter {
+        private:
+            struct CopyTag {};
+            struct MoveTag {};
+            struct InitTag {};
+
         public:
             using ResultType = std::expected<Adapter, Error>;
 
             // Didefinisikan di :device (butuh tipe Device yang lengkap).
             std::expected<Device, Error> createDevice(const Adapter& adapter) const;
 
-            Adapter(const Adapter& other);
-            Adapter(Adapter&& other) noexcept;
-            Adapter& operator=(const Adapter& other);
-            Adapter& operator=(Adapter&& other) noexcept;
+            Adapter(const Adapter& other) : Adapter(other, CopyTag{}) {}
+
+            Adapter(Adapter&& other) noexcept : Adapter(std::move(other), MoveTag{}) {}
+
+            Adapter& operator=(const Adapter& other){
+                if (this != &other){
+                    Adapter fresh(other, CopyTag{});
+                    *this = std::move(fresh);
+                }
+                return *this;
+            }
+
+            Adapter& operator=(Adapter&& other) noexcept{
+                if (this != &other){
+                    this->mInstance = other.mInstance;
+                    this->mPhysicalDevice = std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{});
+                    this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
+                    this->mQueueFamily = std::exchange(other.mQueueFamily, std::uint32_t{0});
+                }
+                return *this;
+            }
+
             ~Adapter() = default;
 
-            Adapter copy() const;
-            Adapter move() noexcept;
+            Adapter copy() const { return Adapter(*this, CopyTag{}); }
 
-            vk::PhysicalDevice handle() const noexcept;
-            vk::Instance instanceHandle() const noexcept;
-            vk::SurfaceKHR surfaceHandle() const noexcept;
-            std::uint32_t queueFamilyIndex() const noexcept;
-            bool empty() const noexcept;
+            Adapter move() noexcept { return Adapter(std::move(*this), MoveTag{}); }
+
+            vk::PhysicalDevice handle() const noexcept { return this->mPhysicalDevice; }
+
+            vk::Instance instanceHandle() const noexcept { return this->mInstance; }
+
+            vk::SurfaceKHR surfaceHandle() const noexcept { return this->mSurface; }
+
+            std::uint32_t queueFamilyIndex() const noexcept { return this->mQueueFamily; }
+
+            bool empty() const noexcept { return static_cast<VkPhysicalDevice>(this->mPhysicalDevice) == nullptr; }
 
         private:
             friend class Instance;
 
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
             Adapter(vk::Instance instance, vk::PhysicalDevice physicalDevice,
-                    vk::SurfaceKHR surface, std::uint32_t queueFamilyIndex,
-                    InitTag tag) noexcept;
-            Adapter(const Adapter& other, CopyTag tag);
-            Adapter(Adapter&& other, MoveTag tag) noexcept;
+                    vk::SurfaceKHR surface, std::uint32_t queueFamilyIndex, InitTag) noexcept :
+                mInstance(instance),
+                mPhysicalDevice(physicalDevice),
+                mSurface(surface),
+                mQueueFamily(queueFamilyIndex)
+            {}
+
+            Adapter(const Adapter& other, CopyTag) :
+                mInstance(other.mInstance),
+                mPhysicalDevice(),
+                mSurface(),
+                mQueueFamily(0)
+            {}
+
+            Adapter(Adapter&& other, MoveTag) noexcept :
+                mInstance(other.mInstance),
+                mPhysicalDevice(std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{})),
+                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{})),
+                mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0}))
+            {}
 
             vk::Instance mInstance;
             vk::PhysicalDevice mPhysicalDevice;
@@ -60,6 +99,8 @@ export namespace aru::rhi {
     };
 }
 
+// Definisi lintas partisi: Instance didefinisikan di :instance, tetapi
+// pemilihan adapter membutuhkan tipe lengkap Surface dari partisi ini.
 std::expected<aru::rhi::Adapter, aru::rhi::Error> aru::rhi::Instance::requestAdapter(const aru::rhi::Surface& surface){
     const auto devices = this->mInstance.enumeratePhysicalDevices(VULKAN_HPP_DEFAULT_DISPATCHER);
 
@@ -81,80 +122,4 @@ std::expected<aru::rhi::Adapter, aru::rhi::Error> aru::rhi::Instance::requestAda
     }
 
     return std::unexpected(aru::rhi::Error::AdapterNotFound);
-}
-
-aru::rhi::Adapter::Adapter(vk::Instance instance, vk::PhysicalDevice physicalDevice,
-                           vk::SurfaceKHR surface, std::uint32_t queueFamilyIndex, InitTag) noexcept :
-    mInstance(instance),
-    mPhysicalDevice(physicalDevice),
-    mSurface(surface),
-    mQueueFamily(queueFamilyIndex)
-{}
-
-aru::rhi::Adapter::Adapter(const Adapter& other) :
-    Adapter(other, CopyTag{})
-{}
-
-aru::rhi::Adapter::Adapter(Adapter&& other) noexcept :
-    Adapter(std::move(other), MoveTag{})
-{}
-
-aru::rhi::Adapter::Adapter(const Adapter& other, CopyTag) :
-    mInstance(other.mInstance),
-    mPhysicalDevice(),
-    mSurface(),
-    mQueueFamily(0)
-{}
-
-aru::rhi::Adapter::Adapter(Adapter&& other, MoveTag) noexcept :
-    mInstance(other.mInstance),
-    mPhysicalDevice(std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{})),
-    mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{})),
-    mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0}))
-{}
-
-aru::rhi::Adapter& aru::rhi::Adapter::operator=(const Adapter& other){
-    if (this != &other){
-        Adapter fresh(other, CopyTag{});
-        *this = std::move(fresh);
-    }
-    return *this;
-}
-
-aru::rhi::Adapter& aru::rhi::Adapter::operator=(Adapter&& other) noexcept{
-    if (this != &other){
-        this->mInstance = other.mInstance;
-        this->mPhysicalDevice = std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{});
-        this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
-        this->mQueueFamily = std::exchange(other.mQueueFamily, std::uint32_t{0});
-    }
-    return *this;
-}
-
-aru::rhi::Adapter aru::rhi::Adapter::copy() const{
-    return Adapter(*this, CopyTag{});
-}
-
-aru::rhi::Adapter aru::rhi::Adapter::move() noexcept{
-    return Adapter(std::move(*this), MoveTag{});
-}
-
-vk::PhysicalDevice aru::rhi::Adapter::handle() const noexcept{
-    return this->mPhysicalDevice;
-}
-
-vk::Instance aru::rhi::Adapter::instanceHandle() const noexcept{
-    return this->mInstance;
-}
-
-vk::SurfaceKHR aru::rhi::Adapter::surfaceHandle() const noexcept{
-    return this->mSurface;
-}
-
-std::uint32_t aru::rhi::Adapter::queueFamilyIndex() const noexcept{
-    return this->mQueueFamily;
-}
-
-bool aru::rhi::Adapter::empty() const noexcept{
-    return static_cast<VkPhysicalDevice>(this->mPhysicalDevice) == nullptr;
 }

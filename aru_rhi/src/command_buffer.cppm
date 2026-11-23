@@ -16,26 +16,47 @@ import :command_pool;
 import :queue;
 
 export namespace aru::rhi {
-    class CommandBuffer;
-}
-
-export namespace aru::rhi {
     // CommandBuffer adalah wrapper untuk satu vk::CommandBuffer primary.
     // Buffer dialokasikan sekaligus dari CommandPool oleh
     // Device::allocateCommandBuffers(); setiap wrapper membebaskan handle-nya
     // sendiri, jadi CommandPool harus tetap hidup lebih lama dari buffer.
     class CommandBuffer {
+        private:
+            struct CopyTag {};
+            struct MoveTag {};
+            struct InitTag {};
+
         public:
             using ResultType = std::expected<CommandBuffer, Error>;
 
-            CommandBuffer(const CommandBuffer& other);
-            CommandBuffer(CommandBuffer&& other) noexcept;
-            CommandBuffer& operator=(const CommandBuffer& other);
-            CommandBuffer& operator=(CommandBuffer&& other) noexcept;
-            ~CommandBuffer();
+            CommandBuffer(const CommandBuffer& other) : CommandBuffer(other, CopyTag{}) {}
 
-            CommandBuffer copy() const;
-            CommandBuffer move() noexcept;
+            CommandBuffer(CommandBuffer&& other) noexcept : CommandBuffer(std::move(other), MoveTag{}) {}
+
+            CommandBuffer& operator=(const CommandBuffer& other){
+                if (this != &other){
+                    CommandBuffer fresh(other, CopyTag{});
+                    *this = std::move(fresh);
+                }
+                return *this;
+            }
+
+            CommandBuffer& operator=(CommandBuffer&& other) noexcept{
+                if (this != &other){
+                    this->release();
+                    this->mOwner = std::exchange(other.mOwner, nullptr);
+                    this->mDevice = std::exchange(other.mDevice, vk::Device{});
+                    this->mPool = std::exchange(other.mPool, vk::CommandPool{});
+                    this->mBuffer = std::exchange(other.mBuffer, vk::CommandBuffer{});
+                }
+                return *this;
+            }
+
+            ~CommandBuffer(){ this->release(); }
+
+            CommandBuffer copy() const { return CommandBuffer(*this, CopyTag{}); }
+
+            CommandBuffer move() noexcept { return CommandBuffer(std::move(*this), MoveTag{}); }
 
             // Prototipe: command_buffer.record([]{ ... }) otomatis reset +
             // vkBeginCommandBuffer, menjalankan closure, lalu vkEndCommandBuffer.
@@ -63,33 +84,113 @@ export namespace aru::rhi {
                 return {};
             }
 
-            vk::CommandBuffer handle() const noexcept;
-            vk::Device deviceHandle() const noexcept;
-            vk::CommandPool poolHandle() const noexcept;
-            bool empty() const noexcept;
+            vk::CommandBuffer handle() const noexcept { return this->mBuffer; }
+
+            vk::Device deviceHandle() const noexcept { return this->mDevice; }
+
+            vk::CommandPool poolHandle() const noexcept { return this->mPool; }
+
+            bool empty() const noexcept { return static_cast<VkCommandBuffer>(this->mBuffer) == nullptr; }
 
             // Recording lifecycle. Mengembalikan false bila Vulkan menolak
             // operasi (misalnya buffer belum siap atau sudah direkam).
-            bool begin(vk::CommandBufferUsageFlags flags = {}) noexcept;
-            void end() noexcept;
-            bool reset(vk::CommandBufferResetFlags flags = {}) noexcept;
+            bool begin(vk::CommandBufferUsageFlags flags = {}) noexcept{
+                if (this->empty()){
+                    return false;
+                }
+                vk::CommandBufferBeginInfo info;
+                info.setFlags(flags);
+                try{
+                    this->mBuffer.begin(info, VULKAN_HPP_DEFAULT_DISPATCHER);
+                }catch(...){
+                    return false;
+                }
+                return true;
+            }
+
+            void end() noexcept{
+                if (this->empty()){
+                    return;
+                }
+                try{
+                    this->mBuffer.end(VULKAN_HPP_DEFAULT_DISPATCHER);
+                }catch(...){
+                    // Status dicatat oleh validation layer; API tidak melempar exception.
+                }
+            }
+
+            bool reset(vk::CommandBufferResetFlags flags = {}) noexcept{
+                if (this->empty()){
+                    return false;
+                }
+                try{
+                    this->mBuffer.reset(flags, VULKAN_HPP_DEFAULT_DISPATCHER);
+                }catch(...){
+                    return false;
+                }
+                return true;
+            }
 
         private:
             friend class Device;
 
-            struct CopyTag {};
-            struct MoveTag {};
-            struct InitTag {};
-
             CommandBuffer(const Device* owner, vk::Device device, vk::CommandPool pool,
-                          vk::CommandBuffer buffer, InitTag tag) noexcept;
-            CommandBuffer(const CommandBuffer& other, CopyTag tag) noexcept;
-            CommandBuffer(CommandBuffer&& other, MoveTag tag) noexcept;
+                          vk::CommandBuffer buffer, InitTag) noexcept :
+                mOwner(owner),
+                mDevice(device),
+                mPool(pool),
+                mBuffer(buffer)
+            {}
 
-            std::expected<void, Error> beginRecording();
-            void endRecording() noexcept;
+            CommandBuffer(const CommandBuffer& other, CopyTag) noexcept :
+                mOwner(other.mOwner),
+                mDevice(other.mDevice),
+                mPool(other.mPool),
+                mBuffer()
+            {}
 
-            void release() noexcept;
+            CommandBuffer(CommandBuffer&& other, MoveTag) noexcept :
+                mOwner(std::exchange(other.mOwner, nullptr)),
+                mDevice(std::exchange(other.mDevice, vk::Device{})),
+                mPool(std::exchange(other.mPool, vk::CommandPool{})),
+                mBuffer(std::exchange(other.mBuffer, vk::CommandBuffer{}))
+            {}
+
+            std::expected<void, Error> beginRecording(){
+                if (this->empty() || mOwner == nullptr || mOwner->empty()){
+                    return std::unexpected(aru::rhi::Error::CommandBufferRecordingFailed);
+                }
+
+                // Pool dibuat dengan eResetCommandBuffer, jadi reset diperbolehkan.
+                // Di state awal reset boleh gagal; begin() tetap bisa dipanggil.
+                (void)this->reset();
+                if (!this->begin()){
+                    return std::unexpected(aru::rhi::Error::CommandBufferRecordingFailed);
+                }
+
+                mOwner->setActiveCommandBuffer(this->mBuffer);
+                return {};
+            }
+
+            void endRecording() noexcept{
+                if (mOwner != nullptr){
+                    mOwner->clearActiveCommandBuffer();
+                }
+                this->end();
+            }
+
+            void release() noexcept{
+                if (static_cast<VkCommandBuffer>(this->mBuffer) != nullptr &&
+                    static_cast<VkDevice>(this->mDevice) != nullptr &&
+                    static_cast<VkCommandPool>(this->mPool) != nullptr){
+                    this->mDevice.freeCommandBuffers(this->mPool, 1, &this->mBuffer,
+                                                     VULKAN_HPP_DEFAULT_DISPATCHER);
+                    this->mBuffer = vk::CommandBuffer{};
+                }
+                this->mOwner = nullptr;
+                this->mDevice = vk::Device{};
+                this->mPool = vk::CommandPool{};
+            }
 
             const Device* mOwner;
             vk::Device mDevice;
@@ -98,6 +199,8 @@ export namespace aru::rhi {
     };
 }
 
+// Definisi lintas partisi: Device/Queue didefinisikan di partisi sebelumnya,
+// tetapi alokasi dan submit membutuhkan tipe lengkap CommandBuffer di sini.
 std::expected<std::vector<aru::rhi::CommandBuffer>, aru::rhi::Error>
 aru::rhi::Device::allocateCommandBuffers(const aru::rhi::CommandPool& commandPool,
                                          std::uint32_t count) const{
@@ -139,157 +242,6 @@ aru::rhi::Device::allocateCommandBuffers(const aru::rhi::CommandPool& commandPoo
     std::println("Aru RHI: CommandBuffers(allocated!!) count={}", result.size());
 
     return result;
-}
-
-aru::rhi::CommandBuffer::CommandBuffer(const Device* owner, vk::Device device,
-                                       vk::CommandPool pool, vk::CommandBuffer buffer,
-                                       InitTag) noexcept :
-    mOwner(owner),
-    mDevice(device),
-    mPool(pool),
-    mBuffer(buffer)
-{}
-
-aru::rhi::CommandBuffer::CommandBuffer(const CommandBuffer& other) :
-    CommandBuffer(other, CopyTag{})
-{}
-
-aru::rhi::CommandBuffer::CommandBuffer(CommandBuffer&& other) noexcept :
-    CommandBuffer(std::move(other), MoveTag{})
-{}
-
-aru::rhi::CommandBuffer::CommandBuffer(const CommandBuffer& other, CopyTag) noexcept :
-    mOwner(other.mOwner),
-    mDevice(other.mDevice),
-    mPool(other.mPool),
-    mBuffer()
-{}
-
-aru::rhi::CommandBuffer::CommandBuffer(CommandBuffer&& other, MoveTag) noexcept :
-    mOwner(std::exchange(other.mOwner, nullptr)),
-    mDevice(std::exchange(other.mDevice, vk::Device{})),
-    mPool(std::exchange(other.mPool, vk::CommandPool{})),
-    mBuffer(std::exchange(other.mBuffer, vk::CommandBuffer{}))
-{}
-
-aru::rhi::CommandBuffer& aru::rhi::CommandBuffer::operator=(const CommandBuffer& other){
-    if (this != &other){
-        CommandBuffer fresh(other, CopyTag{});
-        *this = std::move(fresh);
-    }
-    return *this;
-}
-
-aru::rhi::CommandBuffer& aru::rhi::CommandBuffer::operator=(CommandBuffer&& other) noexcept{
-    if (this != &other){
-        this->release();
-        this->mOwner = std::exchange(other.mOwner, nullptr);
-        this->mDevice = std::exchange(other.mDevice, vk::Device{});
-        this->mPool = std::exchange(other.mPool, vk::CommandPool{});
-        this->mBuffer = std::exchange(other.mBuffer, vk::CommandBuffer{});
-    }
-    return *this;
-}
-
-aru::rhi::CommandBuffer aru::rhi::CommandBuffer::copy() const{
-    return CommandBuffer(*this, CopyTag{});
-}
-
-aru::rhi::CommandBuffer aru::rhi::CommandBuffer::move() noexcept{
-    return CommandBuffer(std::move(*this), MoveTag{});
-}
-
-std::expected<void, aru::rhi::Error> aru::rhi::CommandBuffer::beginRecording(){
-    if (this->empty() || mOwner == nullptr || mOwner->empty()){
-        return std::unexpected(aru::rhi::Error::CommandBufferRecordingFailed);
-    }
-
-    // Pool dibuat dengan eResetCommandBuffer, jadi reset diperbolehkan.
-    // Di state awal reset boleh gagal; begin() tetap bisa dipanggil.
-    (void)this->reset();
-    if (!this->begin()){
-        return std::unexpected(aru::rhi::Error::CommandBufferRecordingFailed);
-    }
-
-    mOwner->setActiveCommandBuffer(this->mBuffer);
-    return {};
-}
-
-void aru::rhi::CommandBuffer::endRecording() noexcept{
-    if (mOwner != nullptr){
-        mOwner->clearActiveCommandBuffer();
-    }
-    this->end();
-}
-
-vk::CommandBuffer aru::rhi::CommandBuffer::handle() const noexcept{
-    return this->mBuffer;
-}
-
-vk::Device aru::rhi::CommandBuffer::deviceHandle() const noexcept{
-    return this->mDevice;
-}
-
-vk::CommandPool aru::rhi::CommandBuffer::poolHandle() const noexcept{
-    return this->mPool;
-}
-
-bool aru::rhi::CommandBuffer::empty() const noexcept{
-    return static_cast<VkCommandBuffer>(this->mBuffer) == nullptr;
-}
-
-bool aru::rhi::CommandBuffer::begin(vk::CommandBufferUsageFlags flags) noexcept{
-    if (this->empty()){
-        return false;
-    }
-    vk::CommandBufferBeginInfo info;
-    info.setFlags(flags);
-    try{
-        this->mBuffer.begin(info, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        return false;
-    }
-    return true;
-}
-
-void aru::rhi::CommandBuffer::end() noexcept{
-    if (this->empty()){
-        return;
-    }
-    try{
-        this->mBuffer.end(VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        // Status dicatat oleh validation layer; API tidak melempar exception.
-    }
-}
-
-bool aru::rhi::CommandBuffer::reset(vk::CommandBufferResetFlags flags) noexcept{
-    if (this->empty()){
-        return false;
-    }
-    try{
-        this->mBuffer.reset(flags, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        return false;
-    }
-    return true;
-}
-
-void aru::rhi::CommandBuffer::release() noexcept{
-    if (static_cast<VkCommandBuffer>(this->mBuffer) != nullptr &&
-        static_cast<VkDevice>(this->mDevice) != nullptr &&
-        static_cast<VkCommandPool>(this->mPool) != nullptr){
-        this->mDevice.freeCommandBuffers(this->mPool, 1, &this->mBuffer,
-                                         VULKAN_HPP_DEFAULT_DISPATCHER);
-        this->mBuffer = vk::CommandBuffer{};
-    }
-    this->mOwner = nullptr;
-    this->mDevice = vk::Device{};
-    this->mPool = vk::CommandPool{};
-}
-
-aru::rhi::CommandBuffer::~CommandBuffer(){
-    this->release();
 }
 
 std::expected<void, aru::rhi::Error> aru::rhi::Queue::submit(
