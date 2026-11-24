@@ -16,10 +16,6 @@ import :command_pool;
 import :queue;
 
 export namespace renaru {
-    // CommandBuffer adalah wrapper untuk satu vk::CommandBuffer primary.
-    // Buffer dialokasikan sekaligus dari CommandPool oleh
-    // Device::allocateCommandBuffers(); setiap wrapper membebaskan handle-nya
-    // sendiri, jadi CommandPool harus tetap hidup lebih lama dari buffer.
     class CommandBuffer {
         public:
             using ResultType = std::expected<CommandBuffer, Error>;
@@ -48,8 +44,6 @@ export namespace renaru {
 
             ~CommandBuffer(){ this->release(); }
 
-            // Prototipe: command_buffer.record([]{ ... }) otomatis reset +
-            // vkBeginCommandBuffer, menjalankan closure, lalu vkEndCommandBuffer.
             template<typename Func>
             std::expected<void, Error> record(Func&& func){
                 if (auto started = this->beginRecording(); !started){
@@ -82,8 +76,6 @@ export namespace renaru {
 
             bool empty() const noexcept { return static_cast<VkCommandBuffer>(this->mBuffer) == nullptr; }
 
-            // Recording lifecycle. Mengembalikan false bila Vulkan menolak
-            // operasi (misalnya buffer belum siap atau sudah direkam).
             bool begin(vk::CommandBufferUsageFlags flags = {}) noexcept{
                 if (this->empty()){
                     return false;
