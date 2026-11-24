@@ -1,4 +1,5 @@
 export module renaru;
+export import :entry;
 export import :error;
 export import :instance;
 export import :surface;

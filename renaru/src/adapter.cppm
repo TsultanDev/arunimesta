@@ -1,15 +1,16 @@
 module;
 
-#include <renaru/vulkan.hpp>
-
-#include <expected>
-#include <print>
+#include <renaru/vulkan.h>
 
 #include <cstdint>
+#include <expected>
+#include <print>
 #include <utility>
+#include <vector>
 
 export module renaru:adapter;
 
+import :entry;
 import :instance;
 import :surface;
 
@@ -21,77 +22,106 @@ export namespace renaru {
             using ResultType = std::expected<Adapter, Error>;
 
             // Didefinisikan di :device (butuh tipe Device yang lengkap).
-            std::expected<Device, Error> createDevice(const Adapter& adapter) const;
+            std::expected<Device, Error> createDevice(const Adapter& sadapter) const;
 
-            // Handle fisik/surface dipinjam: salinan tidak diizinkan.
+            // Handle fisik/ssurface dipinjam: salinan tidak diizinkan.
             Adapter(const Adapter&) = delete;
             Adapter& operator=(const Adapter&) = delete;
 
-            Adapter(Adapter&& other) noexcept :
-                mInstance(std::exchange(other.mInstance, vk::Instance{})),
-                mPhysicalDevice(std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{})),
-                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{})),
-                mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0}))
+            Adapter(Adapter&& sother) noexcept :
+                sinstance(std::exchange(sother.sinstance, nullptr)),
+                sphysicalDevice(std::exchange(sother.sphysicalDevice, nullptr)),
+                ssurface(std::exchange(sother.ssurface, nullptr)),
+                squeueFamily(std::exchange(sother.squeueFamily, std::uint32_t{0}))
             {}
 
-            Adapter& operator=(Adapter&& other) noexcept{
-                if (this != &other){
-                    this->mInstance = std::exchange(other.mInstance, vk::Instance{});
-                    this->mPhysicalDevice = std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{});
-                    this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
-                    this->mQueueFamily = std::exchange(other.mQueueFamily, std::uint32_t{0});
+            Adapter& operator=(Adapter&& sother) noexcept{
+                if (this != &sother){
+                    sinstance = std::exchange(sother.sinstance, nullptr);
+                    sphysicalDevice = std::exchange(sother.sphysicalDevice, nullptr);
+                    ssurface = std::exchange(sother.ssurface, nullptr);
+                    squeueFamily = std::exchange(sother.squeueFamily, std::uint32_t{0});
                 }
                 return *this;
             }
 
             ~Adapter() = default;
 
-            vk::PhysicalDevice handle() const noexcept { return this->mPhysicalDevice; }
+            VkPhysicalDevice handle() const noexcept { return sphysicalDevice; }
 
-            vk::Instance instanceHandle() const noexcept { return this->mInstance; }
+            VkInstance instanceHandle() const noexcept { return sinstance; }
 
-            vk::SurfaceKHR surfaceHandle() const noexcept { return this->mSurface; }
+            VkSurfaceKHR surfaceHandle() const noexcept { return ssurface; }
 
-            std::uint32_t queueFamilyIndex() const noexcept { return this->mQueueFamily; }
+            std::uint32_t queueFamilyIndex() const noexcept { return squeueFamily; }
 
-            bool empty() const noexcept { return static_cast<VkPhysicalDevice>(this->mPhysicalDevice) == nullptr; }
+            bool empty() const noexcept { return sphysicalDevice == nullptr; }
 
         private:
             friend class Instance;
 
-            Adapter(vk::Instance instance, vk::PhysicalDevice physicalDevice,
-                    vk::SurfaceKHR surface, std::uint32_t queueFamilyIndex) noexcept :
-                mInstance(instance),
-                mPhysicalDevice(physicalDevice),
-                mSurface(surface),
-                mQueueFamily(queueFamilyIndex)
+            Adapter(VkInstance sinstance, VkPhysicalDevice sphysicalDevice,
+                    VkSurfaceKHR ssurface, std::uint32_t squeueFamilyIndex) noexcept :
+                sinstance(sinstance),
+                sphysicalDevice(sphysicalDevice),
+                ssurface(ssurface),
+                squeueFamily(squeueFamilyIndex)
             {}
 
-            vk::Instance mInstance;
-            vk::PhysicalDevice mPhysicalDevice;
-            vk::SurfaceKHR mSurface;
-            std::uint32_t mQueueFamily;
+            VkInstance sinstance = nullptr;
+            VkPhysicalDevice sphysicalDevice = nullptr;
+            VkSurfaceKHR ssurface = nullptr;
+            std::uint32_t squeueFamily = 0;
     };
 }
 
 // Definisi lintas partisi: Instance didefinisikan di :instance, tetapi
-// pemilihan adapter membutuhkan tipe lengkap Surface dari partisi ini.
-std::expected<renaru::Adapter, renaru::Error> renaru::Instance::requestAdapter(const renaru::Surface& surface){
-    const auto devices = this->mInstance.enumeratePhysicalDevices(VULKAN_HPP_DEFAULT_DISPATCHER);
+// pemilihan sadapter membutuhkan tipe lengkap Surface dari partisi ini.
+std::expected<renaru::Adapter, renaru::Error> renaru::Instance::requestAdapter(const renaru::Surface& ssurface){
+    PFN_vkEnumeratePhysicalDevices pfnEnumeratePhysicalDevices =
+        reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
+            entry().resolveInstance(sinstance, "vkEnumeratePhysicalDevices"));
+    if (pfnEnumeratePhysicalDevices == nullptr){
+        return std::unexpected(renaru::Error::AdapterNotFound);
+    }
 
-    for (const vk::PhysicalDevice& physicalDevice : devices){
-        const auto families = physicalDevice.getQueueFamilyProperties(VULKAN_HPP_DEFAULT_DISPATCHER);
-        for (std::uint32_t index = 0; index < families.size(); ++index){
-            if ((static_cast<VkQueueFlags>(families[index].queueFlags) & VK_QUEUE_GRAPHICS_BIT) == 0){
+    std::uint32_t sdeviceCount = 0;
+    if (pfnEnumeratePhysicalDevices(sinstance, &sdeviceCount, nullptr) != VK_SUCCESS ||
+        sdeviceCount == 0){
+        return std::unexpected(renaru::Error::AdapterNotFound);
+    }
+
+    std::vector<VkPhysicalDevice> sdevices(sdeviceCount);
+    if (pfnEnumeratePhysicalDevices(sinstance, &sdeviceCount, sdevices.data()) != VK_SUCCESS){
+        return std::unexpected(renaru::Error::AdapterNotFound);
+    }
+
+    PFN_vkGetPhysicalDeviceQueueFamilyProperties pfnGetQueueFamilyProperties =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(
+            entry().resolveInstance(sinstance, "vkGetPhysicalDeviceQueueFamilyProperties"));
+    PFN_vkGetPhysicalDeviceSurfaceSupportKHR pfnGetSurfaceSupportKHR =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(
+            entry().resolveInstance(sinstance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
+    if (pfnGetQueueFamilyProperties == nullptr || pfnGetSurfaceSupportKHR == nullptr){
+        return std::unexpected(renaru::Error::AdapterNotFound);
+    }
+
+    for (const VkPhysicalDevice sdevice : sdevices){
+        std::uint32_t sfamilyCount = 0;
+        pfnGetQueueFamilyProperties(sdevice, &sfamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> sfamilies(sfamilyCount);
+        pfnGetQueueFamilyProperties(sdevice, &sfamilyCount, sfamilies.data());
+
+        for (std::uint32_t sindex = 0; sindex < sfamilies.size(); ++sindex){
+            if ((sfamilies[sindex].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0){
                 continue;
             }
 
-            const vk::Bool32 supportsPresent = physicalDevice.getSurfaceSupportKHR(
-                index, surface.handle(), VULKAN_HPP_DEFAULT_DISPATCHER
-            );
-            if (supportsPresent){
-                std::println("Aru RHI: Adapter(found!!) family={}", index);
-                return Adapter(this->mInstance, physicalDevice, surface.handle(), index);
+            VkBool32 ssupportsPresent = VK_FALSE;
+            pfnGetSurfaceSupportKHR(sdevice, sindex, ssurface.handle(), &ssupportsPresent);
+            if (ssupportsPresent == VK_TRUE){
+                std::println("Aru RHI: Adapter(found!!) family={}", sindex);
+                return Adapter(sinstance, sdevice, ssurface.handle(), sindex);
             }
         }
     }

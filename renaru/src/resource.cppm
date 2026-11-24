@@ -1,15 +1,15 @@
 module;
 
-#include <renaru/vulkan.hpp>
-
-#include <expected>
+#include <renaru/vulkan.h>
 
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <utility>
 
 export module renaru:resource;
 
+import :entry;
 import :device;
 
 export namespace renaru {
@@ -20,20 +20,20 @@ export namespace renaru {
     };
 
     // Resource adalah tagged union:
-    //   - Image  : { vk::Image image, vk::ImageView view }
-    //   - Buffer : { vk::Buffer buffer, vk::BufferView view }
+    //   - Image  : { VkImage simage, VkImageView sview }
+    //   - Buffer : { VkBuffer sbuffer, VkBufferView sview }
     // Image dari swapchain dipinjam; ImageView dimiliki. Buffer dan BufferView
     // keduanya dimiliki. Resource bersifat move-only karena handle-nya raw.
     class Resource {
         private:
             struct ImageData {
-                vk::Image image;
-                vk::ImageView view;
+                VkImage image;
+                VkImageView view;
             };
 
             struct BufferData {
-                vk::Buffer buffer;
-                vk::BufferView view;
+                VkBuffer buffer;
+                VkBufferView view;
             };
 
             union Data {
@@ -51,229 +51,261 @@ export namespace renaru {
             Resource(const Resource&) = delete;
             Resource& operator=(const Resource&) = delete;
 
-            Resource(Resource&& other) noexcept :
-                mData(),
-                mKind(other.mKind),
-                mDevice(other.mDevice),
-                mExtent(other.mExtent),
-                mSize(other.mSize),
-                mOwns(other.mOwns)
+            Resource(Resource&& sother) noexcept :
+                sdata(),
+                skind(sother.skind),
+                sdevice(sother.sdevice),
+                sextent(sother.sextent),
+                ssize(sother.ssize),
+                sowns(sother.sowns)
             {
-                switch (other.mKind){
+                switch (sother.skind){
                     case ResourceKind::Image:
-                        std::construct_at(&this->mData.image, other.mData.image);
+                        std::construct_at(&sdata.image, sother.sdata.image);
                         break;
                     case ResourceKind::Buffer:
-                        std::destroy_at(&this->mData.image);
-                        std::construct_at(&this->mData.buffer, other.mData.buffer);
+                        std::destroy_at(&sdata.image);
+                        std::construct_at(&sdata.buffer, sother.sdata.buffer);
                         break;
                     default:
                         break;
                 }
-                other.reset();
+                sother.reset();
             }
 
-            Resource& operator=(Resource&& other) noexcept{
-                if (this != &other){
-                    this->release();
+            Resource& operator=(Resource&& sother) noexcept{
+                if (this != &sother){
+                    release();
 
-                    this->mKind = other.mKind;
-                    this->mDevice = other.mDevice;
-                    this->mExtent = other.mExtent;
-                    this->mSize = other.mSize;
-                    this->mOwns = other.mOwns;
+                    skind = sother.skind;
+                    sdevice = sother.sdevice;
+                    sextent = sother.sextent;
+                    ssize = sother.ssize;
+                    sowns = sother.sowns;
 
-                    switch (other.mKind){
+                    switch (sother.skind){
                         case ResourceKind::Image:
-                            std::construct_at(&this->mData.image, other.mData.image);
+                            std::construct_at(&sdata.image, sother.sdata.image);
                             break;
                         case ResourceKind::Buffer:
-                            std::destroy_at(&this->mData.image);
-                            std::construct_at(&this->mData.buffer, other.mData.buffer);
+                            std::destroy_at(&sdata.image);
+                            std::construct_at(&sdata.buffer, sother.sdata.buffer);
                             break;
                         default:
                             break;
                     }
-                    other.reset();
+                    sother.reset();
                 }
                 return *this;
             }
 
-            ~Resource(){ this->release(); }
+            ~Resource(){ release(); }
 
-            ResourceKind kind() const noexcept { return this->mKind; }
+            ResourceKind kind() const noexcept { return skind; }
 
             bool empty() const noexcept{
-                switch (this->mKind){
+                switch (skind){
                     case ResourceKind::Image:
-                        return static_cast<VkImage>(this->mData.image.image) == nullptr &&
-                               static_cast<VkImageView>(this->mData.image.view) == nullptr;
+                        return sdata.image.image == nullptr &&
+                               sdata.image.view == nullptr;
                     case ResourceKind::Buffer:
-                        return static_cast<VkBuffer>(this->mData.buffer.buffer) == nullptr;
+                        return sdata.buffer.buffer == nullptr;
                     default:
                         return true;
                 }
             }
 
-            vk::Device deviceHandle() const noexcept { return this->mDevice; }
+            VkDevice deviceHandle() const noexcept { return sdevice; }
 
-            vk::Image imageHandle() const noexcept {
-                return this->mKind == ResourceKind::Image ? this->mData.image.image : vk::Image{};
+            VkImage imageHandle() const noexcept {
+                return skind == ResourceKind::Image ? sdata.image.image : nullptr;
             }
 
-            vk::ImageView imageViewHandle() const noexcept {
-                return this->mKind == ResourceKind::Image ? this->mData.image.view : vk::ImageView{};
+            VkImageView imageViewHandle() const noexcept {
+                return skind == ResourceKind::Image ? sdata.image.view : nullptr;
             }
 
-            vk::Buffer bufferHandle() const noexcept {
-                return this->mKind == ResourceKind::Buffer ? this->mData.buffer.buffer : vk::Buffer{};
+            VkBuffer bufferHandle() const noexcept {
+                return skind == ResourceKind::Buffer ? sdata.buffer.buffer : nullptr;
             }
 
-            vk::BufferView bufferViewHandle() const noexcept {
-                return this->mKind == ResourceKind::Buffer ? this->mData.buffer.view : vk::BufferView{};
+            VkBufferView bufferViewHandle() const noexcept {
+                return skind == ResourceKind::Buffer ? sdata.buffer.view : nullptr;
             }
 
-            vk::Extent2D extent() const noexcept { return this->mExtent; }
+            VkExtent2D extent() const noexcept { return sextent; }
 
-            vk::DeviceSize bufferSize() const noexcept { return this->mSize; }
+            VkDeviceSize bufferSize() const noexcept { return ssize; }
 
         private:
             friend class Device;
 
-            Resource(vk::Device device, vk::Image image, vk::ImageView view,
-                     vk::Extent2D extent) noexcept :
-                mData(),
-                mKind(ResourceKind::Image),
-                mDevice(device),
-                mExtent(extent),
-                mSize(0),
-                mOwns(true)
+            Resource(VkDevice sdevice, VkImage simage, VkImageView sview,
+                     VkExtent2D sextent) noexcept :
+                sdata(),
+                skind(ResourceKind::Image),
+                sdevice(sdevice),
+                sextent(sextent),
+                ssize(0),
+                sowns(true)
             {
-                std::construct_at(&this->mData.image, ImageData{image, view});
+                std::construct_at(&sdata.image, ImageData{simage, sview});
             }
 
-            Resource(vk::Device device, vk::Buffer buffer, vk::BufferView view,
-                     vk::DeviceSize size) noexcept :
-                mData(),
-                mKind(ResourceKind::Buffer),
-                mDevice(device),
-                mExtent(),
-                mSize(size),
-                mOwns(true)
+            Resource(VkDevice sdevice, VkBuffer sbuffer, VkBufferView sview,
+                     VkDeviceSize ssize) noexcept :
+                sdata(),
+                skind(ResourceKind::Buffer),
+                sdevice(sdevice),
+                sextent(),
+                ssize(ssize),
+                sowns(true)
             {
-                std::destroy_at(&this->mData.image);
-                std::construct_at(&this->mData.buffer, BufferData{buffer, view});
+                std::destroy_at(&sdata.image);
+                std::construct_at(&sdata.buffer, BufferData{sbuffer, sview});
             }
 
             void clearActive() noexcept{
-                if (this->mKind == ResourceKind::Buffer){
-                    std::destroy_at(&this->mData.buffer);
+                if (skind == ResourceKind::Buffer){
+                    std::destroy_at(&sdata.buffer);
                 }else{
-                    std::destroy_at(&this->mData.image);
+                    std::destroy_at(&sdata.image);
                 }
-                std::construct_at(&this->mData.image, ImageData{});
+                std::construct_at(&sdata.image, ImageData{});
             }
 
             void reset() noexcept{
-                this->clearActive();
-                this->mKind = ResourceKind::None;
-                this->mDevice = vk::Device{};
-                this->mExtent = vk::Extent2D{};
-                this->mSize = 0;
-                this->mOwns = false;
+                clearActive();
+                skind = ResourceKind::None;
+                sdevice = nullptr;
+                sextent = VkExtent2D{};
+                ssize = 0;
+                sowns = false;
             }
 
             void release() noexcept{
-                if (this->mOwns && static_cast<VkDevice>(this->mDevice) != nullptr){
-                    switch (this->mKind){
+                if (sowns && sdevice != nullptr){
+                    switch (skind){
                         case ResourceKind::Image:
-                            if (static_cast<VkImageView>(this->mData.image.view) != nullptr){
-                                this->mDevice.destroyImageView(this->mData.image.view, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+                            if (sdata.image.view != nullptr){
+                                PFN_vkDestroyImageView pfnDestroyImageView =
+                                    reinterpret_cast<PFN_vkDestroyImageView>(
+                                        entry().resolveDevice(sdevice, "vkDestroyImageView"));
+                                if (pfnDestroyImageView != nullptr){
+                                    pfnDestroyImageView(sdevice, sdata.image.view, nullptr);
+                                }
                             }
                             break;
                         case ResourceKind::Buffer:
-                            if (static_cast<VkBufferView>(this->mData.buffer.view) != nullptr){
-                                this->mDevice.destroyBufferView(this->mData.buffer.view, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+                            if (sdata.buffer.view != nullptr){
+                                PFN_vkDestroyBufferView pfnDestroyBufferView =
+                                    reinterpret_cast<PFN_vkDestroyBufferView>(
+                                        entry().resolveDevice(sdevice, "vkDestroyBufferView"));
+                                if (pfnDestroyBufferView != nullptr){
+                                    pfnDestroyBufferView(sdevice, sdata.buffer.view, nullptr);
+                                }
                             }
-                            if (static_cast<VkBuffer>(this->mData.buffer.buffer) != nullptr){
-                                this->mDevice.destroyBuffer(this->mData.buffer.buffer, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+                            if (sdata.buffer.buffer != nullptr){
+                                PFN_vkDestroyBuffer pfnDestroyBuffer =
+                                    reinterpret_cast<PFN_vkDestroyBuffer>(
+                                        entry().resolveDevice(sdevice, "vkDestroyBuffer"));
+                                if (pfnDestroyBuffer != nullptr){
+                                    pfnDestroyBuffer(sdevice, sdata.buffer.buffer, nullptr);
+                                }
                             }
                             break;
                         default:
                             break;
                     }
                 }
-                this->reset();
+                reset();
             }
 
-            Data mData;
-            ResourceKind mKind = ResourceKind::None;
-            vk::Device mDevice;
-            vk::Extent2D mExtent;
-            vk::DeviceSize mSize = 0;
-            bool mOwns = false;
+            Data sdata;
+            ResourceKind skind = ResourceKind::None;
+            VkDevice sdevice = nullptr;
+            VkExtent2D sextent{};
+            VkDeviceSize ssize = 0;
+            bool sowns = false;
     };
 }
 
 // Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
 // resource membutuhkan tipe lengkap Resource dari partisi ini.
 std::expected<renaru::Resource, renaru::Error>
-renaru::Device::createImageResource(vk::Image image, vk::Format format, vk::Extent2D extent) const{
-    if (this->empty() || static_cast<VkImage>(image) == nullptr){
+renaru::Device::createImageResource(VkImage simage, VkFormat sformat, VkExtent2D sextent) const{
+    if (sdevice == nullptr || simage == nullptr){
         return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
-    vk::ImageViewCreateInfo info;
-    info.setImage(image);
-    info.setViewType(vk::ImageViewType::e2D);
-    info.setFormat(format);
+    VkImageViewCreateInfo sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    sinfo.image = simage;
+    sinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    sinfo.format = sformat;
+    sinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    sinfo.subresourceRange.baseMipLevel = 0;
+    sinfo.subresourceRange.levelCount = 1;
+    sinfo.subresourceRange.baseArrayLayer = 0;
+    sinfo.subresourceRange.layerCount = 1;
 
-    vk::ImageSubresourceRange range;
-    range.setAspectMask(vk::ImageAspectFlagBits::eColor);
-    range.setBaseMipLevel(0);
-    range.setLevelCount(1);
-    range.setBaseArrayLayer(0);
-    range.setLayerCount(1);
-    info.setSubresourceRange(range);
-
-    vk::ImageView view;
-    try{
-        view = this->mDevice.createImageView(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
+    PFN_vkCreateImageView pfnCreateImageView = reinterpret_cast<PFN_vkCreateImageView>(
+        entry().resolveDevice(sdevice, "vkCreateImageView"));
+    if (pfnCreateImageView == nullptr){
         return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
-    return Resource(this->mDevice, image, view, extent);
+    VkImageView sview = nullptr;
+    if (pfnCreateImageView(sdevice, &sinfo, nullptr, &sview) != VK_SUCCESS || sview == nullptr){
+        return std::unexpected(renaru::Error::ResourceCreationFailed);
+    }
+
+    return Resource(sdevice, simage, sview, sextent);
 }
 
 std::expected<renaru::Resource, renaru::Error>
-renaru::Device::createBufferResource(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Format format) const{
-    if (this->empty() || size == 0){
+renaru::Device::createBufferResource(VkDeviceSize ssize, VkBufferUsageFlags susage, VkFormat sformat) const{
+    if (sdevice == nullptr || ssize == 0){
         return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
-    vk::BufferCreateInfo bufferInfo;
-    bufferInfo.setSize(size);
-    bufferInfo.setUsage(usage);
-    bufferInfo.setSharingMode(vk::SharingMode::eExclusive);
+    VkBufferCreateInfo sbufferInfo{};
+    sbufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    sbufferInfo.size = ssize;
+    sbufferInfo.usage = susage;
+    sbufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vk::Buffer buffer;
-    vk::BufferView view;
-    try{
-        buffer = this->mDevice.createBuffer(bufferInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+    PFN_vkCreateBuffer pfnCreateBuffer = reinterpret_cast<PFN_vkCreateBuffer>(
+        entry().resolveDevice(sdevice, "vkCreateBuffer"));
+    PFN_vkCreateBufferView pfnCreateBufferView = reinterpret_cast<PFN_vkCreateBufferView>(
+        entry().resolveDevice(sdevice, "vkCreateBufferView"));
+    if (pfnCreateBuffer == nullptr || pfnCreateBufferView == nullptr){
+        return std::unexpected(renaru::Error::ResourceCreationFailed);
+    }
 
-        vk::BufferViewCreateInfo viewInfo;
-        viewInfo.setBuffer(buffer);
-        viewInfo.setFormat(format);
-        viewInfo.setOffset(0);
-        viewInfo.setRange(size);
-        view = this->mDevice.createBufferView(viewInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        if (static_cast<VkBuffer>(buffer) != nullptr){
-            this->mDevice.destroyBuffer(buffer, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+    VkBuffer sbuffer = nullptr;
+    if (pfnCreateBuffer(sdevice, &sbufferInfo, nullptr, &sbuffer) != VK_SUCCESS ||
+        sbuffer == nullptr){
+        return std::unexpected(renaru::Error::ResourceCreationFailed);
+    }
+
+    VkBufferViewCreateInfo sviewInfo{};
+    sviewInfo.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
+    sviewInfo.buffer = sbuffer;
+    sviewInfo.format = sformat;
+    sviewInfo.offset = 0;
+    sviewInfo.range = ssize;
+
+    VkBufferView sview = nullptr;
+    if (pfnCreateBufferView(sdevice, &sviewInfo, nullptr, &sview) != VK_SUCCESS ||
+        sview == nullptr){
+        PFN_vkDestroyBuffer pfnDestroyBuffer = reinterpret_cast<PFN_vkDestroyBuffer>(
+            entry().resolveDevice(sdevice, "vkDestroyBuffer"));
+        if (pfnDestroyBuffer != nullptr){
+            pfnDestroyBuffer(sdevice, sbuffer, nullptr);
         }
         return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
-    return Resource(this->mDevice, buffer, view, size);
+    return Resource(sdevice, sbuffer, sview, ssize);
 }

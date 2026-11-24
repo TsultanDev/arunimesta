@@ -19,7 +19,7 @@ if (!framebuffer) {
 - `image.extent().width` / `image.extent().height` as its dimensions.
 - One layer.
 
-`FramebufferCreationFailed` is returned as `std::unexpected(Error::FramebufferCreationFailed)` on invalid input or `vk::createFramebuffer` failure; it is formattable through `std::formatter<renaru::Error, char>`.
+`FramebufferCreationFailed` is returned as `std::unexpected(Error::FramebufferCreationFailed)` on invalid input or `vkCreateFramebuffer` failure; it is formattable through `std::formatter<renaru::Error, char>`.
 
 ### Typical loop
 
@@ -54,8 +54,8 @@ for (const auto& image : *images) {
 
 | Function | Description |
 | :--- | :--- |
-| `vk::Framebuffer handle() const noexcept` | Underlying framebuffer. |
-| `vk::Device deviceHandle() const noexcept` | Owning device. |
+| `VkFramebuffer handle() const noexcept` | Underlying framebuffer. |
+| `VkDevice deviceHandle() const noexcept` | Owning device. |
 | `std::uint32_t width() const noexcept` | Framebuffer width. |
 | `std::uint32_t height() const noexcept` | Framebuffer height. |
 | `bool empty() const noexcept` | `true` when no framebuffer handle is held. |
@@ -64,8 +64,8 @@ for (const auto& image : *images) {
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment | Deleted; `vk::Framebuffer` is a raw handle. |
+| Copy constructor / copy assignment | Deleted; `VkFramebuffer` is a raw handle. |
 | Move constructor / move assignment | Steals the framebuffer and empties the source. `noexcept`. |
-| Destructor | Calls `destroyFramebuffer()` only when a handle is held. |
+| Destructor | Calls `vkDestroyFramebuffer` only when a handle is held. |
 
 Destroy framebuffers before their render pass and device. In `main.cpp`, declaration order gives the correct reverse destruction order: `framebuffers`, `render_pass`, `swapchain_images`, `swapchain`, `device`.

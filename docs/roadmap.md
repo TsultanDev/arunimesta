@@ -11,7 +11,7 @@ This document contains the status, milestones, and development plan for Arunimes
 | `Application` | ✅ Basic | `std::expected` factory, `unique_ptr` pimpl, move-only |
 | C++ standard library | ✅ In use | `std::expected` / `std::optional`, `std::string` family, `std::string_view`, `std::vector` / `std::array`, `std::println` / `std::eprintln` used directly |
 | Windowing | ✅ Basic | `winaru` active: Win32 `Window`, `std::expected` errors, move-only ownership, event loop |
-| Vulkan renderer (RHI) | ✅ Basic | `renaru` active: dynamic-dispatch Vulkan-Hpp `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`, and an empty-frame loop with fences/semaphores |
+| Vulkan renderer (RHI) | ✅ Basic | `renaru` active: Vulkan C API with `Entry`-owned dynamic dispatch, `Instance` from `std::string_view`, Win32 `Surface`, `Adapter`, `Device`, `Queue`, `Swapchain`, `Resource` (image/buffer tagged union), `RenderPass`, `Framebuffer`, `CommandPool`, `CommandBuffer`, and an empty-frame loop with fences/semaphores |
 | Testing | ⬜ Not started | The `test/` folder is still empty |
 | Documentation | ✅ Initial | README + `docs/` |
 

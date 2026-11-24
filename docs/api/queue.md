@@ -7,8 +7,8 @@
 `QueueFlags` and its operators live in `renaru:instance` (`src/instance.cppm`) so both devices and consumers can use them. The operators are `constexpr`, so combinations can be compile-time constants:
 
 ```cpp
-constexpr auto flags = renaru::QueueFlags::Graphics | renaru::QueueFlags::Present;
-auto queue = device.requestQueue(flags);
+constexpr auto sflags = renaru::QueueFlags::Graphics | renaru::QueueFlags::Present;
+auto queue = device.requestQueue(sflags);
 if (!queue) {
     std::println("queue: {}", queue.error());
     std::terminate();
@@ -21,7 +21,7 @@ if (!queue) {
 | `Graphics` | `VK_QUEUE_GRAPHICS_BIT`. |
 | `Compute` | `VK_QUEUE_COMPUTE_BIT`. |
 | `Transfer` | `VK_QUEUE_TRANSFER_BIT`. |
-| `Present` | Surface presentation support (checked via `getSurfaceSupportKHR`). |
+| `Present` | Surface presentation support (checked via `vkGetPhysicalDeviceSurfaceSupportKHR`). |
 
 These are the spellings used by `main.cpp`.
 
@@ -33,18 +33,18 @@ These are the spellings used by `main.cpp`.
 
 ## Creation
 
-`Device::requestQueue(flags)` checks the selected family against the requested bits (`Present` uses `getSurfaceSupportKHR`) and calls `getQueue(family, 0)`. `QueueRequestFailed` is returned as `std::unexpected(Error::QueueRequestFailed)` on any mismatch; it is formattable through `std::formatter<renaru::Error, char>`.
+`Device::requestQueue(sflags)` checks the selected family against the requested bits (`Present` uses `vkGetPhysicalDeviceSurfaceSupportKHR`) and calls `vkGetDeviceQueue(device, family, 0, ...)`. `QueueRequestFailed` is returned as `std::unexpected(Error::QueueRequestFailed)` on any mismatch; it is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 
 | Function | Description |
 | :--- | :--- |
-| `vk::Queue handle() const noexcept` | Underlying `VkQueue`. |
-| `vk::Device deviceHandle() const noexcept` | Device the queue belongs to. |
+| `VkQueue handle() const noexcept` | Underlying `VkQueue`. |
+| `VkDevice deviceHandle() const noexcept` | Device the queue belongs to. |
 | `QueueFlags flags() const noexcept` | Flags requested at creation. |
 | `std::uint32_t familyIndex() const noexcept` | Queue family index. |
 | `bool empty() const noexcept` | `true` when no queue handle is held. |
-| `std::expected<void, Error> submit(const CommandBuffer& buffer) const` | Submits one primary buffer with the frame semaphores/fence (defined in `:command_buffer`). |
+| `std::expected<void, Error> submit(const CommandBuffer& sbuffer) const` | Submits one primary buffer with the frame semaphores/fence (defined in `:command_buffer`). |
 | `std::expected<void, Error> present() const` | Presents the current swapchain image after render completion (defined in `:command_buffer`). |
 
 ## Move-Only Semantics
@@ -55,4 +55,4 @@ These are the spellings used by `main.cpp`.
 | Move constructor / move assignment | Steals the handles/metadata and empties the source. `noexcept`. |
 | Destructor | Defaulted; queues are destroyed with the `Device`. |
 
-The `vk::Device` stored in a `Queue` is borrowed. Destroy the `Queue` before its `Device`. For the full submit/present call chain, see [frame.md](frame.md).
+The `VkDevice` stored in a `Queue` is borrowed. Destroy the `Queue` before its `Device`. For the full submit/present call chain, see [frame.md](frame.md).

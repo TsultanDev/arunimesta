@@ -1,17 +1,17 @@
 module;
 
-#include <renaru/vulkan.hpp>
-
-#include <expected>
-#include <vector>
-#include <print>
+#include <renaru/vulkan.h>
 
 #include <cstdint>
+#include <expected>
 #include <iterator>
+#include <print>
 #include <utility>
+#include <vector>
 
 export module renaru:device;
 
+import :entry;
 import :instance;
 import :adapter;
 
@@ -34,107 +34,107 @@ export namespace renaru {
             static constexpr std::uint32_t MaxFramesInFlight = 2;
 
             // Didefinisikan di partisi lain (butuh tipe lengkap masing-masing).
-            std::expected<Queue, Error> requestQueue(QueueFlags flags) const;
+            std::expected<Queue, Error> requestQueue(QueueFlags sflags) const;
             std::expected<Resource, Error> createImageResource(
-                vk::Image image, vk::Format format, vk::Extent2D extent) const;
+                VkImage simage, VkFormat sformat, VkExtent2D sextent) const;
             std::expected<Resource, Error> createBufferResource(
-                vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Format format) const;
+                VkDeviceSize ssize, VkBufferUsageFlags susage, VkFormat sformat) const;
             std::expected<Swapchain, Error> createSwapchain(
-                std::uint32_t width, std::uint32_t height) const;
+                std::uint32_t swidth, std::uint32_t sheight) const;
             std::expected<std::vector<Resource>, Error> createSwapchainImages(
-                const Swapchain& swapchain) const;
+                const Swapchain& sswapchain) const;
             std::expected<RenderPass, Error> createRenderPass(
-                const Swapchain& swapchain) const;
+                const Swapchain& sswapchain) const;
             std::expected<Framebuffer, Error> createFramebuffer(
-                const RenderPass& renderPass, const Resource& image) const;
-            std::expected<CommandPool, Error> createCommandPool(const Queue& queue) const;
+                const RenderPass& srenderPass, const Resource& simage) const;
+            std::expected<CommandPool, Error> createCommandPool(const Queue& squeue) const;
             std::expected<std::vector<CommandBuffer>, Error> allocateCommandBuffers(
-                const CommandPool& commandPool, std::uint32_t count) const;
+                const CommandPool& scommandPool, std::uint32_t scount) const;
 
             // Prototipe loop frame: wait fence -> acquire image -> jalankan
             // closure -> majukan frame_index. Fence/semaphore dan image index
             // disimpan di Device (lihat partisi :frame).
             template<typename Func>
-            std::expected<void, Error> acquire(Func&& func){
-                if (auto started = this->beginFrame(); !started){
+            std::expected<void, Error> acquire(Func&& sfunc){
+                if (auto started = beginFrame(); !started){
                     return std::unexpected(started.error());
                 }
 
                 try{
-                    std::forward<Func>(func)();
+                    std::forward<Func>(sfunc)();
                 }catch(...){
-                    this->noteError(Error::CommandSubmissionFailed);
+                    noteError(Error::CommandSubmissionFailed);
                 }
 
-                const Error error = this->lastError();
-                this->finishFrame();
-                if (error != Error::None){
-                    return std::unexpected(error);
+                const Error serror = lastError();
+                finishFrame();
+                if (serror != Error::None){
+                    return std::unexpected(serror);
                 }
                 return {};
             }
 
-            // vk::Device dan objek sinkronisasi adalah raw handle: salinan tidak diizinkan.
+            // VkDevice dan objek sinkronisasi adalah raw handle: salinan tidak diizinkan.
             Device(const Device&) = delete;
             Device& operator=(const Device&) = delete;
 
-            Device(Device&& other) noexcept :
-                mInstance(std::exchange(other.mInstance, vk::Instance{})),
-                mPhysicalDevice(std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{})),
-                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{})),
-                mDevice(std::exchange(other.mDevice, vk::Device{})),
-                mQueueFamily(std::exchange(other.mQueueFamily, std::uint32_t{0})),
-                mSwapchain(std::exchange(other.mSwapchain, vk::SwapchainKHR{})),
-                mFrameExtent(std::exchange(other.mFrameExtent, vk::Extent2D{})),
-                mFramebuffers(std::exchange(other.mFramebuffers, std::vector<vk::Framebuffer>{})),
-                mImageAvailableSemaphores(std::exchange(other.mImageAvailableSemaphores, std::vector<vk::Semaphore>{})),
-                mRenderFinishedSemaphores(std::exchange(other.mRenderFinishedSemaphores, std::vector<vk::Semaphore>{})),
-                mInFlightFences(std::exchange(other.mInFlightFences, std::vector<vk::Fence>{})),
-                mFrameIndex(std::exchange(other.mFrameIndex, std::uint32_t{0})),
-                mCurrentImage(std::exchange(other.mCurrentImage, std::uint32_t{0})),
-                mActiveCommandBuffer(std::exchange(other.mActiveCommandBuffer, vk::CommandBuffer{})),
-                mLastError(std::exchange(other.mLastError, Error::None))
+            Device(Device&& sother) noexcept :
+                sinstance(std::exchange(sother.sinstance, nullptr)),
+                sphysicalDevice(std::exchange(sother.sphysicalDevice, nullptr)),
+                ssurface(std::exchange(sother.ssurface, nullptr)),
+                sdevice(std::exchange(sother.sdevice, nullptr)),
+                squeueFamily(std::exchange(sother.squeueFamily, std::uint32_t{0})),
+                sswapchain(std::exchange(sother.sswapchain, nullptr)),
+                sframeExtent(std::exchange(sother.sframeExtent, VkExtent2D{})),
+                sframebuffers(std::exchange(sother.sframebuffers, std::vector<VkFramebuffer>{})),
+                simageAvailableSemaphores(std::exchange(sother.simageAvailableSemaphores, std::vector<VkSemaphore>{})),
+                srenderFinishedSemaphores(std::exchange(sother.srenderFinishedSemaphores, std::vector<VkSemaphore>{})),
+                sinFlightFences(std::exchange(sother.sinFlightFences, std::vector<VkFence>{})),
+                sframeIndex(std::exchange(sother.sframeIndex, std::uint32_t{0})),
+                scurrentImage(std::exchange(sother.scurrentImage, std::uint32_t{0})),
+                sactiveCommandBuffer(std::exchange(sother.sactiveCommandBuffer, nullptr)),
+                slastError(std::exchange(sother.slastError, Error::None))
             {}
 
-            Device& operator=(Device&& other) noexcept{
-                if (this != &other){
-                    this->release();
-                    this->mInstance = std::exchange(other.mInstance, vk::Instance{});
-                    this->mPhysicalDevice = std::exchange(other.mPhysicalDevice, vk::PhysicalDevice{});
-                    this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
-                    this->mDevice = std::exchange(other.mDevice, vk::Device{});
-                    this->mQueueFamily = std::exchange(other.mQueueFamily, std::uint32_t{0});
-                    this->mSwapchain = std::exchange(other.mSwapchain, vk::SwapchainKHR{});
-                    this->mFrameExtent = std::exchange(other.mFrameExtent, vk::Extent2D{});
-                    this->mFramebuffers = std::exchange(other.mFramebuffers, std::vector<vk::Framebuffer>{});
-                    this->mImageAvailableSemaphores = std::exchange(other.mImageAvailableSemaphores, std::vector<vk::Semaphore>{});
-                    this->mRenderFinishedSemaphores = std::exchange(other.mRenderFinishedSemaphores, std::vector<vk::Semaphore>{});
-                    this->mInFlightFences = std::exchange(other.mInFlightFences, std::vector<vk::Fence>{});
-                    this->mFrameIndex = std::exchange(other.mFrameIndex, std::uint32_t{0});
-                    this->mCurrentImage = std::exchange(other.mCurrentImage, std::uint32_t{0});
-                    this->mActiveCommandBuffer = std::exchange(other.mActiveCommandBuffer, vk::CommandBuffer{});
-                    this->mLastError = std::exchange(other.mLastError, Error::None);
+            Device& operator=(Device&& sother) noexcept{
+                if (this != &sother){
+                    release();
+                    sinstance = std::exchange(sother.sinstance, nullptr);
+                    sphysicalDevice = std::exchange(sother.sphysicalDevice, nullptr);
+                    ssurface = std::exchange(sother.ssurface, nullptr);
+                    sdevice = std::exchange(sother.sdevice, nullptr);
+                    squeueFamily = std::exchange(sother.squeueFamily, std::uint32_t{0});
+                    sswapchain = std::exchange(sother.sswapchain, nullptr);
+                    sframeExtent = std::exchange(sother.sframeExtent, VkExtent2D{});
+                    sframebuffers = std::exchange(sother.sframebuffers, std::vector<VkFramebuffer>{});
+                    simageAvailableSemaphores = std::exchange(sother.simageAvailableSemaphores, std::vector<VkSemaphore>{});
+                    srenderFinishedSemaphores = std::exchange(sother.srenderFinishedSemaphores, std::vector<VkSemaphore>{});
+                    sinFlightFences = std::exchange(sother.sinFlightFences, std::vector<VkFence>{});
+                    sframeIndex = std::exchange(sother.sframeIndex, std::uint32_t{0});
+                    scurrentImage = std::exchange(sother.scurrentImage, std::uint32_t{0});
+                    sactiveCommandBuffer = std::exchange(sother.sactiveCommandBuffer, nullptr);
+                    slastError = std::exchange(sother.slastError, Error::None);
                 }
                 return *this;
             }
 
-            ~Device(){ this->release(); }
+            ~Device(){ release(); }
 
-            vk::Device handle() const noexcept { return this->mDevice; }
+            VkDevice handle() const noexcept { return sdevice; }
 
-            vk::PhysicalDevice physicalDeviceHandle() const noexcept { return this->mPhysicalDevice; }
+            VkPhysicalDevice physicalDeviceHandle() const noexcept { return sphysicalDevice; }
 
-            vk::Instance instanceHandle() const noexcept { return this->mInstance; }
+            VkInstance instanceHandle() const noexcept { return sinstance; }
 
-            vk::SurfaceKHR surfaceHandle() const noexcept { return this->mSurface; }
+            VkSurfaceKHR surfaceHandle() const noexcept { return ssurface; }
 
-            std::uint32_t queueFamilyIndex() const noexcept { return this->mQueueFamily; }
+            std::uint32_t queueFamilyIndex() const noexcept { return squeueFamily; }
 
             // Didefinisikan di :frame bersama state sinkronisasi.
             std::uint32_t currentImageIndex() const noexcept;
             std::uint32_t frameIndex() const noexcept;
 
-            bool empty() const noexcept { return static_cast<VkDevice>(this->mDevice) == nullptr; }
+            bool empty() const noexcept { return sdevice == nullptr; }
 
             // Menunggu semua kerja GPU selesai sebelum destruksi frame state.
             void waitIdle() const noexcept;
@@ -147,42 +147,47 @@ export namespace renaru {
             friend class Swapchain;
             friend class CommandBuffer;
 
-            Device(vk::Instance instance, vk::PhysicalDevice physicalDevice,
-                   vk::SurfaceKHR surface, vk::Device device,
-                   std::uint32_t queueFamilyIndex) noexcept :
-                mInstance(instance),
-                mPhysicalDevice(physicalDevice),
-                mSurface(surface),
-                mDevice(device),
-                mQueueFamily(queueFamilyIndex),
-                mSwapchain(),
-                mFrameExtent(),
-                mFramebuffers(),
-                mImageAvailableSemaphores(),
-                mRenderFinishedSemaphores(),
-                mInFlightFences(),
-                mFrameIndex(0),
-                mCurrentImage(0),
-                mActiveCommandBuffer(),
-                mLastError(Error::None)
+            Device(VkInstance sinstance, VkPhysicalDevice sphysicalDevice,
+                   VkSurfaceKHR ssurface, VkDevice sdevice,
+                   std::uint32_t squeueFamilyIndex) noexcept :
+                sinstance(sinstance),
+                sphysicalDevice(sphysicalDevice),
+                ssurface(ssurface),
+                sdevice(sdevice),
+                squeueFamily(squeueFamilyIndex),
+                sswapchain(nullptr),
+                sframeExtent(),
+                sframebuffers(),
+                simageAvailableSemaphores(),
+                srenderFinishedSemaphores(),
+                sinFlightFences(),
+                sframeIndex(0),
+                scurrentImage(0),
+                sactiveCommandBuffer(nullptr),
+                slastError(Error::None)
             {}
 
             void release() noexcept{
-                this->destroyFrameResources();
-                if (static_cast<VkDevice>(this->mDevice) != nullptr){
-                    this->mDevice.destroy(nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-                    this->mDevice = vk::Device{};
+                destroyFrameResources();
+                if (sdevice != nullptr){
+                    PFN_vkDestroyDevice pfnDestroyDevice = reinterpret_cast<PFN_vkDestroyDevice>(
+                        entry().resolveInstance(sinstance, "vkDestroyDevice"));
+                    if (pfnDestroyDevice != nullptr){
+                        pfnDestroyDevice(sdevice, nullptr);
+                    }
+                    sdevice = nullptr;
                 }
-                this->mPhysicalDevice = vk::PhysicalDevice{};
-                this->mSurface = vk::SurfaceKHR{};
-                this->mQueueFamily = 0;
-                this->mSwapchain = vk::SwapchainKHR{};
-                this->mFrameExtent = vk::Extent2D{};
-                this->mFramebuffers.clear();
-                this->mFrameIndex = 0;
-                this->mCurrentImage = 0;
-                this->mActiveCommandBuffer = vk::CommandBuffer{};
-                this->mLastError = Error::None;
+                sinstance = nullptr;
+                sphysicalDevice = nullptr;
+                ssurface = nullptr;
+                squeueFamily = 0;
+                sswapchain = nullptr;
+                sframeExtent = VkExtent2D{};
+                sframebuffers.clear();
+                sframeIndex = 0;
+                scurrentImage = 0;
+                sactiveCommandBuffer = nullptr;
+                slastError = Error::None;
             }
 
             // Frame state. Bersifat mutable karena factory create* bersifat const
@@ -192,69 +197,76 @@ export namespace renaru {
             void finishFrame() const noexcept;
             std::expected<void, Error> ensureFrameResources() const;
             void destroyFrameResources() const noexcept;
-            void registerSwapchain(vk::SwapchainKHR swapchain, vk::Extent2D extent,
-                                   std::uint32_t imageCount) const noexcept;
-            void registerFramebuffer(vk::Framebuffer framebuffer) const noexcept;
-            vk::SwapchainKHR swapchainHandle() const noexcept;
-            vk::Framebuffer framebufferForCurrentImage() const noexcept;
-            vk::Extent2D frameExtent() const noexcept;
-            vk::Semaphore imageAvailableSemaphore() const noexcept;
-            vk::Semaphore renderFinishedSemaphore() const noexcept;
-            vk::Fence currentFence() const noexcept;
-            vk::CommandBuffer activeCommandBuffer() const noexcept;
-            void setActiveCommandBuffer(vk::CommandBuffer buffer) const noexcept;
+            void registerSwapchain(VkSwapchainKHR snewSwapchain, VkExtent2D snewExtent,
+                                   std::uint32_t snewImageCount) const noexcept;
+            void registerFramebuffer(VkFramebuffer sframebuffer) const noexcept;
+            VkSwapchainKHR swapchainHandle() const noexcept;
+            VkFramebuffer framebufferForCurrentImage() const noexcept;
+            VkExtent2D frameExtent() const noexcept;
+            VkSemaphore imageAvailableSemaphore() const noexcept;
+            VkSemaphore renderFinishedSemaphore() const noexcept;
+            VkFence currentFence() const noexcept;
+            VkCommandBuffer activeCommandBuffer() const noexcept;
+            void setActiveCommandBuffer(VkCommandBuffer sbuffer) const noexcept;
             void clearActiveCommandBuffer() const noexcept;
-            void noteError(Error error) const noexcept;
+            void noteError(Error serror) const noexcept;
             Error lastError() const noexcept;
 
-            vk::Instance mInstance;
-            vk::PhysicalDevice mPhysicalDevice;
-            vk::SurfaceKHR mSurface;
-            vk::Device mDevice;
-            std::uint32_t mQueueFamily;
+            VkInstance sinstance = nullptr;
+            VkPhysicalDevice sphysicalDevice = nullptr;
+            VkSurfaceKHR ssurface = nullptr;
+            VkDevice sdevice = nullptr;
+            std::uint32_t squeueFamily = 0;
 
-            mutable vk::SwapchainKHR mSwapchain;
-            mutable vk::Extent2D mFrameExtent;
-            mutable std::vector<vk::Framebuffer> mFramebuffers;
-            mutable std::vector<vk::Semaphore> mImageAvailableSemaphores;
-            mutable std::vector<vk::Semaphore> mRenderFinishedSemaphores;
-            mutable std::vector<vk::Fence> mInFlightFences;
-            mutable std::uint32_t mFrameIndex;
-            mutable std::uint32_t mCurrentImage;
-            mutable vk::CommandBuffer mActiveCommandBuffer;
-            mutable Error mLastError;
+            mutable VkSwapchainKHR sswapchain = nullptr;
+            mutable VkExtent2D sframeExtent{};
+            mutable std::vector<VkFramebuffer> sframebuffers;
+            mutable std::vector<VkSemaphore> simageAvailableSemaphores;
+            mutable std::vector<VkSemaphore> srenderFinishedSemaphores;
+            mutable std::vector<VkFence> sinFlightFences;
+            mutable std::uint32_t sframeIndex = 0;
+            mutable std::uint32_t scurrentImage = 0;
+            mutable VkCommandBuffer sactiveCommandBuffer = nullptr;
+            mutable Error slastError = Error::None;
     };
 }
 
 // Definisi lintas partisi: Adapter didefinisikan di :adapter, tetapi
 // pembuatan Device membutuhkan tipe lengkap Device dari partisi ini.
-std::expected<renaru::Device, renaru::Error> renaru::Adapter::createDevice(const renaru::Adapter& adapter) const{
-    if (this->empty() || adapter.empty()){
+std::expected<renaru::Device, renaru::Error> renaru::Adapter::createDevice(const renaru::Adapter& sadapter) const{
+    if (empty() || sadapter.empty()){
         return std::unexpected(renaru::Error::DeviceCreationFailed);
     }
 
-    const float priority = 1.0F;
-    vk::DeviceQueueCreateInfo queueInfo;
-    queueInfo.setQueueFamilyIndex(adapter.mQueueFamily);
-    queueInfo.setQueueCount(1);
-    queueInfo.setPQueuePriorities(&priority);
+    const float spriority = 1.0F;
+    VkDeviceQueueCreateInfo squeueInfo{};
+    squeueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    squeueInfo.queueFamilyIndex = sadapter.squeueFamily;
+    squeueInfo.queueCount = 1;
+    squeueInfo.pQueuePriorities = &spriority;
 
-    const char* extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-    vk::DeviceCreateInfo createInfo;
-    createInfo.setQueueCreateInfoCount(1);
-    createInfo.setPQueueCreateInfos(&queueInfo);
-    createInfo.setEnabledExtensionCount(static_cast<std::uint32_t>(std::size(extensions)));
-    createInfo.setPpEnabledExtensionNames(extensions);
+    const char* sextensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    VkDeviceCreateInfo screateInfo{};
+    screateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    screateInfo.queueCreateInfoCount = 1;
+    screateInfo.pQueueCreateInfos = &squeueInfo;
+    screateInfo.enabledExtensionCount = static_cast<std::uint32_t>(std::size(sextensions));
+    screateInfo.ppEnabledExtensionNames = sextensions;
 
-    vk::Device created;
-    try{
-        created = adapter.mPhysicalDevice.createDevice(createInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
+    PFN_vkCreateDevice pfnCreateDevice = reinterpret_cast<PFN_vkCreateDevice>(
+        entry().resolveInstance(sadapter.sinstance, "vkCreateDevice"));
+    if (pfnCreateDevice == nullptr){
+        return std::unexpected(renaru::Error::DeviceCreationFailed);
+    }
+
+    VkDevice screated = nullptr;
+    if (pfnCreateDevice(sadapter.sphysicalDevice, &screateInfo, nullptr, &screated) != VK_SUCCESS ||
+        screated == nullptr){
         return std::unexpected(renaru::Error::DeviceCreationFailed);
     }
 
     std::println("Aru RHI: Device(created!!)");
 
-    return Device(adapter.mInstance, adapter.mPhysicalDevice, adapter.mSurface,
-                  created, adapter.mQueueFamily);
+    return Device(sadapter.sinstance, sadapter.sphysicalDevice, sadapter.ssurface,
+                  screated, sadapter.squeueFamily);
 }

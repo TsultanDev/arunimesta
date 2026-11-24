@@ -36,10 +36,10 @@ The Vulkan renderer (`renaru`) provides the presentation foundation. The remaini
                 │              │
   ┌─────────────▼────────┐  ┌──▼─────────────────────────────────────────┐
   │ module winaru        │  │ module renaru                              │
-  │ :error, :window      │  │ :error :instance :surface :adapter :device  │
-  │ Window (Win32)       │  │ :frame :queue :resource :swapchain          │
-  │                      │  │ :render_pass :framebuffer :command_pool    │
-  │                      │  │ :command_buffer                            │
+  │ :error, :window      │  │ :error :entry :instance :surface :adapter  │
+  │ Window (Win32)       │  │ :device :frame :queue :resource            │
+  │                      │  │ :swapchain :render_pass :framebuffer       │
+  │                      │  │ :command_pool :command_buffer              │
   └──────────────────────┘  └─────────────────────────────────────────────┘
 ```
 
@@ -58,10 +58,11 @@ The facade keeps the public import surface small: consumers import a single name
 
 ### Module `renaru` (presentation foundation)
 
-- The static library target `renaru` is registered in the root `CMakeLists.txt` and links `Vulkan::Headers` and `winaru`.
+- The static library target `renaru` is registered in the root `CMakeLists.txt` and links `Vulkan::Headers` (C headers only) and `winaru`. `vulkan-1.lib` is not linked.
 - `src/lib.cppm` is the facade:
   ```cpp
   export module renaru;
+  export import :entry;
   export import :error;
   export import :instance;
   export import :surface;
@@ -76,6 +77,7 @@ The facade keeps the public import surface small: consumers import a single name
   export import :command_pool;
   export import :command_buffer;
   ```
+- `src/entry.cppm` is the partition `renaru:entry`. It owns the `HMODULE` for `vulkan-1.dll` and stores only the hot dispatchers `vkGetInstanceProcAddr` and `vkGetDeviceProcAddr`. `Entry` deletes copy and implements move; `entry()` returns the process-wide instance. Cold commands are loaded on demand into local `PFN_vkXxx pfnXxx` variables.
 - `src/error.cppm` is the partition `renaru:error`. It owns the formattable `Error` enum; other RHI partitions `export import :error;`.
 - `src/instance.cppm` is the partition `renaru:instance`. It exports `QueueFlags` with `constexpr` bitwise operators and `Instance`, and enables `VK_KHR_surface` + `VK_KHR_win32_surface`.
 - `src/surface.cppm` is the partition `renaru:surface`. It exports `Surface` and defines `Instance::createSurface(const Window&)`; it imports `:instance` and `winaru`.
@@ -83,17 +85,17 @@ The facade keeps the public import surface small: consumers import a single name
 - `src/device.cppm` is the partition `renaru:device`. It exports `Device`, defines `Adapter::createDevice(const Adapter&)` and `Device::acquire(callback)`, and caches swapchain/frame/sync state; it enables `VK_KHR_swapchain`.
 - `src/frame.cppm` is the partition `renaru:frame`. It defines the `Device` frame helpers: lazy fence/semaphore creation, fence wait/reset, image acquisition, image/frame observers, and frame index rollover.
 - `src/queue.cppm` is the partition `renaru:queue`. It exports `Queue` and defines `Device::requestQueue(QueueFlags)`, validating flags with the `constexpr` bitwise helpers; `submit()`/`present()` are defined in `:command_buffer`.
-- `src/resource.cppm` is the partition `renaru:resource`. It exports `Resource` and `ResourceKind`; `Resource` is a tagged union of `ImageData { image, view }` and `BufferData { buffer, view }`, with an ownership flag for safe copies.
+- `src/resource.cppm` is the partition `renaru:resource`. It exports `Resource` and `ResourceKind`; `Resource` is a tagged union of `ImageData { image, view }` and `BufferData { buffer, view }`, with an ownership flag for safe destruction; copies are deleted.
 - `src/swapchain.cppm` is the partition `renaru:swapchain`. It exports `Swapchain` and defines `Device::createSwapchain(width, height)` and `Device::createSwapchainImages(swapchain)`.
 - `src/render_pass.cppm` is the partition `renaru:render_pass`. It exports `RenderPass`, defines `Device::createRenderPass(swapchain)`, and implements `render(callback)` / `render(clearColor, callback)` around `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`.
 - `src/framebuffer.cppm` is the partition `renaru:framebuffer`. It exports `Framebuffer` and defines `Device::createFramebuffer(renderPass, image)`.
-- `src/command_pool.cppm` is the partition `renaru:command_pool`. It exports `CommandPool` and defines `Device::createCommandPool(queue)`; pools are created with `eResetCommandBuffer` for the queue's family.
+- `src/command_pool.cppm` is the partition `renaru:command_pool`. It exports `CommandPool` and defines `Device::createCommandPool(queue)`; pools are created with `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT` for the queue's family.
 - `src/command_buffer.cppm` is the partition `renaru:command_buffer`. It exports `CommandBuffer`, defines `Device::allocateCommandBuffers(pool, count)`, implements `record(callback)` (reset + begin + callback + end), and defines `Queue::submit(buffer)` / `Queue::present()` with the frame semaphores.
 - `Instance::create(std::string_view appName)` takes a UTF-8 application name and returns `std::expected<Instance, Error>`; `applicationName()` returns `const std::string&`.
 - All RHI factories return `std::expected<T, Error>`; `Device::createSwapchainImages()` returns `std::expected<std::vector<Resource>, Error>` and `Device::allocateCommandBuffers()` returns `std::expected<std::vector<CommandBuffer>, Error>`.
 - The API version comes from `vkEnumerateInstanceVersion`, not from the caller; Vulkan 1.0 falls back to `VK_API_VERSION_1_0`.
-- `renaru/vulkan.hpp` also defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit so the dynamic dispatcher has one consistent layout.
-- Vulkan-Hpp uses **dynamic dispatch** (`VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1`). The dispatcher storage is defined exactly once in `src/instance.cppm`; other translation units include `renaru/vulkan.hpp`, which only declares it `extern`.
+- `renaru/vulkan.h` defines `VK_USE_PLATFORM_WIN32_KHR` before including `<vulkan/vulkan.h>`, so every translation unit sees the same Vulkan C types and Win32 surface definitions.
+- The renderer uses the **Vulkan C API with manual dynamic dispatch**. `renaru::Entry` loads `vulkan-1.dll` and keeps `vkGetInstanceProcAddr` / `vkGetDeviceProcAddr` as fields; all other commands are resolved on demand with `PFN_vkXxx pfnXxx` locals. Instance commands go through `entry().resolveInstance(...)`, device commands through `entry().resolveDevice(...)`.
 - Move-only ownership: copy constructor and copy assignment are deleted because Vulkan handles are raw; move steals the handles and empties the source. Destructors destroy only owned handles (`Instance`, `Surface`, `Device`, `Swapchain`, `RenderPass`, `Framebuffer`, and owned `Resource` views/buffers); `Adapter` and `Queue` are non-owning views but are still move-only. All helper tags (`CopyTag`, `MoveTag`, `InitTag`) have been removed.
 - Setup order in `main.cpp`: window → instance → surface → adapter → device → queue → swapchain → swapchain images → render pass → framebuffers → command pool → command buffers. Reverse declaration order destroys buffers before their pool.
 - Frame order in `main.cpp`: `Window::pollEvents()` → `Device::acquire(callback)` → `CommandBuffer::record(callback)` → `RenderPass::render(callback)` → `Queue::submit(buffer)` → `Queue::present()`. See [api/frame.md](api/frame.md).
@@ -228,7 +230,7 @@ There is no `Application::run()` in this iteration yet. `main.cpp` currently exe
 - Each module registers its `.cppm` files through `FILE_SET CXX_MODULES`.
 - Standard headers are included in the **global module fragment** (`module;` ... `export module ...;`) so they do not leak to consumers.
 - `aru` depends on both libraries: `target_link_libraries(aru PRIVATE winaru renaru)`.
-- The `aru` facade re-exports `winaru` and `renaru`, so `import aru;` provides `Window`, `Instance`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource`, `Swapchain`, `RenderPass`, and `Framebuffer`. Standard-library types come from headers such as `<expected>`, `<optional>`, `<string>`, `<string_view>`, `<vector>`, `<array>`, and `<print>`.
+- The `aru` facade re-exports `winaru` and `renaru`, so `import aru;` provides `Window`, `Entry`, `Instance`, `Surface`, `Adapter`, `Device`, `Queue`, `Resource`, `Swapchain`, `RenderPass`, `Framebuffer`, `CommandPool`, and `CommandBuffer`. Standard-library types come from headers such as `<expected>`, `<optional>`, `<string>`, `<string_view>`, `<vector>`, `<array>`, and `<print>`.
 
 ## Adding a New Module
 

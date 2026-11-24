@@ -17,7 +17,7 @@ Thanks for your interest in Arunimesta! The engine is in early development, so c
 | Clang | Must support C++23 named modules; `clang++` in `PATH` |
 | CMake | ≥ 3.28, required for `FILE_SET CXX_MODULES` |
 | Ninja | Generator used by the presets |
-| Vulkan SDK | Required by `renaru` for Vulkan-Hpp headers; dispatch is dynamic, so `vulkan-1.lib` is not linked |
+| Vulkan SDK | Required by `renaru` for the Vulkan C headers; `vulkan-1.dll` is loaded at runtime, so `vulkan-1.lib` is not linked |
 | Git | For branching and pull requests |
 
 See [`docs/building.md`](docs/building.md) for toolchain checks and troubleshooting.

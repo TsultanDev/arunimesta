@@ -19,7 +19,7 @@ cmake --version
 ninja --version
 ```
 
-> The Vulkan SDK is required by `renaru` for Vulkan-Hpp headers. Dynamic dispatch is used, so `vulkan-1.lib` is not linked.
+> The Vulkan SDK is required by `renaru` for the Vulkan C headers. `vulkan-1.dll` is loaded at runtime through `renaru::Entry`, so `vulkan-1.lib` is not linked.
 
 ## Available Presets
 

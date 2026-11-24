@@ -1,6 +1,6 @@
 module;
 
-#include <renaru/vulkan.hpp>
+#include <renaru/vulkan.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -12,6 +12,7 @@ module;
 
 export module renaru:swapchain;
 
+import :entry;
 import :device;
 import :resource;
 
@@ -20,211 +21,247 @@ export namespace renaru {
         public:
             using ResultType = std::expected<Swapchain, Error>;
 
-            // vk::SwapchainKHR adalah raw handle: salinan tidak diizinkan.
+            // VkSwapchainKHR adalah raw handle: salinan tidak diizinkan.
             Swapchain(const Swapchain&) = delete;
             Swapchain& operator=(const Swapchain&) = delete;
 
-            Swapchain(Swapchain&& other) noexcept :
-                mDevice(std::exchange(other.mDevice, vk::Device{})),
-                mSwapchain(std::exchange(other.mSwapchain, vk::SwapchainKHR{})),
-                mFormat(other.mFormat),
-                mExtent(std::exchange(other.mExtent, vk::Extent2D{})),
-                mImageCount(std::exchange(other.mImageCount, std::uint32_t{0}))
+            Swapchain(Swapchain&& sother) noexcept :
+                sdevice(std::exchange(sother.sdevice, nullptr)),
+                sswapchain(std::exchange(sother.sswapchain, nullptr)),
+                sformat(sother.sformat),
+                sextent(std::exchange(sother.sextent, VkExtent2D{})),
+                simageCount(std::exchange(sother.simageCount, std::uint32_t{0}))
             {}
 
-            Swapchain& operator=(Swapchain&& other) noexcept{
-                if (this != &other){
-                    this->release();
-                    this->mDevice = std::exchange(other.mDevice, vk::Device{});
-                    this->mSwapchain = std::exchange(other.mSwapchain, vk::SwapchainKHR{});
-                    this->mFormat = other.mFormat;
-                    this->mExtent = std::exchange(other.mExtent, vk::Extent2D{});
-                    this->mImageCount = std::exchange(other.mImageCount, std::uint32_t{0});
+            Swapchain& operator=(Swapchain&& sother) noexcept{
+                if (this != &sother){
+                    release();
+                    sdevice = std::exchange(sother.sdevice, nullptr);
+                    sswapchain = std::exchange(sother.sswapchain, nullptr);
+                    sformat = sother.sformat;
+                    sextent = std::exchange(sother.sextent, VkExtent2D{});
+                    simageCount = std::exchange(sother.simageCount, std::uint32_t{0});
                 }
                 return *this;
             }
 
-            ~Swapchain(){ this->release(); }
+            ~Swapchain(){ release(); }
 
-            vk::SwapchainKHR handle() const noexcept { return this->mSwapchain; }
+            VkSwapchainKHR handle() const noexcept { return sswapchain; }
 
-            vk::Device deviceHandle() const noexcept { return this->mDevice; }
+            VkDevice deviceHandle() const noexcept { return sdevice; }
 
-            vk::Format format() const noexcept { return this->mFormat; }
+            VkFormat format() const noexcept { return sformat; }
 
-            vk::Extent2D extent() const noexcept { return this->mExtent; }
+            VkExtent2D extent() const noexcept { return sextent; }
 
-            std::uint32_t imageCount() const noexcept { return this->mImageCount; }
+            std::uint32_t imageCount() const noexcept { return simageCount; }
 
-            bool empty() const noexcept { return static_cast<VkSwapchainKHR>(this->mSwapchain) == nullptr; }
+            bool empty() const noexcept { return sswapchain == nullptr; }
 
         private:
             friend class Device;
 
-            Swapchain(vk::Device device, vk::SwapchainKHR swapchain,
-                      vk::Format format, vk::Extent2D extent,
-                      std::uint32_t imageCount) noexcept :
-                mDevice(device),
-                mSwapchain(swapchain),
-                mFormat(format),
-                mExtent(extent),
-                mImageCount(imageCount)
+            Swapchain(VkDevice sdevice, VkSwapchainKHR sswapchain,
+                      VkFormat sformat, VkExtent2D sextent,
+                      std::uint32_t simageCount) noexcept :
+                sdevice(sdevice),
+                sswapchain(sswapchain),
+                sformat(sformat),
+                sextent(sextent),
+                simageCount(simageCount)
             {}
 
             void release() noexcept{
-                if (static_cast<VkSwapchainKHR>(this->mSwapchain) != nullptr &&
-                    static_cast<VkDevice>(this->mDevice) != nullptr){
-                    this->mDevice.destroySwapchainKHR(this->mSwapchain, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-                    this->mSwapchain = vk::SwapchainKHR{};
+                if (sswapchain != nullptr && sdevice != nullptr){
+                    PFN_vkDestroySwapchainKHR pfnDestroySwapchainKHR =
+                        reinterpret_cast<PFN_vkDestroySwapchainKHR>(
+                            entry().resolveDevice(sdevice, "vkDestroySwapchainKHR"));
+                    if (pfnDestroySwapchainKHR != nullptr){
+                        pfnDestroySwapchainKHR(sdevice, sswapchain, nullptr);
+                    }
+                    sswapchain = nullptr;
                 }
-                this->mDevice = vk::Device{};
-                this->mExtent = vk::Extent2D{};
-                this->mImageCount = 0;
+                sdevice = nullptr;
+                sextent = VkExtent2D{};
+                simageCount = 0;
             }
 
-            vk::Device mDevice;
-            vk::SwapchainKHR mSwapchain;
-            vk::Format mFormat;
-            vk::Extent2D mExtent;
-            std::uint32_t mImageCount;
+            VkDevice sdevice = nullptr;
+            VkSwapchainKHR sswapchain = nullptr;
+            VkFormat sformat = VK_FORMAT_UNDEFINED;
+            VkExtent2D sextent{};
+            std::uint32_t simageCount = 0;
     };
 }
 
 // Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
 // swapchain dan image resource membutuhkan tipe lengkap dari partisi ini.
 std::expected<renaru::Swapchain, renaru::Error>
-renaru::Device::createSwapchain(std::uint32_t width, std::uint32_t height) const{
-    if (this->empty() || static_cast<VkSurfaceKHR>(this->mSurface) == nullptr){
+renaru::Device::createSwapchain(std::uint32_t swidth, std::uint32_t sheight) const{
+    if (sdevice == nullptr || ssurface == nullptr){
         return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
-    vk::SurfaceCapabilitiesKHR capabilities;
-    std::vector<vk::SurfaceFormatKHR> formats;
-    std::vector<vk::PresentModeKHR> presentModes;
-    try{
-        capabilities = this->mPhysicalDevice.getSurfaceCapabilitiesKHR(
-            this->mSurface, VULKAN_HPP_DEFAULT_DISPATCHER
-        );
-        formats = this->mPhysicalDevice.getSurfaceFormatsKHR(
-            this->mSurface, VULKAN_HPP_DEFAULT_DISPATCHER
-        );
-        presentModes = this->mPhysicalDevice.getSurfacePresentModesKHR(
-            this->mSurface, VULKAN_HPP_DEFAULT_DISPATCHER
-        );
-    }catch(...){
+    PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfnGetCapabilities =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(
+            entry().resolveInstance(sinstance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"));
+    PFN_vkGetPhysicalDeviceSurfaceFormatsKHR pfnGetFormats =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>(
+            entry().resolveInstance(sinstance, "vkGetPhysicalDeviceSurfaceFormatsKHR"));
+    PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfnGetPresentModes =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(
+            entry().resolveInstance(sinstance, "vkGetPhysicalDeviceSurfacePresentModesKHR"));
+    if (pfnGetCapabilities == nullptr || pfnGetFormats == nullptr || pfnGetPresentModes == nullptr){
         return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
-    if (formats.empty() || presentModes.empty()){
+    VkSurfaceCapabilitiesKHR scapabilities{};
+    if (pfnGetCapabilities(sphysicalDevice, ssurface, &scapabilities) != VK_SUCCESS){
         return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
-    vk::SurfaceFormatKHR chosenFormat = formats.front();
-    for (const vk::SurfaceFormatKHR& format : formats){
-        if (format.format == vk::Format::eB8G8R8A8Srgb &&
-            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear){
-            chosenFormat = format;
+    std::uint32_t sformatCount = 0;
+    if (pfnGetFormats(sphysicalDevice, ssurface, &sformatCount, nullptr) != VK_SUCCESS ||
+        sformatCount == 0){
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+    }
+    std::vector<VkSurfaceFormatKHR> sformats(sformatCount);
+    if (pfnGetFormats(sphysicalDevice, ssurface, &sformatCount, sformats.data()) != VK_SUCCESS){
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+    }
+
+    std::uint32_t smodeCount = 0;
+    if (pfnGetPresentModes(sphysicalDevice, ssurface, &smodeCount, nullptr) != VK_SUCCESS ||
+        smodeCount == 0){
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+    }
+    std::vector<VkPresentModeKHR> smodes(smodeCount);
+    if (pfnGetPresentModes(sphysicalDevice, ssurface, &smodeCount, smodes.data()) != VK_SUCCESS){
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+    }
+
+    VkSurfaceFormatKHR schosenFormat = sformats.front();
+    for (const VkSurfaceFormatKHR& sformat : sformats){
+        if (sformat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+            sformat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR){
+            schosenFormat = sformat;
             break;
         }
     }
 
-    vk::PresentModeKHR chosenMode = vk::PresentModeKHR::eFifo;
-    for (const vk::PresentModeKHR mode : presentModes){
-        if (mode == vk::PresentModeKHR::eMailbox){
-            chosenMode = mode;
+    VkPresentModeKHR schosenMode = VK_PRESENT_MODE_FIFO_KHR;
+    for (const VkPresentModeKHR smode : smodes){
+        if (smode == VK_PRESENT_MODE_MAILBOX_KHR){
+            schosenMode = smode;
             break;
         }
     }
 
-    vk::Extent2D extent;
-    const std::uint32_t undefinedExtent = (std::numeric_limits<std::uint32_t>::max)();
-    if (capabilities.currentExtent.width != undefinedExtent &&
-        capabilities.currentExtent.height != undefinedExtent){
-        extent = capabilities.currentExtent;
+    VkExtent2D sextent{};
+    const std::uint32_t sundefinedExtent = (std::numeric_limits<std::uint32_t>::max)();
+    if (scapabilities.currentExtent.width != sundefinedExtent &&
+        scapabilities.currentExtent.height != sundefinedExtent){
+        sextent = scapabilities.currentExtent;
     }else{
-        extent.width = std::clamp(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-        extent.height = std::clamp(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+        sextent.width = std::clamp(swidth, scapabilities.minImageExtent.width,
+                                   scapabilities.maxImageExtent.width);
+        sextent.height = std::clamp(sheight, scapabilities.minImageExtent.height,
+                                    scapabilities.maxImageExtent.height);
     }
 
-    std::uint32_t imageCount = capabilities.minImageCount + 1;
-    if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount){
-        imageCount = capabilities.maxImageCount;
+    std::uint32_t simageCount = scapabilities.minImageCount + 1;
+    if (scapabilities.maxImageCount > 0 && simageCount > scapabilities.maxImageCount){
+        simageCount = scapabilities.maxImageCount;
     }
 
-    vk::SwapchainCreateInfoKHR info;
-    info.setSurface(this->mSurface);
-    info.setMinImageCount(imageCount);
-    info.setImageFormat(chosenFormat.format);
-    info.setImageColorSpace(chosenFormat.colorSpace);
-    info.setImageExtent(extent);
-    info.setImageArrayLayers(1);
-    info.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment);
-    info.setImageSharingMode(vk::SharingMode::eExclusive);
-    info.setPreTransform(capabilities.currentTransform);
-    info.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
-    info.setPresentMode(chosenMode);
-    info.setClipped(VK_TRUE);
-    info.setOldSwapchain(vk::SwapchainKHR{});
+    VkSwapchainCreateInfoKHR sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    sinfo.surface = ssurface;
+    sinfo.minImageCount = simageCount;
+    sinfo.imageFormat = schosenFormat.format;
+    sinfo.imageColorSpace = schosenFormat.colorSpace;
+    sinfo.imageExtent = sextent;
+    sinfo.imageArrayLayers = 1;
+    sinfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    sinfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    sinfo.preTransform = scapabilities.currentTransform;
+    sinfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    sinfo.presentMode = schosenMode;
+    sinfo.clipped = VK_TRUE;
+    sinfo.oldSwapchain = nullptr;
 
-    vk::SwapchainKHR created;
-    try{
-        created = this->mDevice.createSwapchainKHR(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
+    PFN_vkCreateSwapchainKHR pfnCreateSwapchainKHR = reinterpret_cast<PFN_vkCreateSwapchainKHR>(
+        entry().resolveDevice(sdevice, "vkCreateSwapchainKHR"));
+    if (pfnCreateSwapchainKHR == nullptr){
         return std::unexpected(renaru::Error::SwapchainCreationFailed);
     }
 
-    std::println("Aru RHI: Swapchain(created!!) images={}", imageCount);
+    VkSwapchainKHR screated = nullptr;
+    if (pfnCreateSwapchainKHR(sdevice, &sinfo, nullptr, &screated) != VK_SUCCESS ||
+        screated == nullptr){
+        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+    }
 
-    this->registerSwapchain(created, extent, imageCount);
+    std::println("Aru RHI: Swapchain(created!!) images={}", simageCount);
 
-    return Swapchain(this->mDevice, created, chosenFormat.format, extent, imageCount);
+    registerSwapchain(screated, sextent, simageCount);
+
+    return Swapchain(sdevice, screated, schosenFormat.format, sextent, simageCount);
 }
 
 std::expected<std::vector<renaru::Resource>, renaru::Error>
-renaru::Device::createSwapchainImages(const renaru::Swapchain& swapchain) const{
-    if (this->empty() || swapchain.empty()){
+renaru::Device::createSwapchainImages(const renaru::Swapchain& sswapchain) const{
+    if (sdevice == nullptr || sswapchain.empty()){
         return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
-    std::vector<vk::Image> images;
-    try{
-        images = this->mDevice.getSwapchainImagesKHR(
-            swapchain.handle(), VULKAN_HPP_DEFAULT_DISPATCHER
-        );
-    }catch(...){
+    PFN_vkGetSwapchainImagesKHR pfnGetSwapchainImagesKHR =
+        reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(
+            entry().resolveDevice(sdevice, "vkGetSwapchainImagesKHR"));
+    PFN_vkCreateImageView pfnCreateImageView = reinterpret_cast<PFN_vkCreateImageView>(
+        entry().resolveDevice(sdevice, "vkCreateImageView"));
+    if (pfnGetSwapchainImagesKHR == nullptr || pfnCreateImageView == nullptr){
         return std::unexpected(renaru::Error::ResourceCreationFailed);
     }
 
-    std::vector<renaru::Resource> resources;
-    resources.reserve(images.size());
+    std::uint32_t scount = 0;
+    if (pfnGetSwapchainImagesKHR(sdevice, sswapchain.handle(), &scount, nullptr) != VK_SUCCESS ||
+        scount == 0){
+        return std::unexpected(renaru::Error::ResourceCreationFailed);
+    }
+    std::vector<VkImage> simages(scount);
+    if (pfnGetSwapchainImagesKHR(sdevice, sswapchain.handle(), &scount, simages.data()) != VK_SUCCESS){
+        return std::unexpected(renaru::Error::ResourceCreationFailed);
+    }
 
-    for (const vk::Image image : images){
-        vk::ImageViewCreateInfo info;
-        info.setImage(image);
-        info.setViewType(vk::ImageViewType::e2D);
-        info.setFormat(swapchain.format());
+    std::vector<renaru::Resource> sresources;
+    sresources.reserve(simages.size());
 
-        vk::ImageSubresourceRange range;
-        range.setAspectMask(vk::ImageAspectFlagBits::eColor);
-        range.setBaseMipLevel(0);
-        range.setLevelCount(1);
-        range.setBaseArrayLayer(0);
-        range.setLayerCount(1);
-        info.setSubresourceRange(range);
+    for (const VkImage simage : simages){
+        VkImageViewCreateInfo sinfo{};
+        sinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        sinfo.image = simage;
+        sinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        sinfo.format = sswapchain.format();
+        sinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        sinfo.subresourceRange.baseMipLevel = 0;
+        sinfo.subresourceRange.levelCount = 1;
+        sinfo.subresourceRange.baseArrayLayer = 0;
+        sinfo.subresourceRange.layerCount = 1;
 
-        vk::ImageView view;
-        try{
-            view = this->mDevice.createImageView(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-        }catch(...){
+        VkImageView sview = nullptr;
+        if (pfnCreateImageView(sdevice, &sinfo, nullptr, &sview) != VK_SUCCESS ||
+            sview == nullptr){
             return std::unexpected(renaru::Error::ResourceCreationFailed);
         }
 
-        resources.push_back(renaru::Resource(
-            this->mDevice, image, view, swapchain.extent()
+        sresources.push_back(renaru::Resource(
+            sdevice, simage, sview, sswapchain.extent()
         ));
     }
 
-    std::println("Aru RHI: Swapchain images(image views ready) count={}", images.size());
+    std::println("Aru RHI: Swapchain images(image views ready) count={}", simages.size());
 
-    return resources;
+    return sresources;
 }

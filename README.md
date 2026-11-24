@@ -73,7 +73,7 @@ The `aru` executable creates a Win32 window, a Vulkan instance, surface, adapter
 | **Target Platform** | Windows x64 (matching the available presets) |
 | **Standard Library** | C++ standard library only — `std::string` family, `std::vector`, `std::array`, `std::expected`, `std::optional`, `std::println` |
 | **Windowing** | `winaru` — Win32 Unicode APIs, window + blocking event loop |
-| **Rendering** | Vulkan-Hpp (dynamic dispatch) — `renaru` instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer, command pool, command buffers, frame loop |
+| **Rendering** | Vulkan C API (dynamic dispatch via `renaru::Entry`) — `renaru` instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer, command pool, command buffers, frame loop |
 
 ---
 
@@ -84,7 +84,7 @@ The `aru` executable creates a Win32 window, a Vulkan instance, surface, adapter
 3. **Ninja** as the generator.
 4. **Windows x64** — the provided presets are only active on Windows.
 
-> The Vulkan SDK is required by `renaru` for the Vulkan-Hpp headers. Dynamic dispatch is used, so `vulkan-1.lib` is not linked.
+> The Vulkan SDK is required by `renaru` for the Vulkan C headers. `vulkan-1.dll` is loaded at runtime through `renaru::Entry`, so `vulkan-1.lib` is not linked.
 
 ---
 
@@ -190,9 +190,10 @@ arunimesta/
 │
 ├── renaru/                          # Static library — Vulkan RHI
 │   ├── CMakeLists.txt
-│   ├── include/renaru/vulkan.hpp   # Shared Vulkan-Hpp + dynamic dispatch
+│   ├── include/renaru/vulkan.h     # Shared Vulkan C header wrapper
 │   └── src/
 │       ├── lib.cppm                 # export module renaru; (facade)
+│       ├── entry.cppm               # renaru:entry (HMODULE + hot dispatchers)
 │       ├── error.cppm               # renaru:error (formattable Error)
 │       ├── instance.cppm            # Instance + QueueFlags
 │       ├── surface.cppm             # Win32 Surface
@@ -222,7 +223,7 @@ arunimesta/
 | `aru` | Executable | ✅ | Entry point; imports module `aru`, which re-exports `winaru` and `renaru`. |
 | `aru:application` | Module partition | ✅ | `Application` implementation together with the internal `Application_T` details. |
 | `winaru` | Static library | ✅ | Win32 window creation, `std::expected`-based errors, move-only ownership, `createFromWindow()`, and event loop. |
-| `renaru` | Static library | ✅ | Vulkan-Hpp with dynamic dispatch: instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer, command pool, command buffers, empty-frame loop with sync objects. |
+| `renaru` | Static library | ✅ | Vulkan C API with `Entry`-owned dynamic dispatch: instance, surface, adapter, device, queue, swapchain, resource, render pass, framebuffer, command pool, command buffers, empty-frame loop with sync objects. |
 
 > `aru` links `winaru` and `renaru`. The `aru` facade re-exports `winaru` and `renaru`. Standard-library types are used directly in every module.
 

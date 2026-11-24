@@ -33,9 +33,9 @@ export namespace std {
     template<>
     struct formatter<renaru::Error> : formatter<string_view> {
         template<typename FormatContext>
-        auto format(const renaru::Error& error, FormatContext& ctx) const {
+        auto format(const renaru::Error& serror, FormatContext& ctx) const {
             string_view text = "unknown";
-            switch (error) {
+            switch (serror) {
                 case renaru::Error::None:
                     text = "none";
                     break;
@@ -46,40 +46,40 @@ export namespace std {
                     text = "vkEnumerateInstanceVersion failed";
                     break;
                 case renaru::Error::InstanceCreationFailed:
-                    text = "vk::createInstance failed";
+                    text = "vkCreateInstance failed";
                     break;
                 case renaru::Error::SurfaceCreationFailed:
-                    text = "vk::createWin32SurfaceKHR failed";
+                    text = "vkCreateWin32SurfaceKHR failed";
                     break;
                 case renaru::Error::AdapterNotFound:
                     text = "no suitable physical device";
                     break;
                 case renaru::Error::DeviceCreationFailed:
-                    text = "vk::createDevice failed";
+                    text = "vkCreateDevice failed";
                     break;
                 case renaru::Error::QueueRequestFailed:
                     text = "requested queue flags are unavailable";
                     break;
                 case renaru::Error::SwapchainCreationFailed:
-                    text = "vk::createSwapchainKHR failed";
+                    text = "vkCreateSwapchainKHR failed";
                     break;
                 case renaru::Error::ResourceCreationFailed:
                     text = "image view / buffer creation failed";
                     break;
                 case renaru::Error::RenderPassCreationFailed:
-                    text = "vk::createRenderPass failed";
+                    text = "vkCreateRenderPass failed";
                     break;
                 case renaru::Error::FramebufferCreationFailed:
-                    text = "vk::createFramebuffer failed";
+                    text = "vkCreateFramebuffer failed";
                     break;
                 case renaru::Error::CommandPoolCreationFailed:
-                    text = "vk::createCommandPool failed";
+                    text = "vkCreateCommandPool failed";
                     break;
                 case renaru::Error::CommandBufferAllocationFailed:
-                    text = "vk::allocateCommandBuffers failed";
+                    text = "vkAllocateCommandBuffers failed";
                     break;
                 case renaru::Error::FrameAcquisitionFailed:
-                    text = "vk::acquireNextImageKHR failed";
+                    text = "vkAcquireNextImageKHR failed";
                     break;
                 case renaru::Error::CommandBufferRecordingFailed:
                     text = "command buffer recording failed";

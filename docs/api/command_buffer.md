@@ -16,7 +16,7 @@ if (!buffers) {
 
 - the device or pool is empty, or `count` is zero;
 - the pool belongs to a different logical device;
-- `vk::allocateCommandBuffers` throws or returns a different number of buffers.
+- `vkAllocateCommandBuffers` fails or returns a different number of buffers.
 
 The error is formattable through `std::formatter<renaru::Error, char>`.
 
@@ -24,22 +24,22 @@ The error is formattable through `std::formatter<renaru::Error, char>`.
 
 | Function | Description |
 | :--- | :--- |
-| `vk::CommandBuffer handle() const noexcept` | Underlying command buffer. |
-| `vk::Device deviceHandle() const noexcept` | Owning device. |
-| `vk::CommandPool poolHandle() const noexcept` | Pool this buffer was allocated from. |
+| `VkCommandBuffer handle() const noexcept` | Underlying command buffer. |
+| `VkDevice deviceHandle() const noexcept` | Owning device. |
+| `VkCommandPool poolHandle() const noexcept` | Pool this buffer was allocated from. |
 | `bool empty() const noexcept` | `true` when no command-buffer handle is held. |
 | `template<typename Func> std::expected<void, Error> record(Func&& callback)` | Resets the buffer, calls `vkBeginCommandBuffer`, runs the callback, then calls `vkEndCommandBuffer`. |
-| `bool begin(vk::CommandBufferUsageFlags flags = {}) noexcept` | Starts recording; `false` when empty or on failure. |
+| `bool begin(VkCommandBufferUsageFlags flags = {}) noexcept` | Starts recording; `false` when empty or on failure. |
 | `void end() noexcept` | Ends recording; silently ignores an empty buffer or a Vulkan error. |
-| `bool reset(vk::CommandBufferResetFlags flags = {}) noexcept` | Resets the buffer for reuse; requires the pool's `eResetCommandBuffer` flag. |
+| `bool reset(VkCommandBufferResetFlags flags = {}) noexcept` | Resets the buffer for reuse; requires the pool's `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT` flag. |
 
 ## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment | Deleted; `vk::CommandBuffer` is a raw handle. |
+| Copy constructor / copy assignment | Deleted; `VkCommandBuffer` is a raw handle. |
 | Move constructor / move assignment | Steals the handle and empties the source. `noexcept`. |
-| Destructor | Calls `freeCommandBuffers()` for its own handle when non-null. |
+| Destructor | Calls `vkFreeCommandBuffers` for its own handle when non-null. |
 
 ## Ownership and Lifetime
 

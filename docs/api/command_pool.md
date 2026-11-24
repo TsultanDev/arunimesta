@@ -16,26 +16,26 @@ if (!pool) {
 
 - the device or the queue is empty;
 - the queue belongs to a different logical device or queue family;
-- `vk::createCommandPool` throws.
+- `vkCreateCommandPool` fails.
 
-The pool is created with `vk::CommandPoolCreateFlagBits::eResetCommandBuffer`, so individual command buffers can be reset with `CommandBuffer::reset()`. The error is formattable through `std::formatter<renaru::Error, char>`.
+The pool is created with `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT`, so individual command buffers can be reset with `CommandBuffer::reset()`. The error is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 
 | Function | Description |
 | :--- | :--- |
-| `vk::CommandPool handle() const noexcept` | Underlying command pool. |
-| `vk::Device deviceHandle() const noexcept` | Owning device. |
+| `VkCommandPool handle() const noexcept` | Underlying command pool. |
+| `VkDevice deviceHandle() const noexcept` | Owning device. |
 | `std::uint32_t queueFamilyIndex() const noexcept` | Queue family the pool was created for. |
 | `bool empty() const noexcept` | `true` when no pool handle is held. |
-| `bool reset(vk::CommandPoolResetFlags flags = {}) noexcept` | Resets every command buffer allocated from this pool; `false` when empty or on failure. |
+| `bool reset(VkCommandPoolResetFlags flags = {}) noexcept` | Resets every command buffer allocated from this pool; `false` when empty or on failure. |
 
 ## Move-Only Semantics
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment | Deleted; `vk::CommandPool` is a raw handle. |
+| Copy constructor / copy assignment | Deleted; `VkCommandPool` is a raw handle. |
 | Move constructor / move assignment | Steals the handle and empties the source. `noexcept`. |
-| Destructor | Calls `destroyCommandPool()` only when a handle is held. |
+| Destructor | Calls `vkDestroyCommandPool` only when a handle is held. |
 
 Destroy all command buffers allocated from the pool before destroying the pool. In `main.cpp` the declarations are `command_pool` then `command_buffers`, so reverse declaration order is correct.

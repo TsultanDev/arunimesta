@@ -32,7 +32,7 @@ check(device.acquire([&]() mutable {
 
 1. Lazily create `MaxFramesInFlight` (2) image-available semaphores, render-finished semaphores, and in-flight fences. Fences start signaled.
 2. Wait on the fence for the current `frame_index`, then reset it.
-3. Call `vk::acquireNextImageKHR` with the image-available semaphore and store the returned image index in the device.
+3. Call `vkAcquireNextImageKHR` with the image-available semaphore and store the returned image index in the device.
 4. Run the callback.
 5. Advance `frame_index = (frame_index + 1) % MaxFramesInFlight` after the callback.
 
@@ -46,7 +46,7 @@ check(device.acquire([&]() mutable {
 
 | Error | Meaning |
 | :--- | :--- |
-| `FrameAcquisitionFailed` | Sync resources are missing, fence wait/reset failed, or `vk::acquireNextImageKHR` failed. |
+| `FrameAcquisitionFailed` | Sync resources are missing, fence wait/reset failed, or `vkAcquireNextImageKHR` failed. |
 | `CommandBufferRecordingFailed` | `record()` could not reset/begin/end the command buffer. |
 | `RenderPassRecordingFailed` | `render()` could not begin/end the render pass. |
 | `CommandSubmissionFailed` | `vkQueueSubmit` failed or the required sync handles are missing. |

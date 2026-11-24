@@ -12,7 +12,7 @@ This folder contains the technical documentation for the Arunimesta project. The
 | [coding-style.md](coding-style.md) | Naming conventions, `.cppm` file layout, and factory/pimpl patterns. |
 | [api/application.md](api/application.md) | `aru::Application` API reference. |
 | [api/window.md](api/window.md) | `winaru::Window` API reference (active). |
-| [api/instance.md](api/instance.md) | `renaru::Instance` API reference (Vulkan instance, dynamic dispatch). |
+| [api/instance.md](api/instance.md) | `renaru::Instance` API reference (Vulkan C API, dynamic dispatch through `renaru::Entry`). |
 | [api/surface.md](api/surface.md) | `renaru::Surface` API reference (Win32 Vulkan surface). |
 | [api/adapter.md](api/adapter.md) | `renaru::Adapter` API reference (physical device selection). |
 | [api/device.md](api/device.md) | `renaru::Device` API reference (logical device). |

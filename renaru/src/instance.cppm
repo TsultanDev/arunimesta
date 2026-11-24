@@ -1,9 +1,6 @@
 module;
 
-// Dynamic Dispatch: tidak menautkan vulkan-1.lib. vkGetInstanceProcAddr dan
-// entry point dimuat lewat Vulkan-Hpp DynamicLoaderTool saat runtime.
-// Header ini hanya memberi deklarasi extern; storage ada di bawah.
-#include <renaru/vulkan.hpp>
+#include <renaru/vulkan.h>
 
 #include <cstdint>
 #include <expected>
@@ -13,14 +10,10 @@ module;
 #include <string_view>
 #include <utility>
 
-// === Storage utama Vulkan-Hpp dispatcher (hanya di file ini) ===
-namespace vk::detail {
-    DispatchLoaderDynamic defaultDispatchLoaderDynamic;
-}
-
 export module renaru:instance;
 
 import winaru;
+import :entry;
 export import :error;
 
 export namespace renaru {
@@ -32,32 +25,31 @@ export namespace renaru {
         Compute = 1u << 1,
         Transfer = 1u << 2,
         Present = 1u << 3,
-
     };
 
-    constexpr QueueFlags operator|(QueueFlags lhs, QueueFlags rhs) noexcept{
-        return static_cast<QueueFlags>(static_cast<std::uint32_t>(lhs) | static_cast<std::uint32_t>(rhs));
+    constexpr QueueFlags operator|(QueueFlags slhs, QueueFlags srhs) noexcept{
+        return static_cast<QueueFlags>(static_cast<std::uint32_t>(slhs) | static_cast<std::uint32_t>(srhs));
     }
 
-    constexpr QueueFlags operator&(QueueFlags lhs, QueueFlags rhs) noexcept{
-        return static_cast<QueueFlags>(static_cast<std::uint32_t>(lhs) & static_cast<std::uint32_t>(rhs));
+    constexpr QueueFlags operator&(QueueFlags slhs, QueueFlags srhs) noexcept{
+        return static_cast<QueueFlags>(static_cast<std::uint32_t>(slhs) & static_cast<std::uint32_t>(srhs));
     }
 
-    constexpr QueueFlags operator^(QueueFlags lhs, QueueFlags rhs) noexcept{
-        return static_cast<QueueFlags>(static_cast<std::uint32_t>(lhs) ^ static_cast<std::uint32_t>(rhs));
+    constexpr QueueFlags operator^(QueueFlags slhs, QueueFlags srhs) noexcept{
+        return static_cast<QueueFlags>(static_cast<std::uint32_t>(slhs) ^ static_cast<std::uint32_t>(srhs));
     }
 
-    constexpr QueueFlags operator~(QueueFlags value) noexcept{
-        return static_cast<QueueFlags>(~static_cast<std::uint32_t>(value));
+    constexpr QueueFlags operator~(QueueFlags svalue) noexcept{
+        return static_cast<QueueFlags>(~static_cast<std::uint32_t>(svalue));
     }
 
-    constexpr QueueFlags& operator|=(QueueFlags& lhs, QueueFlags rhs) noexcept{
-        lhs = lhs | rhs;
-        return lhs;
+    constexpr QueueFlags& operator|=(QueueFlags& slhs, QueueFlags srhs) noexcept{
+        slhs = slhs | srhs;
+        return slhs;
     }
 
-    constexpr bool hasFlag(QueueFlags value, QueueFlags flag) noexcept{
-        return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(flag)) != 0;
+    constexpr bool hasFlag(QueueFlags svalue, QueueFlags sflag) noexcept{
+        return (static_cast<std::uint32_t>(svalue) & static_cast<std::uint32_t>(sflag)) != 0;
     }
 
     // Forward declaration: tipe lengkap ada di partisi :surface / :adapter.
@@ -70,112 +62,123 @@ export namespace renaru {
         public:
             using ResultType = std::expected<Instance, Error>;
 
-            // appName adalah UTF-8; string_view tidak perlu null-terminated.
-            static ResultType create(std::string_view appName){
-                return createImpl(std::string(appName));
+            // sappName adalah UTF-8; string_view tidak perlu null-terminated.
+            static ResultType create(std::string_view sappName){
+                return createImpl(std::string(sappName));
             }
 
             // Didefinisikan di :surface / :adapter (butuh tipe lengkap).
-            std::expected<Surface, Error> createSurface(const winaru::Window& window);
-            std::expected<Adapter, Error> requestAdapter(const Surface& surface);
+            std::expected<Surface, Error> createSurface(const winaru::Window& swindow);
+            std::expected<Adapter, Error> requestAdapter(const Surface& ssurface);
 
-            // vk::Instance adalah raw handle: salinan tidak diizinkan.
+            // VkInstance adalah raw handle: salinan tidak diizinkan.
             Instance(const Instance&) = delete;
             Instance& operator=(const Instance&) = delete;
 
-            Instance(Instance&& other) noexcept :
-                mInstance(std::exchange(other.mInstance, vk::Instance{})),
-                mApplicationName(std::move(other.mApplicationName)),
-                mApiVersion(std::exchange(other.mApiVersion, std::uint32_t{VK_API_VERSION_1_0}))
+            Instance(Instance&& sother) noexcept :
+                sinstance(std::exchange(sother.sinstance, nullptr)),
+                sapplicationName(std::move(sother.sapplicationName)),
+                sapiVersion(std::exchange(sother.sapiVersion, std::uint32_t{VK_API_VERSION_1_0}))
             {}
 
-            Instance& operator=(Instance&& other) noexcept{
-                if (this != &other){
-                    this->release();
-                    this->mInstance = std::exchange(other.mInstance, vk::Instance{});
-                    this->mApplicationName = std::move(other.mApplicationName);
-                    this->mApiVersion = std::exchange(other.mApiVersion, std::uint32_t{VK_API_VERSION_1_0});
+            Instance& operator=(Instance&& sother) noexcept{
+                if (this != &sother){
+                    release();
+                    sinstance = std::exchange(sother.sinstance, nullptr);
+                    sapplicationName = std::move(sother.sapplicationName);
+                    sapiVersion = std::exchange(sother.sapiVersion, std::uint32_t{VK_API_VERSION_1_0});
                 }
                 return *this;
             }
 
-            ~Instance(){ this->release(); }
+            ~Instance(){ release(); }
 
-            vk::Instance handle() const noexcept { return this->mInstance; }
+            VkInstance handle() const noexcept { return sinstance; }
 
-            std::uint32_t apiVersion() const noexcept { return this->mApiVersion; }
+            std::uint32_t apiVersion() const noexcept { return sapiVersion; }
 
-            const std::string& applicationName() const noexcept { return this->mApplicationName; }
+            const std::string& applicationName() const noexcept { return sapplicationName; }
 
-            bool empty() const noexcept { return static_cast<VkInstance>(this->mInstance) == nullptr; }
+            bool empty() const noexcept { return sinstance == nullptr; }
 
         private:
-            Instance(vk::Instance handle, std::string&& name,
-                     std::uint32_t version) noexcept :
-                mInstance(handle),
-                mApplicationName(std::move(name)),
-                mApiVersion(version)
+            Instance(VkInstance sinstance, std::string&& sname,
+                     std::uint32_t sversion) noexcept :
+                sinstance(sinstance),
+                sapplicationName(std::move(sname)),
+                sapiVersion(sversion)
             {}
 
-            static ResultType createImpl(const std::string& appName){
-                // Dynamic Dispatch: muat vkGetInstanceProcAddr + entry-point level loader.
-                VULKAN_HPP_DEFAULT_DISPATCHER.init();
-                if (VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr == nullptr){
+            static ResultType createImpl(const std::string& sappName){
+                if (!entry().valid()){
                     return std::unexpected(renaru::Error::DynamicLoaderFailed);
                 }
 
-                // Versi API maksimum yang didukung driver loader. Vulkan 1.0 tidak punya
-                // vkEnumerateInstanceVersion, jadi fallback ke VK_API_VERSION_1_0.
-                std::uint32_t availableVersion = VK_API_VERSION_1_0;
-                if (VULKAN_HPP_DEFAULT_DISPATCHER.vkEnumerateInstanceVersion != nullptr){
-                    const VkResult result = VULKAN_HPP_DEFAULT_DISPATCHER.vkEnumerateInstanceVersion(&availableVersion);
-                    if (result != VK_SUCCESS){
+                // Versi API maksimum loader. Vulkan 1.0 tidak punya
+                // vkEnumerateInstanceVersion, jadi fallback ke 1.0.
+                std::uint32_t savailableVersion = VK_API_VERSION_1_0;
+                PFN_vkEnumerateInstanceVersion pfnEnumerateInstanceVersion =
+                    reinterpret_cast<PFN_vkEnumerateInstanceVersion>(
+                        entry().resolveGlobal("vkEnumerateInstanceVersion"));
+                if (pfnEnumerateInstanceVersion != nullptr){
+                    if (pfnEnumerateInstanceVersion(&savailableVersion) != VK_SUCCESS){
                         return std::unexpected(renaru::Error::ApiVersionQueryFailed);
                     }
                 }
 
-                vk::ApplicationInfo appInfo;
-                appInfo.setPApplicationName(appName.c_str());
-                appInfo.setApplicationVersion(VK_MAKE_VERSION(1, 0, 0));
-                appInfo.setPEngineName("Arunimesta");
-                appInfo.setEngineVersion(VK_MAKE_VERSION(1, 0, 0));
-                appInfo.setApiVersion(availableVersion);
+                VkApplicationInfo sappInfo{};
+                sappInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+                sappInfo.pApplicationName = sappName.c_str();
+                sappInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+                sappInfo.pEngineName = "Arunimesta";
+                sappInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+                sappInfo.apiVersion = savailableVersion;
 
                 // Dibutuhkan Surface Win32. Tanpa ini createWin32SurfaceKHR gagal.
-                const char* extensions[] = {
+                const char* sextensions[] = {
                     VK_KHR_SURFACE_EXTENSION_NAME,
                     VK_KHR_WIN32_SURFACE_EXTENSION_NAME
                 };
-                vk::InstanceCreateInfo createInfo;
-                createInfo.setPApplicationInfo(&appInfo);
-                createInfo.setEnabledExtensionCount(static_cast<std::uint32_t>(std::size(extensions)));
-                createInfo.setPpEnabledExtensionNames(extensions);
 
-                vk::Instance created;
-                try{
-                    created = vk::createInstance(createInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-                }catch(...){
+                VkInstanceCreateInfo screateInfo{};
+                screateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+                screateInfo.pApplicationInfo = &sappInfo;
+                screateInfo.enabledExtensionCount = static_cast<std::uint32_t>(std::size(sextensions));
+                screateInfo.ppEnabledExtensionNames = sextensions;
+
+                PFN_vkCreateInstance pfnCreateInstance = reinterpret_cast<PFN_vkCreateInstance>(
+                    entry().resolveGlobal("vkCreateInstance"));
+                if (pfnCreateInstance == nullptr){
+                    return std::unexpected(renaru::Error::DynamicLoaderFailed);
+                }
+
+                VkInstance screated = nullptr;
+                if (pfnCreateInstance(&screateInfo, nullptr, &screated) != VK_SUCCESS ||
+                    screated == nullptr){
                     return std::unexpected(renaru::Error::InstanceCreationFailed);
                 }
 
-                // Load instance-level entry points setelah instance tersedia.
-                VULKAN_HPP_DEFAULT_DISPATCHER.init(created);
-
                 std::println("Aru RHI: Instance(created!!)");
 
-                return Instance(created, std::string(appName), availableVersion);
+                return Instance(screated, std::string(sappName), savailableVersion);
             }
 
             void release() noexcept{
-                if (static_cast<VkInstance>(this->mInstance) != nullptr){
-                    this->mInstance.destroy(nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-                    this->mInstance = vk::Instance{};
+                if (sinstance != nullptr){
+                    PFN_vkDestroyInstance pfnDestroyInstance =
+                        reinterpret_cast<PFN_vkDestroyInstance>(
+                            entry().resolveInstance(sinstance, "vkDestroyInstance"));
+                    if (pfnDestroyInstance != nullptr){
+                        pfnDestroyInstance(sinstance, nullptr);
+                    }
+                    sinstance = nullptr;
                 }
-                this->mApiVersion = VK_API_VERSION_1_0;
+                sapplicationName.clear();
+                sapiVersion = VK_API_VERSION_1_0;
             }
 
-            vk::Instance mInstance;
-            std::string mApplicationName;
-            std::uint32_t mApiVersion;
+            VkInstance sinstance = nullptr;
+            std::string sapplicationName;
+            std::uint32_t sapiVersion = VK_API_VERSION_1_0;
     };
 }

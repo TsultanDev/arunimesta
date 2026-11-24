@@ -9,7 +9,7 @@ This document summarizes the conventions used (and targeted) by the Arunimesta c
 | Public class / struct | `PascalCase` | `Application`, `Window`, `Instance` |
 | Internal implementation struct | `PascalCase` + `_T` | `Application_T` |
 | Function / method | `camelCase` | `init`, `printInfo`, `create`, `createFromWindow` |
-| Variable / parameter / member | `camelCase` | `app`, `name`, `version`, `char_size` |
+| Variable / parameter / member | `camelCase`; in `renaru`, prefix `s...` | `app`, `name`, `version`; `sName`, `sinstance` |
 | Enum type | `PascalCase` | `Flags`, `ApplicationError` |
 | Enum value | `PascalCase` | `None`, `Resizable` |
 | Concept | `lowercase` | *(none in the engine yet)* |
@@ -20,8 +20,8 @@ This document summarizes the conventions used (and targeted) by the Arunimesta c
 
 Notes:
 
-- Members are accessed explicitly with `this->` in class implementations.
-- Parameters that store a value into a member may use the same name, for example `version(version)`.
+- Members in `renaru` use the `s...` prefix and are accessed without `this->`, for example `sName`, `sinstance`; other modules may still use explicit `this->`.
+- Parameters that store a value into a member may use the same `s...` name, for example `sinstance(sinstance)`.
 
 ## File Extensions and Locations
 
@@ -43,11 +43,11 @@ export module aru:widget;            // module / partition declaration
 export namespace aru {
     class Widget {                   // public class, defined directly
         public:
-            explicit Widget(std::uint32_t id) noexcept : mId(id) {}
-            std::uint32_t id() const noexcept { return mId; }
+            explicit Widget(std::uint32_t sId) noexcept : sid(sId) {}
+            std::uint32_t id() const noexcept { return sid; }
 
         private:
-            std::uint32_t mId;
+            std::uint32_t sid;
     };
 }
 ```

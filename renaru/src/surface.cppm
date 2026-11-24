@@ -1,16 +1,16 @@
 module;
 
-#include <renaru/vulkan.hpp>
+#include <renaru/vulkan.h>
 
 #include <expected>
 #include <print>
 #include <Windows.h>
-
 #include <utility>
 
 export module renaru:surface;
 
 import winaru;
+import :entry;
 import :instance;
 
 export namespace renaru {
@@ -18,74 +18,85 @@ export namespace renaru {
         public:
             using ResultType = std::expected<Surface, Error>;
 
-            // vk::SurfaceKHR adalah raw handle: salinan tidak diizinkan.
+            // VkSurfaceKHR adalah raw handle: salinan tidak diizinkan.
             Surface(const Surface&) = delete;
             Surface& operator=(const Surface&) = delete;
 
-            Surface(Surface&& other) noexcept :
-                mInstance(std::exchange(other.mInstance, vk::Instance{})),
-                mSurface(std::exchange(other.mSurface, vk::SurfaceKHR{}))
+            Surface(Surface&& sother) noexcept :
+                sinstance(std::exchange(sother.sinstance, nullptr)),
+                ssurface(std::exchange(sother.ssurface, nullptr))
             {}
 
-            Surface& operator=(Surface&& other) noexcept{
-                if (this != &other){
-                    this->release();
-                    this->mInstance = std::exchange(other.mInstance, vk::Instance{});
-                    this->mSurface = std::exchange(other.mSurface, vk::SurfaceKHR{});
+            Surface& operator=(Surface&& sother) noexcept{
+                if (this != &sother){
+                    release();
+                    sinstance = std::exchange(sother.sinstance, nullptr);
+                    ssurface = std::exchange(sother.ssurface, nullptr);
                 }
                 return *this;
             }
 
-            ~Surface(){ this->release(); }
+            ~Surface(){ release(); }
 
-            vk::SurfaceKHR handle() const noexcept { return this->mSurface; }
+            VkSurfaceKHR handle() const noexcept { return ssurface; }
 
-            vk::Instance instanceHandle() const noexcept { return this->mInstance; }
+            VkInstance instanceHandle() const noexcept { return sinstance; }
 
-            bool empty() const noexcept { return static_cast<VkSurfaceKHR>(this->mSurface) == nullptr; }
+            bool empty() const noexcept { return ssurface == nullptr; }
 
         private:
             // Instance::createSurface() adalah satu-satunya jalan pembuatan.
             friend class Instance;
 
-            Surface(vk::Instance instance, vk::SurfaceKHR surface) noexcept :
-                mInstance(instance),
-                mSurface(surface)
+            Surface(VkInstance sinstance, VkSurfaceKHR ssurface) noexcept :
+                sinstance(sinstance),
+                ssurface(ssurface)
             {}
 
             void release() noexcept{
-                if (static_cast<VkSurfaceKHR>(this->mSurface) != nullptr){
-                    this->mInstance.destroySurfaceKHR(this->mSurface, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-                    this->mSurface = vk::SurfaceKHR{};
+                if (ssurface != nullptr && sinstance != nullptr){
+                    PFN_vkDestroySurfaceKHR pfnDestroySurfaceKHR =
+                        reinterpret_cast<PFN_vkDestroySurfaceKHR>(
+                            entry().resolveInstance(sinstance, "vkDestroySurfaceKHR"));
+                    if (pfnDestroySurfaceKHR != nullptr){
+                        pfnDestroySurfaceKHR(sinstance, ssurface, nullptr);
+                    }
+                    ssurface = nullptr;
                 }
-                this->mInstance = vk::Instance{};
+                sinstance = nullptr;
             }
 
-            vk::Instance mInstance;
-            vk::SurfaceKHR mSurface;
+            VkInstance sinstance = nullptr;
+            VkSurfaceKHR ssurface = nullptr;
     };
 }
 
 // Definisi lintas partisi: Instance didefinisikan di :instance, tetapi
 // pembuatannya membutuhkan tipe lengkap Surface dari partisi ini.
-renaru::Surface::ResultType renaru::Instance::createSurface(const winaru::Window& window){
-    if (window.empty()){
+renaru::Surface::ResultType renaru::Instance::createSurface(const winaru::Window& swindow){
+    if (swindow.empty()){
         return std::unexpected(renaru::Error::SurfaceCreationFailed);
     }
 
-    vk::Win32SurfaceCreateInfoKHR info;
-    info.setHinstance(GetModuleHandleW(nullptr));
-    info.setHwnd(window.handle());
+    VkWin32SurfaceCreateInfoKHR sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    sinfo.hinstance = GetModuleHandleW(nullptr);
+    sinfo.hwnd = swindow.handle();
 
+    PFN_vkCreateWin32SurfaceKHR pfnCreateWin32SurfaceKHR =
+        reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(
+            entry().resolveInstance(sinstance, "vkCreateWin32SurfaceKHR"));
+    if (pfnCreateWin32SurfaceKHR == nullptr){
+        return std::unexpected(renaru::Error::SurfaceCreationFailed);
+    }
 
-    vk::SurfaceKHR created;
-    try{
-        created = this->mInstance.createWin32SurfaceKHR(info, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
+    VkSurfaceKHR screated = nullptr;
+    if (pfnCreateWin32SurfaceKHR(sinstance, &sinfo, nullptr, &screated) != VK_SUCCESS ||
+        screated == nullptr){
         return std::unexpected(renaru::Error::SurfaceCreationFailed);
     }
 
     std::println("Aru RHI: Surface(created!!)");
 
-    return Surface(this->mInstance, created);
+    return Surface(sinstance, screated);
 }

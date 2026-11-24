@@ -13,8 +13,8 @@ enum class ResourceKind : std::uint8_t {
 
 // Conceptually:
 union {
-    struct { vk::Image image;  vk::ImageView view; };  // ResourceKind::Image
-    struct { vk::Buffer buffer; vk::BufferView view; }; // ResourceKind::Buffer
+    struct { VkImage image;  VkImageView view; };  // ResourceKind::Image
+    struct { VkBuffer buffer; VkBufferView view; }; // ResourceKind::Buffer
 };
 ```
 
@@ -25,7 +25,7 @@ The implementation uses named private structs `ImageData` and `BufferData` insid
 Resources are created through `Device`:
 
 ```cpp
-auto imageResource = device.createImageResource(image, format, extent);
+auto imageResource = device.createImageResource(simage, sformat, sextent);
 if (!imageResource) {
     std::println("image resource: {}", imageResource.error());
     std::terminate();
@@ -33,8 +33,8 @@ if (!imageResource) {
 
 auto bufferResource = device.createBufferResource(
     256,
-    vk::BufferUsageFlagBits::eUniformBuffer,
-    vk::Format::eR32Sfloat
+    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    VK_FORMAT_R32_SFLOAT
 );
 if (!bufferResource) {
     std::println("buffer resource: {}", bufferResource.error());
@@ -42,9 +42,9 @@ if (!bufferResource) {
 }
 ```
 
-`createImageResource()` creates a 2D `vk::ImageView` with a color subresource range. The `vk::Image` itself is borrowed (typically from a swapchain); the view is owned.
+`createImageResource()` creates a 2D `VkImageView` with a color subresource range. The `VkImage` itself is borrowed (typically from a swapchain); the view is owned.
 
-`createBufferResource()` creates an exclusive `vk::Buffer` and a `vk::BufferView` over the whole buffer. Both are owned. `ResourceCreationFailed` is returned as `std::unexpected(Error::ResourceCreationFailed)` on failure; it is formattable through `std::formatter<renaru::Error, char>`.
+`createBufferResource()` creates an exclusive `VkBuffer` and a `VkBufferView` over the whole buffer. Both are owned. `ResourceCreationFailed` is returned as `std::unexpected(Error::ResourceCreationFailed)` on failure; it is formattable through `std::formatter<renaru::Error, char>`.
 
 `Device::createSwapchainImages()` uses `createImageResource()` internally, so callers normally receive image resources rather than creating them directly. It returns `std::expected<std::vector<Resource>, Error>`.
 
@@ -54,13 +54,13 @@ if (!bufferResource) {
 | :--- | :--- |
 | `ResourceKind kind() const noexcept` | Which union member is active. |
 | `bool empty() const noexcept` | `true` when no image/image view or buffer is held. |
-| `vk::Device deviceHandle() const noexcept` | Device that owns the views/buffers. |
-| `vk::Image imageHandle() const noexcept` | Image, or `{}` when not an image resource. |
-| `vk::ImageView imageViewHandle() const noexcept` | Image view, or `{}` when not an image resource. |
-| `vk::Buffer bufferHandle() const noexcept` | Buffer, or `{}` when not a buffer resource. |
-| `vk::BufferView bufferViewHandle() const noexcept` | Buffer view, or `{}` when not a buffer resource. |
-| `vk::Extent2D extent() const noexcept` | Extent stored for image resources; used by framebuffer creation. |
-| `vk::DeviceSize bufferSize() const noexcept` | Size stored for buffer resources. |
+| `VkDevice deviceHandle() const noexcept` | Device that owns the views/buffers. |
+| `VkImage imageHandle() const noexcept` | Image, or `{}` when not an image resource. |
+| `VkImageView imageViewHandle() const noexcept` | Image view, or `{}` when not an image resource. |
+| `VkBuffer bufferHandle() const noexcept` | Buffer, or `{}` when not a buffer resource. |
+| `VkBufferView bufferViewHandle() const noexcept` | Buffer view, or `{}` when not a buffer resource. |
+| `VkExtent2D extent() const noexcept` | Extent stored for image resources; used by framebuffer creation. |
+| `VkDeviceSize bufferSize() const noexcept` | Size stored for buffer resources. |
 
 ## Move-Only Semantics
 
@@ -68,7 +68,7 @@ if (!bufferResource) {
 | :--- | :--- |
 | Copy constructor / copy assignment | Deleted; resource handles are raw Vulkan handles. |
 | Move constructor / move assignment | Steals the active union member, metadata, and ownership flag; source becomes empty. `noexcept`. |
-| Destructor | Destroys only owned handles: `ImageView` for images; `BufferView` then `Buffer` for buffers. |
+| Destructor | Destroys only owned handles: `VkImageView` for images; `VkBufferView` then `VkBuffer` for buffers. |
 
 All engine resource wrappers are move-only. Iterate swapchain images by `const auto&` in `main.cpp`; transfer ownership with `std::move` when storing them.
 

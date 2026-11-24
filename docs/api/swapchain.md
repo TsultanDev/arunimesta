@@ -21,7 +21,7 @@ if (!swapchain) {
 - Requests `minImageCount + 1` images, capped by `maxImageCount`.
 - Enables `COLOR_ATTACHMENT` usage and opaque composite alpha.
 
-`SwapchainCreationFailed` is returned as `std::unexpected(Error::SwapchainCreationFailed)` on any query failure or `vk::createSwapchainKHR` exception. It is formattable through `std::formatter<renaru::Error, char>`.
+`SwapchainCreationFailed` is returned as `std::unexpected(Error::SwapchainCreationFailed)` on any query failure or `vkCreateSwapchainKHR` failure. It is formattable through `std::formatter<renaru::Error, char>`.
 
 ## Swapchain Images
 
@@ -33,16 +33,16 @@ if (!images) {
 }
 ```
 
-`*swapchain` is the `Swapchain` value held by the `std::expected` from the creation step above. The call returns `std::expected<std::vector<Resource>, Error>`; on success `images` holds a `std::vector<Resource>`. Each `Resource` contains a swapchain `vk::Image` (borrowed from the swapchain) and an owned `vk::ImageView`. Use these resources to create framebuffers. See [`api/resource.md`](resource.md).
+`*swapchain` is the `Swapchain` value held by the `std::expected` from the creation step above. The call returns `std::expected<std::vector<Resource>, Error>`; on success `images` holds a `std::vector<Resource>`. Each `Resource` contains a swapchain `VkImage` (borrowed from the swapchain) and an owned `VkImageView`. Use these resources to create framebuffers. See [`api/resource.md`](resource.md).
 
 ## API
 
 | Function | Description |
 | :--- | :--- |
-| `vk::SwapchainKHR handle() const noexcept` | Underlying swapchain. |
-| `vk::Device deviceHandle() const noexcept` | Owning logical device. |
-| `vk::Format format() const noexcept` | Chosen image format. |
-| `vk::Extent2D extent() const noexcept` | Chosen image extent. |
+| `VkSwapchainKHR handle() const noexcept` | Underlying swapchain. |
+| `VkDevice deviceHandle() const noexcept` | Owning logical device. |
+| `VkFormat format() const noexcept` | Chosen image format. |
+| `VkExtent2D extent() const noexcept` | Chosen image extent. |
 | `std::uint32_t imageCount() const noexcept` | Number of images requested. |
 | `bool empty() const noexcept` | `true` when no swapchain handle is held. |
 
@@ -50,8 +50,8 @@ if (!images) {
 
 | Operation | Behavior |
 | :--- | :--- |
-| Copy constructor / copy assignment | Deleted; `vk::SwapchainKHR` is a raw handle. |
+| Copy constructor / copy assignment | Deleted; `VkSwapchainKHR` is a raw handle. |
 | Move constructor / move assignment | Steals the swapchain and resets the source. `noexcept`. |
-| Destructor | Calls `destroySwapchainKHR()` only when a handle is held. |
+| Destructor | Calls `vkDestroySwapchainKHR` only when a handle is held. |
 
 Destroy swapchain image views before the swapchain itself. In `main.cpp`, the `Resource` vector is declared after `swapchain`, so its destructor runs first.

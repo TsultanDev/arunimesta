@@ -1,54 +1,95 @@
 module;
 
-#include <renaru/vulkan.hpp>
+#include <renaru/vulkan.h>
 
+#include <cstdint>
 #include <expected>
 #include <limits>
 
 export module renaru:frame;
 
+import :entry;
 import :device;
 
 // State frame milik Device: fence/semaphore, frame_index, image index saat ini,
 // serta register swapchain/framebuffer yang dipakai closure render.
-// Focus di sini hanya plumbing Vulkan; pemanggilannya ada di acquire/record/
-// render/submit/present sesuai prototipe di main.cpp.
+// Focus di sini hanya plumbing Vulkan C API; pemanggilannya ada di
+// acquire/record/render/submit/present sesuai prototipe di main.cpp.
 
 std::expected<void, renaru::Error> renaru::Device::ensureFrameResources() const{
-    if (this->empty() || static_cast<VkSwapchainKHR>(this->mSwapchain) == nullptr){
+    if (sdevice == nullptr || sswapchain == nullptr){
         return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
-    if (this->mImageAvailableSemaphores.size() == MaxFramesInFlight &&
-        this->mRenderFinishedSemaphores.size() == MaxFramesInFlight &&
-        this->mInFlightFences.size() == MaxFramesInFlight){
+    if (simageAvailableSemaphores.size() == MaxFramesInFlight &&
+        srenderFinishedSemaphores.size() == MaxFramesInFlight &&
+        sinFlightFences.size() == MaxFramesInFlight){
         return {};
     }
 
-    this->destroyFrameResources();
+    destroyFrameResources();
 
-    try{
-        for (std::uint32_t i = 0; i < MaxFramesInFlight; ++i){
-            this->mImageAvailableSemaphores.push_back(
-                this->mDevice.createSemaphore(vk::SemaphoreCreateInfo{}, nullptr,
-                                              VULKAN_HPP_DEFAULT_DISPATCHER));
-            this->mRenderFinishedSemaphores.push_back(
-                this->mDevice.createSemaphore(vk::SemaphoreCreateInfo{}, nullptr,
-                                              VULKAN_HPP_DEFAULT_DISPATCHER));
-
-            vk::FenceCreateInfo fenceInfo;
-            fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
-            this->mInFlightFences.push_back(
-                this->mDevice.createFence(fenceInfo, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER));
-        }
-    }catch(...){
-        this->destroyFrameResources();
+    PFN_vkCreateSemaphore pfnCreateSemaphore = reinterpret_cast<PFN_vkCreateSemaphore>(
+        entry().resolveDevice(sdevice, "vkCreateSemaphore"));
+    PFN_vkCreateFence pfnCreateFence = reinterpret_cast<PFN_vkCreateFence>(
+        entry().resolveDevice(sdevice, "vkCreateFence"));
+    if (pfnCreateSemaphore == nullptr || pfnCreateFence == nullptr){
         return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
-    if (this->mImageAvailableSemaphores.size() != MaxFramesInFlight ||
-        this->mRenderFinishedSemaphores.size() != MaxFramesInFlight ||
-        this->mInFlightFences.size() != MaxFramesInFlight){
-        this->destroyFrameResources();
+    for (std::uint32_t sindex = 0; sindex < MaxFramesInFlight; ++sindex){
+        VkSemaphoreCreateInfo ssemaphoreInfo{};
+        ssemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkSemaphore simageSemaphore = nullptr;
+        VkSemaphore srenderSemaphore = nullptr;
+        if (pfnCreateSemaphore(sdevice, &ssemaphoreInfo, nullptr, &simageSemaphore) != VK_SUCCESS ||
+            pfnCreateSemaphore(sdevice, &ssemaphoreInfo, nullptr, &srenderSemaphore) != VK_SUCCESS){
+            if (simageSemaphore != nullptr){
+                PFN_vkDestroySemaphore pfnDestroySemaphore =
+                    reinterpret_cast<PFN_vkDestroySemaphore>(
+                        entry().resolveDevice(sdevice, "vkDestroySemaphore"));
+                if (pfnDestroySemaphore != nullptr){
+                    pfnDestroySemaphore(sdevice, simageSemaphore, nullptr);
+                }
+            }
+            if (srenderSemaphore != nullptr){
+                PFN_vkDestroySemaphore pfnDestroySemaphore =
+                    reinterpret_cast<PFN_vkDestroySemaphore>(
+                        entry().resolveDevice(sdevice, "vkDestroySemaphore"));
+                if (pfnDestroySemaphore != nullptr){
+                    pfnDestroySemaphore(sdevice, srenderSemaphore, nullptr);
+                }
+            }
+            destroyFrameResources();
+            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        }
+
+        VkFenceCreateInfo sfenceInfo{};
+        sfenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        sfenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        VkFence sfence = nullptr;
+        if (pfnCreateFence(sdevice, &sfenceInfo, nullptr, &sfence) != VK_SUCCESS){
+            PFN_vkDestroySemaphore pfnDestroySemaphore =
+                reinterpret_cast<PFN_vkDestroySemaphore>(
+                    entry().resolveDevice(sdevice, "vkDestroySemaphore"));
+            if (pfnDestroySemaphore != nullptr){
+                pfnDestroySemaphore(sdevice, simageSemaphore, nullptr);
+                pfnDestroySemaphore(sdevice, srenderSemaphore, nullptr);
+            }
+            destroyFrameResources();
+            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        }
+
+        simageAvailableSemaphores.push_back(simageSemaphore);
+        srenderFinishedSemaphores.push_back(srenderSemaphore);
+        sinFlightFences.push_back(sfence);
+    }
+
+    if (simageAvailableSemaphores.size() != MaxFramesInFlight ||
+        srenderFinishedSemaphores.size() != MaxFramesInFlight ||
+        sinFlightFences.size() != MaxFramesInFlight){
+        destroyFrameResources();
         return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
@@ -56,67 +97,79 @@ std::expected<void, renaru::Error> renaru::Device::ensureFrameResources() const{
 }
 
 void renaru::Device::destroyFrameResources() const noexcept{
-    const bool hasDevice = static_cast<VkDevice>(this->mDevice) != nullptr;
+    if (sdevice == nullptr){
+        simageAvailableSemaphores.clear();
+        srenderFinishedSemaphores.clear();
+        sinFlightFences.clear();
+        return;
+    }
 
-    if (hasDevice){
-        for (const vk::Semaphore& semaphore : this->mImageAvailableSemaphores){
-            if (static_cast<VkSemaphore>(semaphore) != nullptr){
-                this->mDevice.destroySemaphore(semaphore, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+    PFN_vkDestroySemaphore pfnDestroySemaphore = reinterpret_cast<PFN_vkDestroySemaphore>(
+        entry().resolveDevice(sdevice, "vkDestroySemaphore"));
+    PFN_vkDestroyFence pfnDestroyFence = reinterpret_cast<PFN_vkDestroyFence>(
+        entry().resolveDevice(sdevice, "vkDestroyFence"));
+
+    if (pfnDestroySemaphore != nullptr){
+        for (const VkSemaphore ssemaphore : simageAvailableSemaphores){
+            if (ssemaphore != nullptr){
+                pfnDestroySemaphore(sdevice, ssemaphore, nullptr);
             }
         }
-        for (const vk::Semaphore& semaphore : this->mRenderFinishedSemaphores){
-            if (static_cast<VkSemaphore>(semaphore) != nullptr){
-                this->mDevice.destroySemaphore(semaphore, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+        for (const VkSemaphore ssemaphore : srenderFinishedSemaphores){
+            if (ssemaphore != nullptr){
+                pfnDestroySemaphore(sdevice, ssemaphore, nullptr);
             }
         }
-        for (const vk::Fence& fence : this->mInFlightFences){
-            if (static_cast<VkFence>(fence) != nullptr){
-                this->mDevice.destroyFence(fence, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
+    }
+    if (pfnDestroyFence != nullptr){
+        for (const VkFence sfence : sinFlightFences){
+            if (sfence != nullptr){
+                pfnDestroyFence(sdevice, sfence, nullptr);
             }
         }
     }
 
-    this->mImageAvailableSemaphores.clear();
-    this->mRenderFinishedSemaphores.clear();
-    this->mInFlightFences.clear();
+    simageAvailableSemaphores.clear();
+    srenderFinishedSemaphores.clear();
+    sinFlightFences.clear();
 }
 
 std::expected<void, renaru::Error> renaru::Device::beginFrame() const{
-    if (auto ready = this->ensureFrameResources(); !ready){
+    if (auto ready = ensureFrameResources(); !ready){
         return ready;
     }
-    if (this->mFrameIndex >= this->mInFlightFences.size()){
+    if (sframeIndex >= sinFlightFences.size()){
         return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
-    this->mLastError = renaru::Error::None;
-    this->mActiveCommandBuffer = vk::CommandBuffer{};
+    slastError = renaru::Error::None;
+    sactiveCommandBuffer = nullptr;
 
-    const vk::Fence fence = this->mInFlightFences[this->mFrameIndex];
-    const std::uint64_t timeout = (std::numeric_limits<std::uint64_t>::max)();
+    const VkFence sfence = sinFlightFences[sframeIndex];
+    const std::uint64_t stimeout = (std::numeric_limits<std::uint64_t>::max)();
 
-    try{
-        const vk::Result waited = this->mDevice.waitForFences(
-            1, &fence, VK_TRUE, timeout, VULKAN_HPP_DEFAULT_DISPATCHER);
-        if (waited != vk::Result::eSuccess){
-            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
-        }
+    PFN_vkWaitForFences pfnWaitForFences = reinterpret_cast<PFN_vkWaitForFences>(
+        entry().resolveDevice(sdevice, "vkWaitForFences"));
+    PFN_vkResetFences pfnResetFences = reinterpret_cast<PFN_vkResetFences>(
+        entry().resolveDevice(sdevice, "vkResetFences"));
+    PFN_vkAcquireNextImageKHR pfnAcquireNextImageKHR =
+        reinterpret_cast<PFN_vkAcquireNextImageKHR>(
+            entry().resolveDevice(sdevice, "vkAcquireNextImageKHR"));
+    if (pfnWaitForFences == nullptr || pfnResetFences == nullptr || pfnAcquireNextImageKHR == nullptr){
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+    }
 
-        const vk::Result reset = this->mDevice.resetFences(
-            1, &fence, VULKAN_HPP_DEFAULT_DISPATCHER);
-        if (reset != vk::Result::eSuccess){
-            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
-        }
+    if (pfnWaitForFences(sdevice, 1, &sfence, VK_TRUE, stimeout) != VK_SUCCESS){
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+    }
+    if (pfnResetFences(sdevice, 1, &sfence) != VK_SUCCESS){
+        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+    }
 
-        const vk::Result acquired = this->mDevice.acquireNextImageKHR(
-            this->mSwapchain, timeout,
-            this->mImageAvailableSemaphores[this->mFrameIndex],
-            vk::Fence{}, &this->mCurrentImage, VULKAN_HPP_DEFAULT_DISPATCHER);
-        if (acquired != vk::Result::eSuccess &&
-            acquired != vk::Result::eSuboptimalKHR){
-            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
-        }
-    }catch(...){
+    const VkResult sacquired = pfnAcquireNextImageKHR(
+        sdevice, sswapchain, stimeout,
+        simageAvailableSemaphores[sframeIndex], nullptr, &scurrentImage);
+    if (sacquired != VK_SUCCESS && sacquired != VK_SUBOPTIMAL_KHR){
         return std::unexpected(renaru::Error::FrameAcquisitionFailed);
     }
 
@@ -124,104 +177,104 @@ std::expected<void, renaru::Error> renaru::Device::beginFrame() const{
 }
 
 void renaru::Device::waitIdle() const noexcept{
-    if (this->empty()){
+    if (sdevice == nullptr){
         return;
     }
-    try{
-        this->mDevice.waitIdle(VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        // Tidak ada aksi recovery di jalur destruksi.
+    PFN_vkDeviceWaitIdle pfnDeviceWaitIdle = reinterpret_cast<PFN_vkDeviceWaitIdle>(
+        entry().resolveDevice(sdevice, "vkDeviceWaitIdle"));
+    if (pfnDeviceWaitIdle != nullptr){
+        pfnDeviceWaitIdle(sdevice);
     }
 }
 
 void renaru::Device::finishFrame() const noexcept{
-    if (!this->mInFlightFences.empty()){
-        this->mFrameIndex = (this->mFrameIndex + 1) %
-                            static_cast<std::uint32_t>(this->mInFlightFences.size());
+    if (!sinFlightFences.empty()){
+        sframeIndex = (sframeIndex + 1) %
+                            static_cast<std::uint32_t>(sinFlightFences.size());
     }
-    this->mActiveCommandBuffer = vk::CommandBuffer{};
+    sactiveCommandBuffer = nullptr;
 }
 
-void renaru::Device::registerSwapchain(vk::SwapchainKHR swapchain,
-                                         vk::Extent2D extent,
-                                         std::uint32_t imageCount) const noexcept{
-    this->mSwapchain = swapchain;
-    this->mFrameExtent = extent;
-    this->mFramebuffers.clear();
-    this->mFramebuffers.reserve(imageCount);
-    this->mFrameIndex = 0;
-    this->mCurrentImage = 0;
-    this->destroyFrameResources();
+void renaru::Device::registerSwapchain(VkSwapchainKHR snewSwapchain,
+                                       VkExtent2D snewExtent,
+                                       std::uint32_t snewImageCount) const noexcept{
+    sswapchain = snewSwapchain;
+    sframeExtent = snewExtent;
+    sframebuffers.clear();
+    sframebuffers.reserve(snewImageCount);
+    sframeIndex = 0;
+    scurrentImage = 0;
+    destroyFrameResources();
 }
 
-void renaru::Device::registerFramebuffer(vk::Framebuffer framebuffer) const noexcept{
-    if (static_cast<VkFramebuffer>(framebuffer) != nullptr){
-        this->mFramebuffers.push_back(framebuffer);
+void renaru::Device::registerFramebuffer(VkFramebuffer sframebuffer) const noexcept{
+    if (sframebuffer != nullptr){
+        sframebuffers.push_back(sframebuffer);
     }
 }
 
-vk::SwapchainKHR renaru::Device::swapchainHandle() const noexcept{
-    return this->mSwapchain;
+VkSwapchainKHR renaru::Device::swapchainHandle() const noexcept{
+    return sswapchain;
 }
 
-vk::Framebuffer renaru::Device::framebufferForCurrentImage() const noexcept{
-    if (this->mCurrentImage >= this->mFramebuffers.size()){
-        return vk::Framebuffer{};
+VkFramebuffer renaru::Device::framebufferForCurrentImage() const noexcept{
+    if (scurrentImage >= sframebuffers.size()){
+        return nullptr;
     }
-    return this->mFramebuffers[this->mCurrentImage];
+    return sframebuffers[scurrentImage];
 }
 
-vk::Extent2D renaru::Device::frameExtent() const noexcept{
-    return this->mFrameExtent;
+VkExtent2D renaru::Device::frameExtent() const noexcept{
+    return sframeExtent;
 }
 
-vk::Semaphore renaru::Device::imageAvailableSemaphore() const noexcept{
-    if (this->mFrameIndex >= this->mImageAvailableSemaphores.size()){
-        return vk::Semaphore{};
+VkSemaphore renaru::Device::imageAvailableSemaphore() const noexcept{
+    if (sframeIndex >= simageAvailableSemaphores.size()){
+        return nullptr;
     }
-    return this->mImageAvailableSemaphores[this->mFrameIndex];
+    return simageAvailableSemaphores[sframeIndex];
 }
 
-vk::Semaphore renaru::Device::renderFinishedSemaphore() const noexcept{
-    if (this->mFrameIndex >= this->mRenderFinishedSemaphores.size()){
-        return vk::Semaphore{};
+VkSemaphore renaru::Device::renderFinishedSemaphore() const noexcept{
+    if (sframeIndex >= srenderFinishedSemaphores.size()){
+        return nullptr;
     }
-    return this->mRenderFinishedSemaphores[this->mFrameIndex];
+    return srenderFinishedSemaphores[sframeIndex];
 }
 
-vk::Fence renaru::Device::currentFence() const noexcept{
-    if (this->mFrameIndex >= this->mInFlightFences.size()){
-        return vk::Fence{};
+VkFence renaru::Device::currentFence() const noexcept{
+    if (sframeIndex >= sinFlightFences.size()){
+        return nullptr;
     }
-    return this->mInFlightFences[this->mFrameIndex];
+    return sinFlightFences[sframeIndex];
 }
 
 std::uint32_t renaru::Device::currentImageIndex() const noexcept{
-    return this->mCurrentImage;
+    return scurrentImage;
 }
 
 std::uint32_t renaru::Device::frameIndex() const noexcept{
-    return this->mFrameIndex;
+    return sframeIndex;
 }
 
-vk::CommandBuffer renaru::Device::activeCommandBuffer() const noexcept{
-    return this->mActiveCommandBuffer;
+VkCommandBuffer renaru::Device::activeCommandBuffer() const noexcept{
+    return sactiveCommandBuffer;
 }
 
-void renaru::Device::setActiveCommandBuffer(vk::CommandBuffer buffer) const noexcept{
-    this->mActiveCommandBuffer = buffer;
+void renaru::Device::setActiveCommandBuffer(VkCommandBuffer sbuffer) const noexcept{
+    sactiveCommandBuffer = sbuffer;
 }
 
 void renaru::Device::clearActiveCommandBuffer() const noexcept{
-    this->mActiveCommandBuffer = vk::CommandBuffer{};
+    sactiveCommandBuffer = nullptr;
 }
 
-void renaru::Device::noteError(renaru::Error error) const noexcept{
-    if (this->mLastError == renaru::Error::None){
-        this->mLastError = error;
+void renaru::Device::noteError(renaru::Error serror) const noexcept{
+    if (slastError == renaru::Error::None){
+        slastError = serror;
     }
 }
 
 renaru::Error renaru::Device::lastError() const noexcept{
-    return this->mLastError;
+    return slastError;
 }

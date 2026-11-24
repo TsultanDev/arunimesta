@@ -1,16 +1,16 @@
 module;
 
-#include <renaru/vulkan.hpp>
-
-#include <expected>
-#include <print>
+#include <renaru/vulkan.h>
 
 #include <cstdint>
+#include <expected>
+#include <print>
 #include <utility>
 #include <vector>
 
 export module renaru:command_buffer;
 
+import :entry;
 import :device;
 import :command_pool;
 import :queue;
@@ -20,267 +20,286 @@ export namespace renaru {
         public:
             using ResultType = std::expected<CommandBuffer, Error>;
 
-            // vk::CommandBuffer adalah raw handle: salinan tidak diizinkan.
+            // VkCommandBuffer adalah raw handle: salinan tidak diizinkan.
             CommandBuffer(const CommandBuffer&) = delete;
             CommandBuffer& operator=(const CommandBuffer&) = delete;
 
-            CommandBuffer(CommandBuffer&& other) noexcept :
-                mOwner(std::exchange(other.mOwner, nullptr)),
-                mDevice(std::exchange(other.mDevice, vk::Device{})),
-                mPool(std::exchange(other.mPool, vk::CommandPool{})),
-                mBuffer(std::exchange(other.mBuffer, vk::CommandBuffer{}))
+            CommandBuffer(CommandBuffer&& sother) noexcept :
+                sowner(std::exchange(sother.sowner, nullptr)),
+                sdevice(std::exchange(sother.sdevice, nullptr)),
+                spool(std::exchange(sother.spool, nullptr)),
+                sbuffer(std::exchange(sother.sbuffer, nullptr))
             {}
 
-            CommandBuffer& operator=(CommandBuffer&& other) noexcept{
-                if (this != &other){
-                    this->release();
-                    this->mOwner = std::exchange(other.mOwner, nullptr);
-                    this->mDevice = std::exchange(other.mDevice, vk::Device{});
-                    this->mPool = std::exchange(other.mPool, vk::CommandPool{});
-                    this->mBuffer = std::exchange(other.mBuffer, vk::CommandBuffer{});
+            CommandBuffer& operator=(CommandBuffer&& sother) noexcept{
+                if (this != &sother){
+                    release();
+                    sowner = std::exchange(sother.sowner, nullptr);
+                    sdevice = std::exchange(sother.sdevice, nullptr);
+                    spool = std::exchange(sother.spool, nullptr);
+                    sbuffer = std::exchange(sother.sbuffer, nullptr);
                 }
                 return *this;
             }
 
-            ~CommandBuffer(){ this->release(); }
+            ~CommandBuffer(){ release(); }
 
             template<typename Func>
-            std::expected<void, Error> record(Func&& func){
-                if (auto started = this->beginRecording(); !started){
+            std::expected<void, Error> record(Func&& sfunc){
+                if (auto started = beginRecording(); !started){
                     return std::unexpected(started.error());
                 }
 
                 try{
-                    std::forward<Func>(func)();
+                    std::forward<Func>(sfunc)();
                 }catch(...){
-                    this->endRecording();
-                    const renaru::Error error = renaru::Error::CommandBufferRecordingFailed;
-                    if (mOwner != nullptr){
-                        mOwner->noteError(error);
+                    endRecording();
+                    const renaru::Error serror = renaru::Error::CommandBufferRecordingFailed;
+                    if (sowner != nullptr){
+                        sowner->noteError(serror);
                     }
-                    return std::unexpected(error);
+                    return std::unexpected(serror);
                 }
 
-                this->endRecording();
-                if (mOwner != nullptr && mOwner->lastError() != Error::None){
-                    return std::unexpected(mOwner->lastError());
+                endRecording();
+                if (sowner != nullptr && sowner->lastError() != Error::None){
+                    return std::unexpected(sowner->lastError());
                 }
                 return {};
             }
 
-            vk::CommandBuffer handle() const noexcept { return this->mBuffer; }
+            VkCommandBuffer handle() const noexcept { return sbuffer; }
 
-            vk::Device deviceHandle() const noexcept { return this->mDevice; }
+            VkDevice deviceHandle() const noexcept { return sdevice; }
 
-            vk::CommandPool poolHandle() const noexcept { return this->mPool; }
+            VkCommandPool poolHandle() const noexcept { return spool; }
 
-            bool empty() const noexcept { return static_cast<VkCommandBuffer>(this->mBuffer) == nullptr; }
+            bool empty() const noexcept { return sbuffer == nullptr; }
 
-            bool begin(vk::CommandBufferUsageFlags flags = {}) noexcept{
-                if (this->empty()){
+            bool begin(VkCommandBufferUsageFlags sflags = 0) noexcept{
+                if (sbuffer == nullptr || sdevice == nullptr){
                     return false;
                 }
-                vk::CommandBufferBeginInfo info;
-                info.setFlags(flags);
-                try{
-                    this->mBuffer.begin(info, VULKAN_HPP_DEFAULT_DISPATCHER);
-                }catch(...){
+                PFN_vkBeginCommandBuffer pfnBeginCommandBuffer =
+                    reinterpret_cast<PFN_vkBeginCommandBuffer>(
+                        entry().resolveDevice(sdevice, "vkBeginCommandBuffer"));
+                if (pfnBeginCommandBuffer == nullptr){
                     return false;
                 }
-                return true;
+
+                VkCommandBufferBeginInfo sinfo{};
+                sinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                sinfo.flags = sflags;
+                return pfnBeginCommandBuffer(sbuffer, &sinfo) == VK_SUCCESS;
             }
 
             void end() noexcept{
-                if (this->empty()){
+                if (sbuffer == nullptr || sdevice == nullptr){
                     return;
                 }
-                try{
-                    this->mBuffer.end(VULKAN_HPP_DEFAULT_DISPATCHER);
-                }catch(...){
-                    // Status dicatat oleh validation layer; API tidak melempar exception.
+                PFN_vkEndCommandBuffer pfnEndCommandBuffer = reinterpret_cast<PFN_vkEndCommandBuffer>(
+                    entry().resolveDevice(sdevice, "vkEndCommandBuffer"));
+                if (pfnEndCommandBuffer != nullptr){
+                    pfnEndCommandBuffer(sbuffer);
                 }
             }
 
-            bool reset(vk::CommandBufferResetFlags flags = {}) noexcept{
-                if (this->empty()){
+            bool reset(VkCommandBufferResetFlags sflags = 0) noexcept{
+                if (sbuffer == nullptr || sdevice == nullptr){
                     return false;
                 }
-                try{
-                    this->mBuffer.reset(flags, VULKAN_HPP_DEFAULT_DISPATCHER);
-                }catch(...){
+                PFN_vkResetCommandBuffer pfnResetCommandBuffer =
+                    reinterpret_cast<PFN_vkResetCommandBuffer>(
+                        entry().resolveDevice(sdevice, "vkResetCommandBuffer"));
+                if (pfnResetCommandBuffer == nullptr){
                     return false;
                 }
-                return true;
+                return pfnResetCommandBuffer(sbuffer, sflags) == VK_SUCCESS;
             }
 
         private:
             friend class Device;
 
-            CommandBuffer(const Device* owner, vk::Device device, vk::CommandPool pool,
-                          vk::CommandBuffer buffer) noexcept :
-                mOwner(owner),
-                mDevice(device),
-                mPool(pool),
-                mBuffer(buffer)
+            CommandBuffer(const Device* sowner, VkDevice sdevice, VkCommandPool spool,
+                          VkCommandBuffer sbuffer) noexcept :
+                sowner(sowner),
+                sdevice(sdevice),
+                spool(spool),
+                sbuffer(sbuffer)
             {}
 
             std::expected<void, Error> beginRecording(){
-                if (this->empty() || mOwner == nullptr || mOwner->empty()){
+                if (sbuffer == nullptr || sowner == nullptr || sowner->empty()){
                     return std::unexpected(renaru::Error::CommandBufferRecordingFailed);
                 }
 
-                // Pool dibuat dengan eResetCommandBuffer, jadi reset diperbolehkan.
+                // Pool dibuat dengan RESET_COMMAND_BUFFER, jadi reset diperbolehkan.
                 // Di state awal reset boleh gagal; begin() tetap bisa dipanggil.
-                (void)this->reset();
-                if (!this->begin()){
+                (void)reset();
+                if (!begin()){
                     return std::unexpected(renaru::Error::CommandBufferRecordingFailed);
                 }
 
-                mOwner->setActiveCommandBuffer(this->mBuffer);
+                sowner->setActiveCommandBuffer(sbuffer);
                 return {};
             }
 
             void endRecording() noexcept{
-                if (mOwner != nullptr){
-                    mOwner->clearActiveCommandBuffer();
+                if (sowner != nullptr){
+                    sowner->clearActiveCommandBuffer();
                 }
-                this->end();
+                end();
             }
 
             void release() noexcept{
-                if (static_cast<VkCommandBuffer>(this->mBuffer) != nullptr &&
-                    static_cast<VkDevice>(this->mDevice) != nullptr &&
-                    static_cast<VkCommandPool>(this->mPool) != nullptr){
-                    this->mDevice.freeCommandBuffers(this->mPool, 1, &this->mBuffer,
-                                                     VULKAN_HPP_DEFAULT_DISPATCHER);
-                    this->mBuffer = vk::CommandBuffer{};
+                if (sbuffer != nullptr && sdevice != nullptr && spool != nullptr){
+                    PFN_vkFreeCommandBuffers pfnFreeCommandBuffers =
+                        reinterpret_cast<PFN_vkFreeCommandBuffers>(
+                            entry().resolveDevice(sdevice, "vkFreeCommandBuffers"));
+                    if (pfnFreeCommandBuffers != nullptr){
+                        pfnFreeCommandBuffers(sdevice, spool, 1, &sbuffer);
+                    }
+                    sbuffer = nullptr;
                 }
-                this->mOwner = nullptr;
-                this->mDevice = vk::Device{};
-                this->mPool = vk::CommandPool{};
+                sowner = nullptr;
+                sdevice = nullptr;
+                spool = nullptr;
             }
 
-            const Device* mOwner;
-            vk::Device mDevice;
-            vk::CommandPool mPool;
-            vk::CommandBuffer mBuffer;
+            const Device* sowner = nullptr;
+            VkDevice sdevice = nullptr;
+            VkCommandPool spool = nullptr;
+            VkCommandBuffer sbuffer = nullptr;
     };
 }
 
 // Definisi lintas partisi: Device/Queue didefinisikan di partisi sebelumnya,
 // tetapi alokasi dan submit membutuhkan tipe lengkap CommandBuffer di sini.
 std::expected<std::vector<renaru::CommandBuffer>, renaru::Error>
-renaru::Device::allocateCommandBuffers(const renaru::CommandPool& commandPool,
-                                         std::uint32_t count) const{
-    if (this->empty() || commandPool.empty() || count == 0){
+renaru::Device::allocateCommandBuffers(const renaru::CommandPool& scommandPool,
+                                       std::uint32_t scount) const{
+    if (sdevice == nullptr || scommandPool.empty() || scount == 0){
         return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
-    if (static_cast<VkDevice>(commandPool.deviceHandle()) != static_cast<VkDevice>(this->mDevice)){
+    if (scommandPool.deviceHandle() != sdevice){
         return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
 
-    vk::CommandBufferAllocateInfo info;
-    info.setCommandPool(commandPool.handle());
-    info.setLevel(vk::CommandBufferLevel::ePrimary);
-    info.setCommandBufferCount(count);
-
-    std::vector<vk::CommandBuffer> allocated;
-    try{
-        allocated = this->mDevice.allocateCommandBuffers(info, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
+    PFN_vkAllocateCommandBuffers pfnAllocateCommandBuffers =
+        reinterpret_cast<PFN_vkAllocateCommandBuffers>(
+            entry().resolveDevice(sdevice, "vkAllocateCommandBuffers"));
+    PFN_vkFreeCommandBuffers pfnFreeCommandBuffers = reinterpret_cast<PFN_vkFreeCommandBuffers>(
+        entry().resolveDevice(sdevice, "vkFreeCommandBuffers"));
+    if (pfnAllocateCommandBuffers == nullptr || pfnFreeCommandBuffers == nullptr){
         return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
-    if (allocated.size() != count){
-        for (const vk::CommandBuffer& buffer : allocated){
-            if (static_cast<VkCommandBuffer>(buffer) != nullptr){
-                this->mDevice.freeCommandBuffers(commandPool.handle(), 1, &buffer,
-                                                 VULKAN_HPP_DEFAULT_DISPATCHER);
+
+    VkCommandBufferAllocateInfo sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    sinfo.commandPool = scommandPool.handle();
+    sinfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    sinfo.commandBufferCount = scount;
+
+    std::vector<VkCommandBuffer> sallocated(scount, nullptr);
+    if (pfnAllocateCommandBuffers(sdevice, &sinfo, sallocated.data()) != VK_SUCCESS){
+        return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
+    }
+
+    for (const VkCommandBuffer sbuffer : sallocated){
+        if (sbuffer == nullptr){
+            for (const VkCommandBuffer screated : sallocated){
+                if (screated != nullptr){
+                    pfnFreeCommandBuffers(sdevice, scommandPool.handle(), 1, &screated);
+                }
             }
+            return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
         }
-        return std::unexpected(renaru::Error::CommandBufferAllocationFailed);
     }
 
-    std::vector<CommandBuffer> result;
-    result.reserve(allocated.size());
-    for (const vk::CommandBuffer& buffer : allocated){
-        result.push_back(CommandBuffer(this, this->mDevice, commandPool.handle(),
-                                       buffer));
+    std::vector<CommandBuffer> sresult;
+    sresult.reserve(sallocated.size());
+    for (const VkCommandBuffer sbuffer : sallocated){
+        sresult.push_back(CommandBuffer(this, sdevice, scommandPool.handle(), sbuffer));
     }
 
-    std::println("Aru RHI: CommandBuffers(allocated!!) count={}", result.size());
+    std::println("Aru RHI: CommandBuffers(allocated!!) count={}", sresult.size());
 
-    return result;
+    return sresult;
 }
 
 std::expected<void, renaru::Error> renaru::Queue::submit(
-    const renaru::CommandBuffer& buffer) const{
-    if (this->empty() || mOwner == nullptr || mOwner->empty() || buffer.empty()){
+    const renaru::CommandBuffer& sbuffer) const{
+    if (squeue == nullptr || sowner == nullptr || sowner->empty() || sbuffer.empty()){
         return std::unexpected(renaru::Error::CommandSubmissionFailed);
     }
-    if (static_cast<VkDevice>(buffer.deviceHandle()) != static_cast<VkDevice>(mOwner->handle())){
-        return std::unexpected(renaru::Error::CommandSubmissionFailed);
-    }
-
-    const vk::CommandBuffer commandBuffer = buffer.handle();
-    const vk::Semaphore waitSemaphore = mOwner->imageAvailableSemaphore();
-    const vk::Semaphore signalSemaphore = mOwner->renderFinishedSemaphore();
-    const vk::Fence fence = mOwner->currentFence();
-    if (static_cast<VkSemaphore>(waitSemaphore) == nullptr ||
-        static_cast<VkSemaphore>(signalSemaphore) == nullptr ||
-        static_cast<VkFence>(fence) == nullptr){
+    if (sbuffer.deviceHandle() != sowner->handle()){
         return std::unexpected(renaru::Error::CommandSubmissionFailed);
     }
 
-    vk::PipelineStageFlags waitStages[] = {
-        vk::PipelineStageFlagBits::eColorAttachmentOutput
+    const VkCommandBuffer scommandBuffer = sbuffer.handle();
+    const VkSemaphore swaitSemaphore = sowner->imageAvailableSemaphore();
+    const VkSemaphore ssignalSemaphore = sowner->renderFinishedSemaphore();
+    const VkFence sfence = sowner->currentFence();
+    if (swaitSemaphore == nullptr || ssignalSemaphore == nullptr || sfence == nullptr){
+        return std::unexpected(renaru::Error::CommandSubmissionFailed);
+    }
+
+    const VkPipelineStageFlags swaitStages[] = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
 
-    vk::SubmitInfo info;
-    info.setWaitSemaphoreCount(1);
-    info.setPWaitSemaphores(&waitSemaphore);
-    info.setPWaitDstStageMask(waitStages);
-    info.setCommandBufferCount(1);
-    info.setPCommandBuffers(&commandBuffer);
-    info.setSignalSemaphoreCount(1);
-    info.setPSignalSemaphores(&signalSemaphore);
+    VkSubmitInfo sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    sinfo.waitSemaphoreCount = 1;
+    sinfo.pWaitSemaphores = &swaitSemaphore;
+    sinfo.pWaitDstStageMask = swaitStages;
+    sinfo.commandBufferCount = 1;
+    sinfo.pCommandBuffers = &scommandBuffer;
+    sinfo.signalSemaphoreCount = 1;
+    sinfo.pSignalSemaphores = &ssignalSemaphore;
 
-    try{
-        this->mQueue.submit(info, fence, VULKAN_HPP_DEFAULT_DISPATCHER);
-    }catch(...){
-        mOwner->noteError(renaru::Error::CommandSubmissionFailed);
+    PFN_vkQueueSubmit pfnQueueSubmit = reinterpret_cast<PFN_vkQueueSubmit>(
+        entry().resolveDevice(sdevice, "vkQueueSubmit"));
+    if (pfnQueueSubmit == nullptr){
+        sowner->noteError(renaru::Error::CommandSubmissionFailed);
+        return std::unexpected(renaru::Error::CommandSubmissionFailed);
+    }
+    if (pfnQueueSubmit(squeue, 1, &sinfo, sfence) != VK_SUCCESS){
+        sowner->noteError(renaru::Error::CommandSubmissionFailed);
         return std::unexpected(renaru::Error::CommandSubmissionFailed);
     }
     return {};
 }
 
 std::expected<void, renaru::Error> renaru::Queue::present() const{
-    if (this->empty() || mOwner == nullptr || mOwner->empty()){
+    if (squeue == nullptr || sowner == nullptr || sowner->empty()){
         return std::unexpected(renaru::Error::FramePresentationFailed);
     }
 
-    const vk::SwapchainKHR swapchain = mOwner->swapchainHandle();
-    const std::uint32_t imageIndex = mOwner->currentImageIndex();
-    const vk::Semaphore waitSemaphore = mOwner->renderFinishedSemaphore();
-    if (static_cast<VkSwapchainKHR>(swapchain) == nullptr ||
-        static_cast<VkSemaphore>(waitSemaphore) == nullptr){
+    const VkSwapchainKHR sswapchain = sowner->swapchainHandle();
+    const std::uint32_t simageIndex = sowner->currentImageIndex();
+    const VkSemaphore swaitSemaphore = sowner->renderFinishedSemaphore();
+    if (sswapchain == nullptr || swaitSemaphore == nullptr){
         return std::unexpected(renaru::Error::FramePresentationFailed);
     }
 
-    vk::PresentInfoKHR info;
-    info.setWaitSemaphoreCount(1);
-    info.setPWaitSemaphores(&waitSemaphore);
-    info.setSwapchainCount(1);
-    info.setPSwapchains(&swapchain);
-    info.setPImageIndices(&imageIndex);
+    VkPresentInfoKHR sinfo{};
+    sinfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    sinfo.waitSemaphoreCount = 1;
+    sinfo.pWaitSemaphores = &swaitSemaphore;
+    sinfo.swapchainCount = 1;
+    sinfo.pSwapchains = &sswapchain;
+    sinfo.pImageIndices = &simageIndex;
 
-    try{
-        const vk::Result result = this->mQueue.presentKHR(info, VULKAN_HPP_DEFAULT_DISPATCHER);
-        if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR){
-            mOwner->noteError(renaru::Error::FramePresentationFailed);
-            return std::unexpected(renaru::Error::FramePresentationFailed);
-        }
-    }catch(...){
-        mOwner->noteError(renaru::Error::FramePresentationFailed);
+    PFN_vkQueuePresentKHR pfnQueuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(
+        entry().resolveDevice(sdevice, "vkQueuePresentKHR"));
+    if (pfnQueuePresentKHR == nullptr){
+        sowner->noteError(renaru::Error::FramePresentationFailed);
+        return std::unexpected(renaru::Error::FramePresentationFailed);
+    }
+    const VkResult sresult = pfnQueuePresentKHR(squeue, &sinfo);
+    if (sresult != VK_SUCCESS && sresult != VK_SUBOPTIMAL_KHR){
+        sowner->noteError(renaru::Error::FramePresentationFailed);
         return std::unexpected(renaru::Error::FramePresentationFailed);
     }
     return {};

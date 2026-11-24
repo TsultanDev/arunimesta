@@ -56,5 +56,5 @@ Out of scope:
 ## Notes for This Codebase
 
 - Win32 paths use Unicode (`...W`) APIs; avoid reintroducing ANSI (`...A`) calls for the same window.
-- Vulkan entry points are loaded at runtime with Vulkan-Hpp dynamic dispatch; do not assume a statically linked loader.
+- Vulkan entry points are loaded at runtime from `vulkan-1.dll` through `renaru::Entry` and C `PFN_*` pointers; do not assume a statically linked loader.
 - There is no networking, file parsing, or shader loading yet, so the current attack surface is limited to the host application and local toolchain.
