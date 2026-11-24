@@ -189,8 +189,7 @@ arunimesta/
 │       └── window.cppm              # Win32 window + event loop
 │
 ├── renaru/                          # Static library — Vulkan RHI
-│   ├── CMakeLists.txt
-│   ├── include/renaru/vulkan.h     # Shared Vulkan C header wrapper
+│   ├── CMakeLists.txt              # VK_USE_PLATFORM_WIN32_KHR via compile definition
 │   └── src/
 │       ├── lib.cppm                 # export module renaru; (facade)
 │       ├── entry.cppm               # renaru:entry (HMODULE + hot dispatchers)

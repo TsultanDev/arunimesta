@@ -1,8 +1,6 @@
 module;
 
 #include <Windows.h>
-
-#define VK_USE_PLATFORM_WIN32_KHR 1
 #include <vulkan/vulkan.h>
 
 #include <utility>
@@ -10,101 +8,97 @@ module;
 export module renaru:entry;
 
 export namespace renaru {
-    // Pemilik vulkan-1.dll dan dispatcher global. Entry tidak bisa disalin;
-    // move dipakai bila objek dipindahkan, tetapi accessor global memakai
-    // satu instance statis.
+    // Pemilik vulkan-1.dll dan dispatcher global. Data private di atas,
+    // konstruktor/fungsi internal setelahnya, baru API publik di bawah.
     class Entry {
+        private:
+            static constexpr const char* sLibraryName = "vulkan-1.dll";
+
+            HMODULE sModule = nullptr;
+            PFN_vkGetInstanceProcAddr sGetInstanceProcAddr = nullptr;
+            PFN_vkGetDeviceProcAddr sGetDeviceProcAddr = nullptr;
+
+            Entry() noexcept{
+                sModule = LoadLibraryA(sLibraryName);
+                if (sModule == nullptr){
+                    return;
+                }
+                sGetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
+                    GetProcAddress(sModule, "vkGetInstanceProcAddr"));
+                sGetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
+                    GetProcAddress(sModule, "vkGetDeviceProcAddr"));
+                if (sGetInstanceProcAddr == nullptr || sGetDeviceProcAddr == nullptr){
+                    sDestroy();
+                }
+            }
+
+            void sDestroy() noexcept{
+                if (sModule != nullptr){
+                    FreeLibrary(sModule);
+                    sModule = nullptr;
+                }
+                sGetInstanceProcAddr = nullptr;
+                sGetDeviceProcAddr = nullptr;
+            }
+
         public:
-            using Proc = PFN_vkVoidFunction;
+            static Entry& shared() noexcept{
+                static Entry sEntry;
+                return sEntry;
+            }
+
+            ~Entry(){ sDestroy(); }
 
             Entry(const Entry&) = delete;
             Entry& operator=(const Entry&) = delete;
 
-            Entry(Entry&& sother) noexcept :
-                smodule(std::exchange(sother.smodule, nullptr)),
-                sgetInstanceProcAddr(std::exchange(sother.sgetInstanceProcAddr, nullptr)),
-                sgetDeviceProcAddr(std::exchange(sother.sgetDeviceProcAddr, nullptr))
+            Entry(Entry&& sOther) noexcept :
+                sModule(std::exchange(sOther.sModule, nullptr)),
+                sGetInstanceProcAddr(std::exchange(sOther.sGetInstanceProcAddr, nullptr)),
+                sGetDeviceProcAddr(std::exchange(sOther.sGetDeviceProcAddr, nullptr))
             {}
 
-            Entry& operator=(Entry&& sother) noexcept{
-                if (this != &sother){
-                    release();
-                    smodule = std::exchange(sother.smodule, nullptr);
-                    sgetInstanceProcAddr = std::exchange(sother.sgetInstanceProcAddr, nullptr);
-                    sgetDeviceProcAddr = std::exchange(sother.sgetDeviceProcAddr, nullptr);
+            Entry& operator=(Entry&& sOther) noexcept{
+                if (this != &sOther){
+                    sDestroy();
+                    sModule = std::exchange(sOther.sModule, nullptr);
+                    sGetInstanceProcAddr = std::exchange(sOther.sGetInstanceProcAddr, nullptr);
+                    sGetDeviceProcAddr = std::exchange(sOther.sGetDeviceProcAddr, nullptr);
                 }
                 return *this;
             }
 
-            ~Entry(){ release(); }
-
-            static Entry& shared() noexcept{
-                static Entry sentry;
-                return sentry;
-            }
-
             bool valid() const noexcept{
-                return smodule != nullptr &&
-                       sgetInstanceProcAddr != nullptr &&
-                       sgetDeviceProcAddr != nullptr;
+                return sModule != nullptr &&
+                       sGetInstanceProcAddr != nullptr &&
+                       sGetDeviceProcAddr != nullptr;
             }
 
-            // Dispatch jarang dipakai diload lokal lewat resolver di bawah.
-            // Dua dispatcher panas disimpan sebagai field karena dipakai
-            // hampir setiap resolusi command.
-            Proc resolveGlobal(const char* spName) const noexcept{
-                if (smodule == nullptr){
+            // Dispatch panas disimpan; command dingin diload lokal lewat resolver ini.
+            using Proc = PFN_vkVoidFunction;
+
+            Proc resolveGlobal(const char* sPName) const noexcept{
+                if (sModule == nullptr){
                     return nullptr;
                 }
-                return reinterpret_cast<Proc>(GetProcAddress(smodule, spName));
+                return reinterpret_cast<Proc>(GetProcAddress(sModule, sPName));
             }
 
-            Proc resolveInstance(VkInstance sinstance, const char* spName) const noexcept{
-                if (sgetInstanceProcAddr == nullptr){
+            Proc resolveInstance(VkInstance sInstance, const char* sPName) const noexcept{
+                if (sGetInstanceProcAddr == nullptr){
                     return nullptr;
                 }
-                return sgetInstanceProcAddr(sinstance, spName);
+                return sGetInstanceProcAddr(sInstance, sPName);
             }
 
-            Proc resolveDevice(VkDevice sdevice, const char* spName) const noexcept{
-                if (sgetDeviceProcAddr == nullptr){
+            Proc resolveDevice(VkDevice sDevice, const char* sPName) const noexcept{
+                if (sGetDeviceProcAddr == nullptr){
                     return nullptr;
                 }
-                return sgetDeviceProcAddr(sdevice, spName);
+                return sGetDeviceProcAddr(sDevice, sPName);
             }
-
-        private:
-            static constexpr const char* sLibraryName = "vulkan-1.dll";
-
-            Entry() noexcept{
-                smodule = LoadLibraryA(sLibraryName);
-                if (smodule == nullptr){
-                    return;
-                }
-                sgetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-                    GetProcAddress(smodule, "vkGetInstanceProcAddr"));
-                sgetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(
-                    GetProcAddress(smodule, "vkGetDeviceProcAddr"));
-                if (sgetInstanceProcAddr == nullptr || sgetDeviceProcAddr == nullptr){
-                    release();
-                }
-            }
-
-            void release() noexcept{
-                if (smodule != nullptr){
-                    FreeLibrary(smodule);
-                    smodule = nullptr;
-                }
-                sgetInstanceProcAddr = nullptr;
-                sgetDeviceProcAddr = nullptr;
-            }
-
-            HMODULE smodule = nullptr;
-            PFN_vkGetInstanceProcAddr sgetInstanceProcAddr = nullptr;
-            PFN_vkGetDeviceProcAddr sgetDeviceProcAddr = nullptr;
     };
 
-    // Accessor process-wide untuk semua partisi renaru.
     inline Entry& entry() noexcept{
         return Entry::shared();
     }

@@ -20,7 +20,7 @@ find_package(Vulkan REQUIRED)
 
 add_library(renaru STATIC)
 
-target_include_directories(renaru PUBLIC "include")
+target_compile_definitions(renaru PUBLIC VK_USE_PLATFORM_WIN32_KHR=1)
 target_link_libraries(renaru PUBLIC Vulkan::Headers winaru)
 
 target_sources(

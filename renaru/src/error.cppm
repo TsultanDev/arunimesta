@@ -33,9 +33,9 @@ export namespace std {
     template<>
     struct formatter<renaru::Error> : formatter<string_view> {
         template<typename FormatContext>
-        auto format(const renaru::Error& serror, FormatContext& ctx) const {
+        auto format(const renaru::Error& sError, FormatContext& ctx) const {
             string_view text = "unknown";
-            switch (serror) {
+            switch (sError) {
                 case renaru::Error::None:
                     text = "none";
                     break;

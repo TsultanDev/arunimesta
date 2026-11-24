@@ -25,7 +25,7 @@ The implementation uses named private structs `ImageData` and `BufferData` insid
 Resources are created through `Device`:
 
 ```cpp
-auto imageResource = device.createImageResource(simage, sformat, sextent);
+auto imageResource = device.createImageResource(sImage, sFormat, sExtent);
 if (!imageResource) {
     std::println("image resource: {}", imageResource.error());
     std::terminate();

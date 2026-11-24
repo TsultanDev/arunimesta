@@ -1,6 +1,6 @@
 module;
 
-#include <renaru/vulkan.h>
+#include <vulkan/vulkan.h>
 
 #include <cstdint>
 #include <expected>
@@ -14,119 +14,101 @@ import :device;
 import :queue;
 
 export namespace renaru {
-    // CommandPool memiliki VkCommandPool untuk satu queue family.
-    // Flag VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT memungkinkan
-    // reset per command buffer.
     class CommandPool {
-        public:
+        private:
             using ResultType = std::expected<CommandPool, Error>;
 
-            // VkCommandPool adalah raw handle: salinan tidak diizinkan.
+            VkDevice sDevice = nullptr;
+            VkCommandPool sPool = nullptr;
+            std::uint32_t sQueueFamily = 0;
+
+            CommandPool(VkDevice sDevice, VkCommandPool sPool,
+                        std::uint32_t sQueueFamilyIndex) noexcept :
+                sDevice(sDevice),
+                sPool(sPool),
+                sQueueFamily(sQueueFamilyIndex)
+            {}
+
+            void sDestroy() noexcept{
+                if (sPool != nullptr && sDevice != nullptr){
+                    PFN_vkDestroyCommandPool pfnDestroyCommandPool =
+                        reinterpret_cast<PFN_vkDestroyCommandPool>(
+                            entry().resolveDevice(sDevice, "vkDestroyCommandPool"));
+                    if (pfnDestroyCommandPool != nullptr){
+                        pfnDestroyCommandPool(sDevice, sPool, nullptr);
+                    }
+                    sPool = nullptr;
+                }
+                sDevice = nullptr;
+                sQueueFamily = 0;
+            }
+
+            friend class Device;
+
+        public:
+            ~CommandPool(){ sDestroy(); }
+
             CommandPool(const CommandPool&) = delete;
             CommandPool& operator=(const CommandPool&) = delete;
 
-            CommandPool(CommandPool&& sother) noexcept :
-                sdevice(std::exchange(sother.sdevice, nullptr)),
-                spool(std::exchange(sother.spool, nullptr)),
-                squeueFamily(std::exchange(sother.squeueFamily, std::uint32_t{0}))
+            CommandPool(CommandPool&& sOther) noexcept :
+                sDevice(std::exchange(sOther.sDevice, nullptr)),
+                sPool(std::exchange(sOther.sPool, nullptr)),
+                sQueueFamily(std::exchange(sOther.sQueueFamily, std::uint32_t{0}))
             {}
 
-            CommandPool& operator=(CommandPool&& sother) noexcept{
-                if (this != &sother){
-                    release();
-                    sdevice = std::exchange(sother.sdevice, nullptr);
-                    spool = std::exchange(sother.spool, nullptr);
-                    squeueFamily = std::exchange(sother.squeueFamily, std::uint32_t{0});
+            CommandPool& operator=(CommandPool&& sOther) noexcept{
+                if (this != &sOther){
+                    sDestroy();
+                    sDevice = std::exchange(sOther.sDevice, nullptr);
+                    sPool = std::exchange(sOther.sPool, nullptr);
+                    sQueueFamily = std::exchange(sOther.sQueueFamily, std::uint32_t{0});
                 }
                 return *this;
             }
 
-            ~CommandPool(){ release(); }
-
-            VkCommandPool handle() const noexcept { return spool; }
-
-            VkDevice deviceHandle() const noexcept { return sdevice; }
-
-            std::uint32_t queueFamilyIndex() const noexcept { return squeueFamily; }
-
-            bool empty() const noexcept { return spool == nullptr; }
-
-            // Reset seluruh command buffer yang berasal dari pool ini.
-            bool reset(VkCommandPoolResetFlags sflags = 0) noexcept{
-                if (spool == nullptr || sdevice == nullptr){
+            bool reset(VkCommandPoolResetFlags sFlags = 0) noexcept{
+                if (sPool == nullptr || sDevice == nullptr){
                     return false;
                 }
                 PFN_vkResetCommandPool pfnResetCommandPool =
                     reinterpret_cast<PFN_vkResetCommandPool>(
-                        entry().resolveDevice(sdevice, "vkResetCommandPool"));
+                        entry().resolveDevice(sDevice, "vkResetCommandPool"));
                 if (pfnResetCommandPool == nullptr){
                     return false;
                 }
-                return pfnResetCommandPool(sdevice, spool, sflags) == VK_SUCCESS;
+                return pfnResetCommandPool(sDevice, sPool, sFlags) == VK_SUCCESS;
             }
-
-        private:
-            friend class Device;
-
-            CommandPool(VkDevice sdevice, VkCommandPool spool,
-                        std::uint32_t squeueFamilyIndex) noexcept :
-                sdevice(sdevice),
-                spool(spool),
-                squeueFamily(squeueFamilyIndex)
-            {}
-
-            void release() noexcept{
-                if (spool != nullptr && sdevice != nullptr){
-                    PFN_vkDestroyCommandPool pfnDestroyCommandPool =
-                        reinterpret_cast<PFN_vkDestroyCommandPool>(
-                            entry().resolveDevice(sdevice, "vkDestroyCommandPool"));
-                    if (pfnDestroyCommandPool != nullptr){
-                        pfnDestroyCommandPool(sdevice, spool, nullptr);
-                    }
-                    spool = nullptr;
-                }
-                sdevice = nullptr;
-                squeueFamily = 0;
-            }
-
-            VkDevice sdevice = nullptr;
-            VkCommandPool spool = nullptr;
-            std::uint32_t squeueFamily = 0;
     };
 }
 
-// Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
-// CommandPool membutuhkan tipe lengkap Queue/CommandPool dari partisi ini.
 std::expected<renaru::CommandPool, renaru::Error>
-renaru::Device::createCommandPool(const renaru::Queue& squeue) const{
-    if (sdevice == nullptr || squeue.empty()){
+renaru::Device::createCommandPool(const renaru::Queue& sQueue) const{
+    if (sDevice == nullptr || sQueue.sQueue == nullptr){
         return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
-    if (squeue.deviceHandle() != sdevice){
-        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
-    }
-    if (squeue.familyIndex() != squeueFamily){
+    if (sQueue.sDevice != sDevice || sQueue.sFamily != sQueueFamily){
         return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
 
-    VkCommandPoolCreateInfo sinfo{};
-    sinfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    sinfo.queueFamilyIndex = squeueFamily;
-    sinfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    VkCommandPoolCreateInfo sInfo{};
+    sInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    sInfo.queueFamilyIndex = sQueueFamily;
+    sInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
     PFN_vkCreateCommandPool pfnCreateCommandPool = reinterpret_cast<PFN_vkCreateCommandPool>(
-        entry().resolveDevice(sdevice, "vkCreateCommandPool"));
+        entry().resolveDevice(sDevice, "vkCreateCommandPool"));
     if (pfnCreateCommandPool == nullptr){
         return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
 
-    VkCommandPool screated = nullptr;
-    if (pfnCreateCommandPool(sdevice, &sinfo, nullptr, &screated) != VK_SUCCESS ||
-        screated == nullptr){
+    VkCommandPool sCreated = nullptr;
+    if (pfnCreateCommandPool(sDevice, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
+        sCreated == nullptr){
         return std::unexpected(renaru::Error::CommandPoolCreationFailed);
     }
 
-    std::println("Aru RHI: CommandPool(created!!) family={}", squeueFamily);
+    std::println("Aru RHI: CommandPool(created!!) family={}", sQueueFamily);
 
-    return CommandPool(sdevice, screated, squeueFamily);
+    return CommandPool(sDevice, sCreated, sQueueFamily);
 }

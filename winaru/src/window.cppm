@@ -10,221 +10,231 @@ export import :error;
 
 export namespace winaru {
     class Window {
-        public:
+        private:
             using ResultType = std::expected<Window, Error>;
 
-            // Factory pembuat OS window baru. title narrow adalah UTF-8.
-            static ResultType create(const char* title, std::uint32_t width, std::uint32_t height){
-                if (title == nullptr) {
+            HINSTANCE sInstance = nullptr;
+            HWND sHwnd = nullptr;
+            std::wstring sTitle{};
+            std::uint32_t sWidth = 0;
+            std::uint32_t sHeight = 0;
+            bool sOpen = false;
+
+            Window(HINSTANCE sHInstance, HWND sHwnd,
+                   const std::wstring& sTitle,
+                   std::uint32_t sWidth, std::uint32_t sHeight) noexcept :
+                sInstance(sHInstance),
+                sHwnd(sHwnd),
+                sTitle(sTitle),
+                sWidth(sWidth),
+                sHeight(sHeight),
+                sOpen(true)
+            {}
+
+            // Judul narrow adalah UTF-8; dikonversi dulu ke UTF-16.
+            static ResultType sCreate(const char* sTitle, std::uint32_t sWidth,
+                                      std::uint32_t sHeight){
+                if (sTitle == nullptr){
                     return std::unexpected(Error::WindowCreationFailed);
                 }
-                const std::wstring wide = utf8ToWide(title);
-                return create(reinterpret_cast<const char16_t*>(wide.c_str()), width, height);
+                const std::wstring sWide = sUtf8ToWide(sTitle);
+                return sCreate(reinterpret_cast<const char16_t*>(sWide.c_str()), sWidth, sHeight);
             }
 
-            static ResultType create(const char16_t* title, std::uint32_t width, std::uint32_t height){
-                if (title == nullptr) {
+            static ResultType sCreate(const char16_t* sTitle, std::uint32_t sWidth,
+                                      std::uint32_t sHeight){
+                if (sTitle == nullptr){
                     return std::unexpected(Error::WindowCreationFailed);
                 }
 
-                HINSTANCE moduleInstance = GetModuleHandleW(nullptr);
-                if (moduleInstance == nullptr || !registerClass(moduleInstance)) {
+                HINSTANCE sInstance = GetModuleHandleW(nullptr);
+                if (sInstance == nullptr || !sRegisterClass(sInstance)){
                     return std::unexpected(Error::ClassRegistrationFailed);
                 }
 
                 // wchar_t berukuran 16-bit di Windows, jadi char16_t bisa dipetakan langsung.
-                const std::wstring windowTitle(reinterpret_cast<const wchar_t*>(title));
-                HWND handle = CreateWindowExW(
+                const std::wstring sWindowTitle(reinterpret_cast<const wchar_t*>(sTitle));
+                HWND sHwnd = CreateWindowExW(
                     0,
                     L"ArunimestaWindowClass",
-                    windowTitle.c_str(),
+                    sWindowTitle.c_str(),
                     WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT,
                     CW_USEDEFAULT,
-                    static_cast<int>(width),
-                    static_cast<int>(height),
+                    static_cast<int>(sWidth),
+                    static_cast<int>(sHeight),
                     nullptr,
                     nullptr,
-                    moduleInstance,
+                    sInstance,
                     nullptr
                 );
 
-                if (handle == nullptr) {
+                if (sHwnd == nullptr){
                     return std::unexpected(Error::WindowCreationFailed);
                 }
 
-                ShowWindow(handle, SW_SHOW);
-                UpdateWindow(handle);
+                ShowWindow(sHwnd, SW_SHOW);
+                UpdateWindow(sHwnd);
 
-                return Window(moduleInstance, handle, windowTitle, width, height);
+                return Window(sInstance, sHwnd, sWindowTitle, sWidth, sHeight);
             }
 
-            // Membuat OS window BARU memakai konfigurasi sumber.
-            // Ini bukan copy objek: HWND baru dibuat melalui WinAPI.
-            static ResultType createFromWindow(const Window& source){
-                return create(reinterpret_cast<const char16_t*>(source.title.c_str()), source.width, source.height);
+            // Bersihkan handle OS dan state sebelum object mati atau di-move-assign.
+            void sDestroy() noexcept{
+                if (sHwnd != nullptr){
+                    DestroyWindow(sHwnd);
+                    sHwnd = nullptr;
+                }
+                sTitle.clear();
+                sInstance = nullptr;
+                sWidth = 0;
+                sHeight = 0;
+                sOpen = false;
             }
 
-            // HWND adalah raw handle: salinan tidak diizinkan.
+            static std::wstring sUtf8ToWide(const char* sText){
+                if (sText == nullptr){
+                    return {};
+                }
+                const int sNeeded = MultiByteToWideChar(CP_UTF8, 0, sText, -1, nullptr, 0);
+                if (sNeeded <= 0){
+                    return {};
+                }
+                std::wstring sResult(static_cast<std::size_t>(sNeeded), L'\0');
+                MultiByteToWideChar(CP_UTF8, 0, sText, -1, sResult.data(), sNeeded);
+                sResult.resize(static_cast<std::size_t>(sNeeded - 1));
+                return sResult;
+            }
+
+            static bool sRegisterClass(HINSTANCE sInstance) noexcept{
+                static bool sRegistered = false;
+                if (sRegistered){
+                    return true;
+                }
+
+                WNDCLASSW sWindowClass = {};
+                sWindowClass.lpfnWndProc = &Window::sWindowProc;
+                sWindowClass.hInstance = sInstance;
+                sWindowClass.lpszClassName = L"ArunimestaWindowClass";
+                sWindowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+                sWindowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+
+                if (RegisterClassW(&sWindowClass) == 0){
+                    const DWORD sError = GetLastError();
+                    if (sError != ERROR_CLASS_ALREADY_EXISTS){
+                        return false;
+                    }
+                }
+
+                sRegistered = true;
+                return true;
+            }
+
+            static LRESULT CALLBACK sWindowProc(HWND sHwnd, UINT sMessage,
+                                                WPARAM sWParam, LPARAM sLParam) noexcept{
+                switch (sMessage){
+                    case WM_DESTROY:
+                        PostQuitMessage(0);
+                        return 0;
+                    default:
+                        return DefWindowProcW(sHwnd, sMessage, sWParam, sLParam);
+                }
+            }
+
+        public:
+            // Factory pembuat OS window baru.
+            static ResultType create(const char* sTitle, std::uint32_t sWidth,
+                                     std::uint32_t sHeight){
+                return sCreate(sTitle, sWidth, sHeight);
+            }
+
+            static ResultType create(const char16_t* sTitle, std::uint32_t sWidth,
+                                     std::uint32_t sHeight){
+                return sCreate(sTitle, sWidth, sHeight);
+            }
+
+            // Membuat OS window BARU memakai konfigurasi sumber, bukan copy objek.
+            static ResultType createFromWindow(const Window& sOther){
+                return sCreate(reinterpret_cast<const char16_t*>(sOther.sTitle.c_str()),
+                               sOther.sWidth, sOther.sHeight);
+            }
+
+            ~Window(){ sDestroy(); }
+
             Window(const Window&) = delete;
             Window& operator=(const Window&) = delete;
 
             // Move mencuri handle dan mengosongkan sumber.
-            Window(Window&& other) noexcept :
-                instance(std::exchange(other.instance, nullptr)),
-                hwnd(std::exchange(other.hwnd, nullptr)),
-                title(std::move(other.title)),
-                width(std::exchange(other.width, std::uint32_t{0})),
-                height(std::exchange(other.height, std::uint32_t{0})),
-                open(std::exchange(other.open, false))
+            Window(Window&& sOther) noexcept :
+                sInstance(std::exchange(sOther.sInstance, nullptr)),
+                sHwnd(std::exchange(sOther.sHwnd, nullptr)),
+                sTitle(std::move(sOther.sTitle)),
+                sWidth(std::exchange(sOther.sWidth, std::uint32_t{0})),
+                sHeight(std::exchange(sOther.sHeight, std::uint32_t{0})),
+                sOpen(std::exchange(sOther.sOpen, false))
             {}
 
-            Window& operator=(Window&& other) noexcept {
-                if (this != &other) {
-                    this->release();
-
-                    this->instance = std::exchange(other.instance, nullptr);
-                    this->hwnd = std::exchange(other.hwnd, nullptr);
-                    this->title = std::move(other.title);
-                    this->width = std::exchange(other.width, std::uint32_t{0});
-                    this->height = std::exchange(other.height, std::uint32_t{0});
-                    this->open = std::exchange(other.open, false);
+            Window& operator=(Window&& sOther) noexcept{
+                if (this != &sOther){
+                    sDestroy();
+                    sInstance = std::exchange(sOther.sInstance, nullptr);
+                    sHwnd = std::exchange(sOther.sHwnd, nullptr);
+                    sTitle = std::move(sOther.sTitle);
+                    sWidth = std::exchange(sOther.sWidth, std::uint32_t{0});
+                    sHeight = std::exchange(sOther.sHeight, std::uint32_t{0});
+                    sOpen = std::exchange(sOther.sOpen, false);
                 }
                 return *this;
             }
 
-            ~Window(){ this->release(); }
-
             void event_loop(){
-                if (!this->open) {
+                if (!sOpen){
                     return;
                 }
 
-                MSG message = {};
-                BOOL status = 1;
-                while (this->open && (status = GetMessageW(&message, nullptr, 0, 0)) > 0) {
-                    TranslateMessage(&message);
-                    DispatchMessageW(&message);
+                MSG sMessage = {};
+                BOOL sStatus = 1;
+                while (sOpen && (sStatus = GetMessageW(&sMessage, nullptr, 0, 0)) > 0){
+                    TranslateMessage(&sMessage);
+                    DispatchMessageW(&sMessage);
                 }
 
-                // GetMessageW mengembalikan 0 untuk WM_QUIT (dipost oleh windowProc
-                // saat WM_DESTROY) atau -1 saat error. Keduanya mengakhiri loop utama.
-                if (status <= 0) {
-                    this->open = false;
+                // GetMessageW mengembalikan 0 untuk WM_QUIT atau -1 saat error.
+                if (sStatus <= 0){
+                    sOpen = false;
                 }
             }
 
             // Non-blocking variant for render loops: drains pending messages once.
             void pollEvents(){
-                if (!this->open) {
+                if (!sOpen){
                     return;
                 }
 
-                MSG message = {};
-                while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
-                    if (message.message == WM_QUIT) {
-                        this->open = false;
+                MSG sMessage = {};
+                while (PeekMessageW(&sMessage, nullptr, 0, 0, PM_REMOVE)){
+                    if (sMessage.message == WM_QUIT){
+                        sOpen = false;
                         break;
                     }
-                    TranslateMessage(&message);
-                    DispatchMessageW(&message);
+                    TranslateMessage(&sMessage);
+                    DispatchMessageW(&sMessage);
                 }
             }
 
-            HWND handle() const noexcept { return this->hwnd; }
+            HWND handle() const noexcept{ return sHwnd; }
 
-            const std::wstring& windowTitle() const noexcept { return this->title; }
+            const std::wstring& windowTitle() const noexcept{ return sTitle; }
 
-            std::uint32_t windowWidth() const noexcept { return this->width; }
+            std::uint32_t windowWidth() const noexcept{ return sWidth; }
 
-            std::uint32_t windowHeight() const noexcept { return this->height; }
+            std::uint32_t windowHeight() const noexcept{ return sHeight; }
 
-            bool empty() const noexcept { return this->hwnd == nullptr; }
+            bool empty() const noexcept{ return sHwnd == nullptr; }
 
             // Penanda untuk loop utama: true sampai WM_QUIT diterima event_loop().
-            bool isOpen() const noexcept { return this->open; }
+            bool isOpen() const noexcept{ return sOpen; }
 
-            bool shouldClose() const noexcept { return !this->open; }
-
-        private:
-            Window(HINSTANCE instance, HWND hwnd,
-                   const std::wstring& title,
-                   std::uint32_t width, std::uint32_t height) :
-                instance(instance),
-                hwnd(hwnd),
-                title(title),
-                width(width),
-                height(height),
-                open(true)
-            {}
-
-            static std::wstring utf8ToWide(const char* text){
-                if (text == nullptr) {
-                    return {};
-                }
-                const int needed = MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0);
-                if (needed <= 0) {
-                    return {};
-                }
-                std::wstring result(static_cast<std::size_t>(needed), L'\0');
-                MultiByteToWideChar(CP_UTF8, 0, text, -1, result.data(), needed);
-                result.resize(static_cast<std::size_t>(needed - 1));
-                return result;
-            }
-
-            static bool registerClass(HINSTANCE instance) noexcept{
-                static bool registered = false;
-                if (registered) {
-                    return true;
-                }
-
-                WNDCLASSW windowClass = {};
-                windowClass.lpfnWndProc = &Window::windowProc;
-                windowClass.hInstance = instance;
-                windowClass.lpszClassName = L"ArunimestaWindowClass";
-                windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-                windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
-
-                if (RegisterClassW(&windowClass) == 0) {
-                    const DWORD error = GetLastError();
-                    if (error != ERROR_CLASS_ALREADY_EXISTS) {
-                        return false;
-                    }
-                }
-
-                registered = true;
-                return true;
-            }
-
-            static LRESULT CALLBACK windowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) noexcept{
-                switch (message) {
-                    case WM_DESTROY:
-                        PostQuitMessage(0);
-                        return 0;
-                    default:
-                        return DefWindowProcW(hwnd, message, wParam, lParam);
-                }
-            }
-
-            void release() noexcept{
-                // Data pointer / OS handle: cek dulu sebelum "hapus".
-                if (this->hwnd != nullptr) {
-                    DestroyWindow(this->hwnd);
-                    this->hwnd = nullptr;
-                }
-
-                this->title.clear();
-                this->instance = nullptr;
-                this->width = 0;
-                this->height = 0;
-                this->open = false;
-            }
-
-            HINSTANCE instance = nullptr;
-            HWND hwnd = nullptr;
-            std::wstring title;
-            std::uint32_t width = 0;
-            std::uint32_t height = 0;
-            bool open = false;
+            bool shouldClose() const noexcept{ return !sOpen; }
     };
 }

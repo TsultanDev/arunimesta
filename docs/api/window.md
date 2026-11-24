@@ -10,7 +10,7 @@ import aru;          // re-exports winaru
 
 ## Overview
 
-`Window` represents a Win32 window. Instances are created through the `create()` factories, which return `std::expected<Window, Error>` (`Window::ResultType`). The title is stored as `std::wstring` and passed directly to the Unicode Win32 APIs.
+`Window` represents a Win32 window. Instances are created through the `create()` factories, which return `std::expected<Window, Error>`. The title is stored as `std::wstring` in `sTitle` and passed directly to the Unicode Win32 APIs. The class follows the root `template.cppm` layout: private `s...` data first, private constructor plus `sCreate`/`sDestroy`, then the public factories, destructor, deleted copy, implemented move, and public methods.
 
 <p align="center">
   <img src="../../assets/window.png" alt="Arunimesta Win32 window" width="700">

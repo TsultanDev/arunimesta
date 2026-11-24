@@ -13,15 +13,15 @@ import renaru;      // facade, re-exports renaru:instance
 #include <string_view>
 ```
 
-For additional `renaru` translation units that need Vulkan types, include `renaru/vulkan.h`. It defines `VK_USE_PLATFORM_WIN32_KHR` and includes `<vulkan/vulkan.h>`. Dispatch state lives in the `renaru:entry` partition (`src/entry.cppm`) and is reached through `entry()`.
+For additional `renaru` translation units that need Vulkan types, include `<vulkan/vulkan.h>` directly. `VK_USE_PLATFORM_WIN32_KHR=1` is supplied by the `renaru` target's public compile definition, so Win32 surface types are available without a wrapper header. Dispatch state lives in the `renaru:entry` partition (`src/entry.cppm`) and is reached through `entry()`.
 
 ## API
 
-### `static std::expected<Instance, Error> create(std::string_view sappName)`
+### `static std::expected<Instance, Error> create(std::string_view sAppName)`
 
 Creates the Vulkan instance.
 
-- `sappName` is a UTF-8 `std::string_view`; it does not need to be null-terminated.
+- `sAppName` is a UTF-8 `std::string_view`; it does not need to be null-terminated.
 - The application name is stored in the resulting `Instance` as `std::string`.
 - The API version is **not** taken from the caller. `vkEnumerateInstanceVersion` is called and its result is used as `VkApplicationInfo::apiVersion`. If the loader does not expose that function (Vulkan 1.0), `VK_API_VERSION_1_0` is used.
 - Global commands (`vkEnumerateInstanceVersion`, `vkCreateInstance`) are loaded from the `HMODULE` held by `Entry`; after creation, instance commands use `entry().resolveInstance(instance, ...)` and device commands use `entry().resolveDevice(device, ...)`.
@@ -80,7 +80,7 @@ Only one object owns a given Vulkan handle; use `std::move` to transfer ownershi
 
 ## Build Notes
 
-- `renaru/CMakeLists.txt` registers `src/lib.cppm`, `src/entry.cppm`, and `src/instance.cppm` in a `FILE_SET CXX_MODULES`, links `Vulkan::Headers` (C headers only) publicly, and adds `include/` for `renaru/vulkan.h`.
+- `renaru/CMakeLists.txt` registers all partitions in a `FILE_SET CXX_MODULES`, links `Vulkan::Headers` (C headers only) publicly, and adds `VK_USE_PLATFORM_WIN32_KHR=1` as a public compile definition.
 - The module is registered in the root `CMakeLists.txt`.
 
 ## Limitations

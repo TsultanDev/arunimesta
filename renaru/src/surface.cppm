@@ -1,6 +1,6 @@
 module;
 
-#include <renaru/vulkan.h>
+#include <vulkan/vulkan.h>
 
 #include <expected>
 #include <print>
@@ -15,88 +15,82 @@ import :instance;
 
 export namespace renaru {
     class Surface {
-        public:
+        private:
             using ResultType = std::expected<Surface, Error>;
 
-            // VkSurfaceKHR adalah raw handle: salinan tidak diizinkan.
+            VkInstance sInstance = nullptr;
+            VkSurfaceKHR sSurface = nullptr;
+
+            Surface(VkInstance sInstance, VkSurfaceKHR sSurface) noexcept :
+                sInstance(sInstance),
+                sSurface(sSurface)
+            {}
+
+            void sDestroy() noexcept{
+                if (sSurface != nullptr && sInstance != nullptr){
+                    PFN_vkDestroySurfaceKHR pfnDestroySurfaceKHR =
+                        reinterpret_cast<PFN_vkDestroySurfaceKHR>(
+                            entry().resolveInstance(sInstance, "vkDestroySurfaceKHR"));
+                    if (pfnDestroySurfaceKHR != nullptr){
+                        pfnDestroySurfaceKHR(sInstance, sSurface, nullptr);
+                    }
+                    sSurface = nullptr;
+                }
+                sInstance = nullptr;
+            }
+
+            // Hanya partisi internal yang boleh mengambil data mentah Surface.
+            friend class Instance;
+            friend class Adapter;
+
+        public:
+            ~Surface(){ sDestroy(); }
+
             Surface(const Surface&) = delete;
             Surface& operator=(const Surface&) = delete;
 
-            Surface(Surface&& sother) noexcept :
-                sinstance(std::exchange(sother.sinstance, nullptr)),
-                ssurface(std::exchange(sother.ssurface, nullptr))
+            Surface(Surface&& sOther) noexcept :
+                sInstance(std::exchange(sOther.sInstance, nullptr)),
+                sSurface(std::exchange(sOther.sSurface, nullptr))
             {}
 
-            Surface& operator=(Surface&& sother) noexcept{
-                if (this != &sother){
-                    release();
-                    sinstance = std::exchange(sother.sinstance, nullptr);
-                    ssurface = std::exchange(sother.ssurface, nullptr);
+            Surface& operator=(Surface&& sOther) noexcept{
+                if (this != &sOther){
+                    sDestroy();
+                    sInstance = std::exchange(sOther.sInstance, nullptr);
+                    sSurface = std::exchange(sOther.sSurface, nullptr);
                 }
                 return *this;
             }
-
-            ~Surface(){ release(); }
-
-            VkSurfaceKHR handle() const noexcept { return ssurface; }
-
-            VkInstance instanceHandle() const noexcept { return sinstance; }
-
-            bool empty() const noexcept { return ssurface == nullptr; }
-
-        private:
-            // Instance::createSurface() adalah satu-satunya jalan pembuatan.
-            friend class Instance;
-
-            Surface(VkInstance sinstance, VkSurfaceKHR ssurface) noexcept :
-                sinstance(sinstance),
-                ssurface(ssurface)
-            {}
-
-            void release() noexcept{
-                if (ssurface != nullptr && sinstance != nullptr){
-                    PFN_vkDestroySurfaceKHR pfnDestroySurfaceKHR =
-                        reinterpret_cast<PFN_vkDestroySurfaceKHR>(
-                            entry().resolveInstance(sinstance, "vkDestroySurfaceKHR"));
-                    if (pfnDestroySurfaceKHR != nullptr){
-                        pfnDestroySurfaceKHR(sinstance, ssurface, nullptr);
-                    }
-                    ssurface = nullptr;
-                }
-                sinstance = nullptr;
-            }
-
-            VkInstance sinstance = nullptr;
-            VkSurfaceKHR ssurface = nullptr;
     };
 }
 
-// Definisi lintas partisi: Instance didefinisikan di :instance, tetapi
-// pembuatannya membutuhkan tipe lengkap Surface dari partisi ini.
-renaru::Surface::ResultType renaru::Instance::createSurface(const winaru::Window& swindow){
-    if (swindow.empty()){
+// Instance::createSurface() didefinisikan di sini karena butuh tipe lengkap Surface.
+std::expected<renaru::Surface, renaru::Error>
+renaru::Instance::createSurface(const winaru::Window& sWindow){
+    if (sWindow.empty()){
         return std::unexpected(renaru::Error::SurfaceCreationFailed);
     }
 
-    VkWin32SurfaceCreateInfoKHR sinfo{};
-    sinfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    sinfo.hinstance = GetModuleHandleW(nullptr);
-    sinfo.hwnd = swindow.handle();
+    VkWin32SurfaceCreateInfoKHR sInfo{};
+    sInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    sInfo.hinstance = GetModuleHandleW(nullptr);
+    sInfo.hwnd = sWindow.handle();
 
     PFN_vkCreateWin32SurfaceKHR pfnCreateWin32SurfaceKHR =
         reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(
-            entry().resolveInstance(sinstance, "vkCreateWin32SurfaceKHR"));
+            entry().resolveInstance(sInstance, "vkCreateWin32SurfaceKHR"));
     if (pfnCreateWin32SurfaceKHR == nullptr){
         return std::unexpected(renaru::Error::SurfaceCreationFailed);
     }
 
-    VkSurfaceKHR screated = nullptr;
-    if (pfnCreateWin32SurfaceKHR(sinstance, &sinfo, nullptr, &screated) != VK_SUCCESS ||
-        screated == nullptr){
+    VkSurfaceKHR sCreated = nullptr;
+    if (pfnCreateWin32SurfaceKHR(sInstance, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
+        sCreated == nullptr){
         return std::unexpected(renaru::Error::SurfaceCreationFailed);
     }
 
     std::println("Aru RHI: Surface(created!!)");
 
-    return Surface(sinstance, screated);
+    return Surface(sInstance, sCreated);
 }

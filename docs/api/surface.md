@@ -46,7 +46,7 @@ Only one object owns a given `VkSurfaceKHR`. The surface must be destroyed befor
 
 - `renaru:surface` imports `winaru` and `renaru:instance`.
 - `renaru` links `Vulkan::Headers` and `winaru`.
-- The shared `renaru/vulkan.h` defines `VK_USE_PLATFORM_WIN32_KHR` for every translation unit. Dispatch is owned by `renaru::Entry` in `entry.cppm`; this partition resolves commands through `entry()`.
+- `VK_USE_PLATFORM_WIN32_KHR=1` comes from the `renaru` target compile definition, so `<vulkan/vulkan.h>` exposes Win32 surface types without a wrapper header. Dispatch is owned by `renaru::Entry` in `entry.cppm`; this partition resolves commands through `entry()`.
 
 ## Limitations
 

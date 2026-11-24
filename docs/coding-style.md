@@ -9,7 +9,7 @@ This document summarizes the conventions used (and targeted) by the Arunimesta c
 | Public class / struct | `PascalCase` | `Application`, `Window`, `Instance` |
 | Internal implementation struct | `PascalCase` + `_T` | `Application_T` |
 | Function / method | `camelCase` | `init`, `printInfo`, `create`, `createFromWindow` |
-| Variable / parameter / member | `camelCase`; in `renaru`, prefix `s...` | `app`, `name`, `version`; `sName`, `sinstance` |
+| Variable / parameter / member | `camelCase`; in `renaru`, prefix `s...` | `app`, `name`, `version`; `sName`, `sInstance` |
 | Enum type | `PascalCase` | `Flags`, `ApplicationError` |
 | Enum value | `PascalCase` | `None`, `Resizable` |
 | Concept | `lowercase` | *(none in the engine yet)* |
@@ -20,8 +20,9 @@ This document summarizes the conventions used (and targeted) by the Arunimesta c
 
 Notes:
 
-- Members in `renaru` use the `s...` prefix and are accessed without `this->`, for example `sName`, `sinstance`; other modules may still use explicit `this->`.
-- Parameters that store a value into a member may use the same `s...` name, for example `sinstance(sinstance)`.
+- Every class follows the root `template.cppm` pattern: private section first (data, then constructor, then `sCreate`, then `sDestroy`, then other internal helpers, then `friend` declarations), public section last (factory, destructor, deleted copy, implemented move, public methods).
+- All members use the `s...` prefix and are accessed without `this->`, for example `sName`, `sInstance`.
+- Parameters that store a value into a member may use the same `s...` name, for example `sInstance(sInstance)`.
 
 ## File Extensions and Locations
 
@@ -42,18 +43,27 @@ export module aru:widget;            // module / partition declaration
 
 export namespace aru {
     class Widget {                   // public class, defined directly
-        public:
-            explicit Widget(std::uint32_t sId) noexcept : sid(sId) {}
-            std::uint32_t id() const noexcept { return sid; }
-
         private:
-            std::uint32_t sid;
+            std::uint32_t sid = 0;   // s... data first
+
+            explicit Widget(std::uint32_t sId) noexcept : sid(sId) {}
+            void sDestroy() noexcept { sid = 0; }
+
+        public:
+            static std::expected<Widget, Error> create(std::uint32_t sId);
+            ~Widget(){ sDestroy(); }
+            Widget(const Widget&) = delete;
+            Widget& operator=(const Widget&) = delete;
+            Widget(Widget&& sOther) noexcept = default;
+            Widget& operator=(Widget&& sOther) noexcept = default;
+            std::uint32_t id() const noexcept { return sid; }
     };
 }
 ```
 
 Rules:
 
+0. Class layout follows `template.cppm`: private data → private constructor → `sCreate` (if needed) → `sDestroy` → other internal helpers → `friend` declarations → public factory/destructor/copy/move/public methods. Structs reverse the access order.
 1. Includes **must** be in the global module fragment (`module;` through `export module ...;`).
 2. Do not put `#include` after `export module`, because it will be exposed to consumers.
 3. Define member and free functions directly where they are declared. Do not split a declaration from its definition unless the member belongs to a class from another partition and needs a complete type from this partition.

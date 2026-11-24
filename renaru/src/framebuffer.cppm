@@ -1,6 +1,6 @@
 module;
 
-#include <renaru/vulkan.h>
+#include <vulkan/vulkan.h>
 
 #include <cstdint>
 #include <expected>
@@ -15,120 +15,105 @@ import :render_pass;
 
 export namespace renaru {
     class Framebuffer {
-        public:
+        private:
             using ResultType = std::expected<Framebuffer, Error>;
 
-            // VkFramebuffer adalah raw handle: salinan tidak diizinkan.
+            VkDevice sDevice = nullptr;
+            VkFramebuffer sFramebuffer = nullptr;
+            std::uint32_t sWidth = 0;
+            std::uint32_t sHeight = 0;
+
+            Framebuffer(VkDevice sDevice, VkFramebuffer sFramebuffer,
+                        std::uint32_t sWidth, std::uint32_t sHeight) noexcept :
+                sDevice(sDevice),
+                sFramebuffer(sFramebuffer),
+                sWidth(sWidth),
+                sHeight(sHeight)
+            {}
+
+            void sDestroy() noexcept{
+                if (sFramebuffer != nullptr && sDevice != nullptr){
+                    PFN_vkDestroyFramebuffer pfnDestroyFramebuffer =
+                        reinterpret_cast<PFN_vkDestroyFramebuffer>(
+                            entry().resolveDevice(sDevice, "vkDestroyFramebuffer"));
+                    if (pfnDestroyFramebuffer != nullptr){
+                        pfnDestroyFramebuffer(sDevice, sFramebuffer, nullptr);
+                    }
+                    sFramebuffer = nullptr;
+                }
+                sDevice = nullptr;
+                sWidth = 0;
+                sHeight = 0;
+            }
+
+            friend class Device;
+
+        public:
+            ~Framebuffer(){ sDestroy(); }
+
             Framebuffer(const Framebuffer&) = delete;
             Framebuffer& operator=(const Framebuffer&) = delete;
 
-            Framebuffer(Framebuffer&& sother) noexcept :
-                sdevice(std::exchange(sother.sdevice, nullptr)),
-                sframebuffer(std::exchange(sother.sframebuffer, nullptr)),
-                swidth(std::exchange(sother.swidth, std::uint32_t{0})),
-                sheight(std::exchange(sother.sheight, std::uint32_t{0}))
+            Framebuffer(Framebuffer&& sOther) noexcept :
+                sDevice(std::exchange(sOther.sDevice, nullptr)),
+                sFramebuffer(std::exchange(sOther.sFramebuffer, nullptr)),
+                sWidth(std::exchange(sOther.sWidth, std::uint32_t{0})),
+                sHeight(std::exchange(sOther.sHeight, std::uint32_t{0}))
             {}
 
-            Framebuffer& operator=(Framebuffer&& sother) noexcept{
-                if (this != &sother){
-                    release();
-                    sdevice = std::exchange(sother.sdevice, nullptr);
-                    sframebuffer = std::exchange(sother.sframebuffer, nullptr);
-                    swidth = std::exchange(sother.swidth, std::uint32_t{0});
-                    sheight = std::exchange(sother.sheight, std::uint32_t{0});
+            Framebuffer& operator=(Framebuffer&& sOther) noexcept{
+                if (this != &sOther){
+                    sDestroy();
+                    sDevice = std::exchange(sOther.sDevice, nullptr);
+                    sFramebuffer = std::exchange(sOther.sFramebuffer, nullptr);
+                    sWidth = std::exchange(sOther.sWidth, std::uint32_t{0});
+                    sHeight = std::exchange(sOther.sHeight, std::uint32_t{0});
                 }
                 return *this;
             }
-
-            ~Framebuffer(){ release(); }
-
-            VkFramebuffer handle() const noexcept { return sframebuffer; }
-
-            VkDevice deviceHandle() const noexcept { return sdevice; }
-
-            std::uint32_t width() const noexcept { return swidth; }
-
-            std::uint32_t height() const noexcept { return sheight; }
-
-            bool empty() const noexcept { return sframebuffer == nullptr; }
-
-        private:
-            friend class Device;
-
-            Framebuffer(VkDevice sdevice, VkFramebuffer sframebuffer,
-                        std::uint32_t swidth, std::uint32_t sheight) noexcept :
-                sdevice(sdevice),
-                sframebuffer(sframebuffer),
-                swidth(swidth),
-                sheight(sheight)
-            {}
-
-            void release() noexcept{
-                if (sframebuffer != nullptr && sdevice != nullptr){
-                    PFN_vkDestroyFramebuffer pfnDestroyFramebuffer =
-                        reinterpret_cast<PFN_vkDestroyFramebuffer>(
-                            entry().resolveDevice(sdevice, "vkDestroyFramebuffer"));
-                    if (pfnDestroyFramebuffer != nullptr){
-                        pfnDestroyFramebuffer(sdevice, sframebuffer, nullptr);
-                    }
-                    sframebuffer = nullptr;
-                }
-                sdevice = nullptr;
-                swidth = 0;
-                sheight = 0;
-            }
-
-            VkDevice sdevice = nullptr;
-            VkFramebuffer sframebuffer = nullptr;
-            std::uint32_t swidth = 0;
-            std::uint32_t sheight = 0;
     };
 }
 
-// Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
-// Framebuffer membutuhkan tipe lengkap RenderPass/Resource/Framebuffer di sini.
 std::expected<renaru::Framebuffer, renaru::Error>
-renaru::Device::createFramebuffer(const renaru::RenderPass& srenderPass,
-                                  const renaru::Resource& simage) const{
-    if (sdevice == nullptr || srenderPass.empty() || simage.empty()){
-        return std::unexpected(renaru::Error::FramebufferCreationFailed);
-    }
-    if (simage.kind() != renaru::ResourceKind::Image){
-        return std::unexpected(renaru::Error::FramebufferCreationFailed);
-    }
-
-    const VkImageView sattachment = simage.imageViewHandle();
-    if (sattachment == nullptr){
+renaru::Device::createFramebuffer(const renaru::RenderPass& sRenderPass,
+                                  const renaru::Resource& sImage) const{
+    if (sDevice == nullptr || sRenderPass.sRenderPass == nullptr ||
+        sImage.sKind != renaru::ResourceKind::Image){
         return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
-    const VkExtent2D sextent = simage.extent();
-    if (sextent.width == 0 || sextent.height == 0){
+    const VkImageView sAttachment = sImage.sData.sImage.sView;
+    if (sAttachment == nullptr){
         return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
-    VkFramebufferCreateInfo sinfo{};
-    sinfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    sinfo.renderPass = srenderPass.handle();
-    sinfo.attachmentCount = 1;
-    sinfo.pAttachments = &sattachment;
-    sinfo.width = sextent.width;
-    sinfo.height = sextent.height;
-    sinfo.layers = 1;
+    const VkExtent2D sExtent = sImage.sExtent;
+    if (sExtent.width == 0 || sExtent.height == 0){
+        return std::unexpected(renaru::Error::FramebufferCreationFailed);
+    }
+
+    VkFramebufferCreateInfo sInfo{};
+    sInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    sInfo.renderPass = sRenderPass.sRenderPass;
+    sInfo.attachmentCount = 1;
+    sInfo.pAttachments = &sAttachment;
+    sInfo.width = sExtent.width;
+    sInfo.height = sExtent.height;
+    sInfo.layers = 1;
 
     PFN_vkCreateFramebuffer pfnCreateFramebuffer = reinterpret_cast<PFN_vkCreateFramebuffer>(
-        entry().resolveDevice(sdevice, "vkCreateFramebuffer"));
+        entry().resolveDevice(sDevice, "vkCreateFramebuffer"));
     if (pfnCreateFramebuffer == nullptr){
         return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
-    VkFramebuffer screated = nullptr;
-    if (pfnCreateFramebuffer(sdevice, &sinfo, nullptr, &screated) != VK_SUCCESS ||
-        screated == nullptr){
+    VkFramebuffer sCreated = nullptr;
+    if (pfnCreateFramebuffer(sDevice, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
+        sCreated == nullptr){
         return std::unexpected(renaru::Error::FramebufferCreationFailed);
     }
 
-    registerFramebuffer(screated);
+    sRegisterFramebuffer(sCreated);
 
-    return Framebuffer(sdevice, screated, sextent.width, sextent.height);
+    return Framebuffer(sDevice, sCreated, sExtent.width, sExtent.height);
 }

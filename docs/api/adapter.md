@@ -27,9 +27,9 @@ if (!adapter) {
 | `VkSurfaceKHR surfaceHandle() const noexcept` | Surface used for the present-support test. |
 | `std::uint32_t queueFamilyIndex() const noexcept` | Graphics + present queue family index. |
 | `bool empty() const noexcept` | `true` when no physical device is held. |
-| `std::expected<Device, Error> createDevice(const Adapter& sadapter) const` | Creates a logical device (defined in `:device`). |
+| `std::expected<Device, Error> createDevice(const Adapter& sAdapter) const` | Creates a logical device (defined in `:device`). |
 
-The `createDevice(const Adapter& sadapter)` parameter echoes the call style in `main.cpp` (`adapter.createDevice(adapter)`); the object itself already carries the needed handles.
+The `createDevice(const Adapter& sAdapter)` parameter echoes the call style in `main.cpp` (`adapter.createDevice(adapter)`); the object itself already carries the needed handles.
 
 ## Move-Only Semantics
 

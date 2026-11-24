@@ -30,9 +30,9 @@ The object stores the parent instance, physical device, surface, logical device,
 | `static constexpr std::uint32_t MaxFramesInFlight` | Number of fence/semaphore slots (2). |
 | `bool empty() const noexcept` | `true` when no logical device is held. |
 | `void waitIdle() const noexcept` | Blocks until outstanding GPU work finishes; useful before destroying frame sync state. |
-| `std::expected<Queue, Error> requestQueue(QueueFlags sflags) const` | Fetches a queue satisfying the requested flags (defined in `:queue`). |
-| `std::expected<CommandPool, Error> createCommandPool(const Queue& squeue) const` | Creates a resettable command pool for the queue's family (defined in `:command_pool`). |
-| `std::expected<std::vector<CommandBuffer>, Error> allocateCommandBuffers(const CommandPool& scommandPool, std::uint32_t scount) const` | Allocates `scount` primary command buffers from the pool (defined in `:command_buffer`). |
+| `std::expected<Queue, Error> requestQueue(QueueFlags sFlags) const` | Fetches a queue satisfying the requested flags (defined in `:queue`). |
+| `std::expected<CommandPool, Error> createCommandPool(const Queue& sQueue) const` | Creates a resettable command pool for the queue's family (defined in `:command_pool`). |
+| `std::expected<std::vector<CommandBuffer>, Error> allocateCommandBuffers(const CommandPool& sCommandPool, std::uint32_t sCount) const` | Allocates `sCount` primary command buffers from the pool (defined in `:command_buffer`). |
 | `std::expected<void, Error> acquire(Func&& callback)` | Waits/resets the in-flight fence, acquires the next swapchain image, runs the callback, then advances `frame_index` (see [frame.md](frame.md)). |
 
 ## Move-Only Semantics

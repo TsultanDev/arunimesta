@@ -1,6 +1,6 @@
 module;
 
-#include <renaru/vulkan.h>
+#include <vulkan/vulkan.h>
 
 #include <array>
 #include <expected>
@@ -15,224 +15,213 @@ import :swapchain;
 
 export namespace renaru {
     class RenderPass {
-        public:
+        private:
             using ResultType = std::expected<RenderPass, Error>;
 
-            // VkRenderPass adalah raw handle: salinan tidak diizinkan.
-            RenderPass(const RenderPass&) = delete;
-            RenderPass& operator=(const RenderPass&) = delete;
+            const Device* sOwner = nullptr;
+            VkDevice sDevice = nullptr;
+            VkRenderPass sRenderPass = nullptr;
+            std::array<float, 4> sClearColor{0.3F, 0.3F, 0.3F, 1.0F};
 
-            RenderPass(RenderPass&& sother) noexcept :
-                sowner(std::exchange(sother.sowner, nullptr)),
-                sdevice(std::exchange(sother.sdevice, nullptr)),
-                srenderPass(std::exchange(sother.srenderPass, nullptr)),
-                sclearColor(std::exchange(sother.sclearColor, std::array<float, 4>{}))
+            RenderPass(const Device* sOwner, VkDevice sDevice, VkRenderPass sRenderPass) noexcept :
+                sOwner(sOwner),
+                sDevice(sDevice),
+                sRenderPass(sRenderPass)
             {}
 
-            RenderPass& operator=(RenderPass&& sother) noexcept{
-                if (this != &sother){
-                    release();
-                    sowner = std::exchange(sother.sowner, nullptr);
-                    sdevice = std::exchange(sother.sdevice, nullptr);
-                    srenderPass = std::exchange(sother.srenderPass, nullptr);
-                    sclearColor = std::exchange(sother.sclearColor, std::array<float, 4>{});
+            void sDestroy() noexcept{
+                if (sRenderPass != nullptr && sDevice != nullptr){
+                    PFN_vkDestroyRenderPass pfnDestroyRenderPass =
+                        reinterpret_cast<PFN_vkDestroyRenderPass>(
+                            entry().resolveDevice(sDevice, "vkDestroyRenderPass"));
+                    if (pfnDestroyRenderPass != nullptr){
+                        pfnDestroyRenderPass(sDevice, sRenderPass, nullptr);
+                    }
+                    sRenderPass = nullptr;
                 }
-                return *this;
-            }
-
-            ~RenderPass(){ release(); }
-
-            // Prototipe: render_pass.render([]{ ... }) memakai clear color
-            // default; overload dengan array warna menerima RGBA float.
-            template<typename Func>
-            std::expected<void, Error> render(Func&& sfunc) const{
-                return renderImpl(sclearColor, std::forward<Func>(sfunc));
+                sOwner = nullptr;
+                sDevice = nullptr;
             }
 
             template<typename Func>
-            std::expected<void, Error> render(std::array<float, 4> sclearColor, Func&& sfunc) const{
-                return renderImpl(sclearColor, std::forward<Func>(sfunc));
-            }
-
-            void setClearColor(std::array<float, 4> scolor) noexcept { sclearColor = scolor; }
-
-            std::array<float, 4> clearColor() const noexcept { return sclearColor; }
-
-            VkRenderPass handle() const noexcept { return srenderPass; }
-
-            VkDevice deviceHandle() const noexcept { return sdevice; }
-
-            bool empty() const noexcept { return srenderPass == nullptr; }
-
-        private:
-            friend class Device;
-
-            RenderPass(const Device* sowner, VkDevice sdevice, VkRenderPass srenderPass) noexcept :
-                sowner(sowner),
-                sdevice(sdevice),
-                srenderPass(srenderPass),
-                sclearColor({0.3F, 0.3F, 0.3F, 1.0F})
-            {}
-
-            template<typename Func>
-            std::expected<void, Error> renderImpl(const std::array<float, 4>& sclearColor,
-                                                  Func&& sfunc) const{
-                if (auto started = beginRender(sclearColor); !started){
-                    return std::unexpected(started.error());
+            std::expected<void, Error> sRenderImpl(const std::array<float, 4>& sClearColor,
+                                                   Func&& sFunc) const{
+                if (auto sStarted = sBeginRender(sClearColor); !sStarted){
+                    return std::unexpected(sStarted.error());
                 }
 
                 try{
-                    std::forward<Func>(sfunc)();
+                    std::forward<Func>(sFunc)();
                 }catch(...){
-                    endRender();
-                    const renaru::Error serror = renaru::Error::RenderPassRecordingFailed;
-                    if (sowner != nullptr){
-                        sowner->noteError(serror);
+                    sEndRender();
+                    const renaru::Error sError = renaru::Error::RenderPassRecordingFailed;
+                    if (sOwner != nullptr){
+                        sOwner->sNoteError(sError);
                     }
-                    return std::unexpected(serror);
+                    return std::unexpected(sError);
                 }
 
-                endRender();
-                if (sowner != nullptr && sowner->lastError() != Error::None){
-                    return std::unexpected(sowner->lastError());
+                sEndRender();
+                if (sOwner != nullptr && sOwner->sCurrentError() != Error::None){
+                    return std::unexpected(sOwner->sCurrentError());
                 }
                 return {};
             }
 
-            std::expected<void, Error> beginRender(const std::array<float, 4>& sclearColor) const{
-                if (srenderPass == nullptr || sowner == nullptr){
+            std::expected<void, Error> sBeginRender(const std::array<float, 4>& sClearColor) const{
+                if (sRenderPass == nullptr || sOwner == nullptr){
                     return std::unexpected(renaru::Error::RenderPassRecordingFailed);
                 }
 
-                const VkCommandBuffer scommandBuffer = sowner->activeCommandBuffer();
-                const VkFramebuffer sframebuffer = sowner->framebufferForCurrentImage();
-                const VkExtent2D sextent = sowner->frameExtent();
-                if (scommandBuffer == nullptr || sframebuffer == nullptr ||
-                    sextent.width == 0 || sextent.height == 0){
+                const VkCommandBuffer sCommandBuffer = sOwner->sActiveCommandBuffer;
+                const VkFramebuffer sFramebuffer = sOwner->sFramebufferForCurrentImage();
+                const VkExtent2D sExtent = sOwner->sCurrentFrameExtent();
+                if (sCommandBuffer == nullptr || sFramebuffer == nullptr ||
+                    sExtent.width == 0 || sExtent.height == 0){
                     return std::unexpected(renaru::Error::RenderPassRecordingFailed);
                 }
 
-                VkClearValue sclear{};
-                sclear.color.float32[0] = sclearColor[0];
-                sclear.color.float32[1] = sclearColor[1];
-                sclear.color.float32[2] = sclearColor[2];
-                sclear.color.float32[3] = sclearColor[3];
+                VkClearValue sClear{};
+                sClear.color.float32[0] = sClearColor[0];
+                sClear.color.float32[1] = sClearColor[1];
+                sClear.color.float32[2] = sClearColor[2];
+                sClear.color.float32[3] = sClearColor[3];
 
-                VkRenderPassBeginInfo sinfo{};
-                sinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                sinfo.renderPass = srenderPass;
-                sinfo.framebuffer = sframebuffer;
-                sinfo.renderArea.offset = {0, 0};
-                sinfo.renderArea.extent = sextent;
-                sinfo.clearValueCount = 1;
-                sinfo.pClearValues = &sclear;
+                VkRenderPassBeginInfo sInfo{};
+                sInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                sInfo.renderPass = sRenderPass;
+                sInfo.framebuffer = sFramebuffer;
+                sInfo.renderArea.offset = {0, 0};
+                sInfo.renderArea.extent = sExtent;
+                sInfo.clearValueCount = 1;
+                sInfo.pClearValues = &sClear;
 
                 PFN_vkCmdBeginRenderPass pfnCmdBeginRenderPass =
                     reinterpret_cast<PFN_vkCmdBeginRenderPass>(
-                        entry().resolveDevice(sdevice, "vkCmdBeginRenderPass"));
+                        entry().resolveDevice(sDevice, "vkCmdBeginRenderPass"));
                 if (pfnCmdBeginRenderPass == nullptr){
                     return std::unexpected(renaru::Error::RenderPassRecordingFailed);
                 }
-                pfnCmdBeginRenderPass(scommandBuffer, &sinfo, VK_SUBPASS_CONTENTS_INLINE);
+                pfnCmdBeginRenderPass(sCommandBuffer, &sInfo, VK_SUBPASS_CONTENTS_INLINE);
                 return {};
             }
 
-            void endRender() const noexcept{
-                if (sowner == nullptr){
+            void sEndRender() const noexcept{
+                if (sOwner == nullptr){
                     return;
                 }
-                const VkCommandBuffer scommandBuffer = sowner->activeCommandBuffer();
-                if (scommandBuffer == nullptr){
+                const VkCommandBuffer sCommandBuffer = sOwner->sActiveCommandBuffer;
+                if (sCommandBuffer == nullptr){
                     return;
                 }
                 PFN_vkCmdEndRenderPass pfnCmdEndRenderPass =
                     reinterpret_cast<PFN_vkCmdEndRenderPass>(
-                        entry().resolveDevice(sdevice, "vkCmdEndRenderPass"));
+                        entry().resolveDevice(sDevice, "vkCmdEndRenderPass"));
                 if (pfnCmdEndRenderPass == nullptr){
-                    sowner->noteError(renaru::Error::RenderPassRecordingFailed);
+                    sOwner->sNoteError(renaru::Error::RenderPassRecordingFailed);
                     return;
                 }
-                pfnCmdEndRenderPass(scommandBuffer);
+                pfnCmdEndRenderPass(sCommandBuffer);
             }
 
-            void release() noexcept{
-                if (srenderPass != nullptr && sdevice != nullptr){
-                    PFN_vkDestroyRenderPass pfnDestroyRenderPass =
-                        reinterpret_cast<PFN_vkDestroyRenderPass>(
-                            entry().resolveDevice(sdevice, "vkDestroyRenderPass"));
-                    if (pfnDestroyRenderPass != nullptr){
-                        pfnDestroyRenderPass(sdevice, srenderPass, nullptr);
-                    }
-                    srenderPass = nullptr;
+            friend class Device;
+
+        public:
+            RenderPass(const RenderPass&) = delete;
+            RenderPass& operator=(const RenderPass&) = delete;
+
+            RenderPass(RenderPass&& sOther) noexcept :
+                sOwner(std::exchange(sOther.sOwner, nullptr)),
+                sDevice(std::exchange(sOther.sDevice, nullptr)),
+                sRenderPass(std::exchange(sOther.sRenderPass, nullptr)),
+                sClearColor(std::exchange(sOther.sClearColor, std::array<float, 4>{}))
+            {}
+
+            RenderPass& operator=(RenderPass&& sOther) noexcept{
+                if (this != &sOther){
+                    sDestroy();
+                    sOwner = std::exchange(sOther.sOwner, nullptr);
+                    sDevice = std::exchange(sOther.sDevice, nullptr);
+                    sRenderPass = std::exchange(sOther.sRenderPass, nullptr);
+                    sClearColor = std::exchange(sOther.sClearColor, std::array<float, 4>{});
                 }
-                sowner = nullptr;
-                sdevice = nullptr;
+                return *this;
             }
 
-            const Device* sowner = nullptr;
-            VkDevice sdevice = nullptr;
-            VkRenderPass srenderPass = nullptr;
-            std::array<float, 4> sclearColor{};
+            ~RenderPass(){ sDestroy(); }
+
+            template<typename Func>
+            std::expected<void, Error> render(Func&& sFunc) const{
+                return sRenderImpl(sClearColor, std::forward<Func>(sFunc));
+            }
+
+            template<typename Func>
+            std::expected<void, Error> render(std::array<float, 4> sClearColor,
+                                              Func&& sFunc) const{
+                return sRenderImpl(sClearColor, std::forward<Func>(sFunc));
+            }
+
+            void setClearColor(std::array<float, 4> sColor) noexcept{
+                sClearColor = sColor;
+            }
     };
 }
 
-// Definisi lintas partisi: Device didefinisikan di :device, tetapi pembuatan
-// RenderPass membutuhkan tipe lengkap Swapchain/RenderPass dari partisi ini.
 std::expected<renaru::RenderPass, renaru::Error>
-renaru::Device::createRenderPass(const renaru::Swapchain& sswapchain) const{
-    if (sdevice == nullptr || sswapchain.empty()){
+renaru::Device::createRenderPass(const renaru::Swapchain& sSwapchain) const{
+    if (sDevice == nullptr || sSwapchain.sSwapchain == nullptr){
         return std::unexpected(renaru::Error::RenderPassCreationFailed);
     }
 
-    VkAttachmentDescription scolorAttachment{};
-    scolorAttachment.format = sswapchain.format();
-    scolorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    scolorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    scolorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    scolorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    scolorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    scolorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    scolorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentDescription sColorAttachment{};
+    sColorAttachment.format = sSwapchain.sFormat;
+    sColorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    sColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    sColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    sColorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    sColorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    sColorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    sColorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    VkAttachmentReference scolorReference{};
-    scolorReference.attachment = 0;
-    scolorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkAttachmentReference sColorReference{};
+    sColorReference.attachment = 0;
+    sColorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkSubpassDescription ssubpass{};
-    ssubpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    ssubpass.colorAttachmentCount = 1;
-    ssubpass.pColorAttachments = &scolorReference;
+    VkSubpassDescription sSubpass{};
+    sSubpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    sSubpass.colorAttachmentCount = 1;
+    sSubpass.pColorAttachments = &sColorReference;
 
-    VkSubpassDependency sdependency{};
-    sdependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    sdependency.dstSubpass = 0;
-    sdependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    sdependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    sdependency.srcAccessMask = 0;
-    sdependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkSubpassDependency sDependency{};
+    sDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    sDependency.dstSubpass = 0;
+    sDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    sDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    sDependency.srcAccessMask = 0;
+    sDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    VkRenderPassCreateInfo sinfo{};
-    sinfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    sinfo.attachmentCount = 1;
-    sinfo.pAttachments = &scolorAttachment;
-    sinfo.subpassCount = 1;
-    sinfo.pSubpasses = &ssubpass;
-    sinfo.dependencyCount = 1;
-    sinfo.pDependencies = &sdependency;
+    VkRenderPassCreateInfo sInfo{};
+    sInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    sInfo.attachmentCount = 1;
+    sInfo.pAttachments = &sColorAttachment;
+    sInfo.subpassCount = 1;
+    sInfo.pSubpasses = &sSubpass;
+    sInfo.dependencyCount = 1;
+    sInfo.pDependencies = &sDependency;
 
     PFN_vkCreateRenderPass pfnCreateRenderPass = reinterpret_cast<PFN_vkCreateRenderPass>(
-        entry().resolveDevice(sdevice, "vkCreateRenderPass"));
+        entry().resolveDevice(sDevice, "vkCreateRenderPass"));
     if (pfnCreateRenderPass == nullptr){
         return std::unexpected(renaru::Error::RenderPassCreationFailed);
     }
 
-    VkRenderPass screated = nullptr;
-    if (pfnCreateRenderPass(sdevice, &sinfo, nullptr, &screated) != VK_SUCCESS ||
-        screated == nullptr){
+    VkRenderPass sCreated = nullptr;
+    if (pfnCreateRenderPass(sDevice, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
+        sCreated == nullptr){
         return std::unexpected(renaru::Error::RenderPassCreationFailed);
     }
 
     std::println("Aru RHI: RenderPass(created!!)");
 
-    return RenderPass(this, sdevice, screated);
+    return RenderPass(this, sDevice, sCreated);
 }

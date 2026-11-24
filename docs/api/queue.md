@@ -7,8 +7,8 @@
 `QueueFlags` and its operators live in `renaru:instance` (`src/instance.cppm`) so both devices and consumers can use them. The operators are `constexpr`, so combinations can be compile-time constants:
 
 ```cpp
-constexpr auto sflags = renaru::QueueFlags::Graphics | renaru::QueueFlags::Present;
-auto queue = device.requestQueue(sflags);
+constexpr auto sFlags = renaru::QueueFlags::Graphics | renaru::QueueFlags::Present;
+auto queue = device.requestQueue(sFlags);
 if (!queue) {
     std::println("queue: {}", queue.error());
     std::terminate();
@@ -33,7 +33,7 @@ These are the spellings used by `main.cpp`.
 
 ## Creation
 
-`Device::requestQueue(sflags)` checks the selected family against the requested bits (`Present` uses `vkGetPhysicalDeviceSurfaceSupportKHR`) and calls `vkGetDeviceQueue(device, family, 0, ...)`. `QueueRequestFailed` is returned as `std::unexpected(Error::QueueRequestFailed)` on any mismatch; it is formattable through `std::formatter<renaru::Error, char>`.
+`Device::requestQueue(sFlags)` checks the selected family against the requested bits (`Present` uses `vkGetPhysicalDeviceSurfaceSupportKHR`) and calls `vkGetDeviceQueue(device, family, 0, ...)`. `QueueRequestFailed` is returned as `std::unexpected(Error::QueueRequestFailed)` on any mismatch; it is formattable through `std::formatter<renaru::Error, char>`.
 
 ## API
 
@@ -44,7 +44,7 @@ These are the spellings used by `main.cpp`.
 | `QueueFlags flags() const noexcept` | Flags requested at creation. |
 | `std::uint32_t familyIndex() const noexcept` | Queue family index. |
 | `bool empty() const noexcept` | `true` when no queue handle is held. |
-| `std::expected<void, Error> submit(const CommandBuffer& sbuffer) const` | Submits one primary buffer with the frame semaphores/fence (defined in `:command_buffer`). |
+| `std::expected<void, Error> submit(const CommandBuffer& sBuffer) const` | Submits one primary buffer with the frame semaphores/fence (defined in `:command_buffer`). |
 | `std::expected<void, Error> present() const` | Presents the current swapchain image after render completion (defined in `:command_buffer`). |
 
 ## Move-Only Semantics

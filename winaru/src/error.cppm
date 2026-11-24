@@ -18,9 +18,9 @@ export namespace std {
     template<>
     struct formatter<winaru::Error> : formatter<string_view> {
         template<typename FormatContext>
-        auto format(const winaru::Error& error, FormatContext& ctx) const {
+        auto format(const winaru::Error& sError, FormatContext& ctx) const {
             string_view text = "unknown";
-            switch (error) {
+            switch (sError) {
                 case winaru::Error::None:
                     text = "none";
                     break;
