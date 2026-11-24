@@ -8,8 +8,6 @@ module;
 export module renaru:entry;
 
 export namespace renaru {
-    // Pemilik vulkan-1.dll dan dispatcher global. Data private di atas,
-    // konstruktor/fungsi internal setelahnya, baru API publik di bawah.
     class Entry {
         private:
             static constexpr const char* sLibraryName = "vulkan-1.dll";
