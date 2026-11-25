@@ -17,36 +17,31 @@ import :entry;
 export import :error;
 
 export namespace renaru {
-    // Operasi bitwise constexpr supaya kombinasi flag bisa jadi konstanta compile-time.
     enum class QueueFlags : std::uint32_t {
-        None = 0,
-        Graphics = 1u << 0,
-        Compute = 1u << 1,
-        Transfer = 1u << 2,
-        Present = 1u << 3,
+        eNone        = 0x00000000,
+        eGraphics    = 0x00000001,
+        eCompute     = 0x00000002,
+        eTransfer    = 0x00000004,
+        ePresent     = 0x00000008,
+        eMaxEnum    = 0x11111111
     };
 
     constexpr QueueFlags operator|(QueueFlags sLhs, QueueFlags sRhs) noexcept{
         return static_cast<QueueFlags>(static_cast<std::uint32_t>(sLhs) | static_cast<std::uint32_t>(sRhs));
     }
-
     constexpr QueueFlags operator&(QueueFlags sLhs, QueueFlags sRhs) noexcept{
         return static_cast<QueueFlags>(static_cast<std::uint32_t>(sLhs) & static_cast<std::uint32_t>(sRhs));
     }
-
     constexpr QueueFlags operator^(QueueFlags sLhs, QueueFlags sRhs) noexcept{
         return static_cast<QueueFlags>(static_cast<std::uint32_t>(sLhs) ^ static_cast<std::uint32_t>(sRhs));
     }
-
     constexpr QueueFlags operator~(QueueFlags sValue) noexcept{
         return static_cast<QueueFlags>(~static_cast<std::uint32_t>(sValue));
     }
-
     constexpr QueueFlags& operator|=(QueueFlags& sLhs, QueueFlags sRhs) noexcept{
         sLhs = sLhs | sRhs;
         return sLhs;
     }
-
     constexpr bool hasFlag(QueueFlags sValue, QueueFlags sFlag) noexcept{
         return (static_cast<std::uint32_t>(sValue) & static_cast<std::uint32_t>(sFlag)) != 0;
     }
