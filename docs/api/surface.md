@@ -9,20 +9,20 @@ Surfaces are not created with a public constructor. Use the `Instance` member:
 ```cpp
 auto instance = renaru::Instance::create("Arunimesta");
 if (!instance) {
-    std::println("instance: {}", instance.error());
+    std::println("instance: {}", static_cast<std::uint32_t>(instance.error()));
     std::terminate();
 }
 
 auto surface = instance->createSurface(window);
 if (!surface) {
-    std::println("surface: {}", surface.error());
+    std::println("surface: {}", static_cast<std::uint32_t>(surface.error()));
     std::terminate();
 }
 ```
 
 `Instance::create()` enables `VK_KHR_surface` and `VK_KHR_win32_surface`, so `vkCreateWin32SurfaceKHR` is available through `entry().resolveInstance(...)`. The `HWND` comes from `Window::handle()`; `GetModuleHandleW(nullptr)` supplies the `HINSTANCE`.
 
-`SurfaceCreationFailed` is returned as `std::unexpected(Error::SurfaceCreationFailed)` when the window is empty or `vkCreateWin32SurfaceKHR` fails. It is formattable through `std::formatter<renaru::Error, char>`.
+`eSurfaceCreationFailed` is returned as `std::unexpected(Error::eSurfaceCreationFailed)` when the window is empty or `vkCreateWin32SurfaceKHR` fails. It is printed as a numeric value.
 
 ## API
 

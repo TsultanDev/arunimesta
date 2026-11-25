@@ -10,7 +10,7 @@
 constexpr auto sFlags = renaru::QueueFlags::Graphics | renaru::QueueFlags::Present;
 auto queue = device.requestQueue(sFlags);
 if (!queue) {
-    std::println("queue: {}", queue.error());
+    std::println("queue: {}", static_cast<std::uint32_t>(queue.error()));
     std::terminate();
 }
 ```
@@ -33,7 +33,7 @@ These are the spellings used by `main.cpp`.
 
 ## Creation
 
-`Device::requestQueue(sFlags)` checks the selected family against the requested bits (`Present` uses `vkGetPhysicalDeviceSurfaceSupportKHR`) and calls `vkGetDeviceQueue(device, family, 0, ...)`. `QueueRequestFailed` is returned as `std::unexpected(Error::QueueRequestFailed)` on any mismatch; it is formattable through `std::formatter<renaru::Error, char>`.
+`Device::requestQueue(sFlags)` checks the selected family against the requested bits (`Present` uses `vkGetPhysicalDeviceSurfaceSupportKHR`) and calls `vkGetDeviceQueue(device, family, 0, ...)`. `eQueueRequestFailed` is returned as `std::unexpected(Error::eQueueRequestFailed)` on any mismatch; it is printed as a numeric value.
 
 ## API
 

@@ -71,14 +71,14 @@ export namespace renaru {
 std::expected<renaru::Queue, renaru::Error>
 renaru::Device::requestQueue(renaru::QueueFlags sFlags) const{
     if (sDevice == nullptr){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
 
     PFN_vkGetPhysicalDeviceQueueFamilyProperties pfnGetQueueFamilyProperties =
         reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(
             entry().resolveInstance(sInstance, "vkGetPhysicalDeviceQueueFamilyProperties"));
     if (pfnGetQueueFamilyProperties == nullptr){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
 
     std::uint32_t sFamilyCount = 0;
@@ -87,18 +87,18 @@ renaru::Device::requestQueue(renaru::QueueFlags sFlags) const{
     pfnGetQueueFamilyProperties(sPhysicalDevice, &sFamilyCount, sFamilies.data());
 
     if (sQueueFamily >= sFamilies.size()){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
     const VkQueueFlags sAvailable = sFamilies[sQueueFamily].queueFlags;
 
     if (hasFlag(sFlags, QueueFlags::Graphics) && (sAvailable & VK_QUEUE_GRAPHICS_BIT) == 0){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
     if (hasFlag(sFlags, QueueFlags::Compute) && (sAvailable & VK_QUEUE_COMPUTE_BIT) == 0){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
     if (hasFlag(sFlags, QueueFlags::Transfer) && (sAvailable & VK_QUEUE_TRANSFER_BIT) == 0){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
     if (hasFlag(sFlags, QueueFlags::Present)){
         PFN_vkGetPhysicalDeviceSurfaceSupportKHR pfnGetSurfaceSupportKHR =
@@ -106,24 +106,24 @@ renaru::Device::requestQueue(renaru::QueueFlags sFlags) const{
                 entry().resolveInstance(sInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
         VkBool32 sSupportsPresent = VK_FALSE;
         if (pfnGetSurfaceSupportKHR == nullptr){
-            return std::unexpected(renaru::Error::QueueRequestFailed);
+            return std::unexpected(renaru::Error::eQueueRequestFailed);
         }
         pfnGetSurfaceSupportKHR(sPhysicalDevice, sQueueFamily, sSurface, &sSupportsPresent);
         if (sSupportsPresent != VK_TRUE){
-            return std::unexpected(renaru::Error::QueueRequestFailed);
+            return std::unexpected(renaru::Error::eQueueRequestFailed);
         }
     }
 
     PFN_vkGetDeviceQueue pfnGetDeviceQueue = reinterpret_cast<PFN_vkGetDeviceQueue>(
         entry().resolveDevice(sDevice, "vkGetDeviceQueue"));
     if (pfnGetDeviceQueue == nullptr){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
 
     VkQueue sQueue = nullptr;
     pfnGetDeviceQueue(sDevice, sQueueFamily, 0, &sQueue);
     if (sQueue == nullptr){
-        return std::unexpected(renaru::Error::QueueRequestFailed);
+        return std::unexpected(renaru::Error::eQueueRequestFailed);
     }
 
     std::println("Aru RHI: Queue(requested!!) family={}", sQueueFamily);

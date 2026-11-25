@@ -30,7 +30,7 @@ Creates the Vulkan instance.
 ```cpp
 auto instance = renaru::Instance::create("Arunimesta");
 if (!instance) {
-    std::println("error: {}", instance.error());
+    std::println("error: {}", static_cast<std::uint32_t>(instance.error()));
     std::terminate();
 }
 ```
@@ -39,18 +39,18 @@ if (!instance) {
 
 | Value | Meaning |
 | :--- | :--- |
-| `None` | No error. |
-| `DynamicLoaderFailed` | `vkGetInstanceProcAddr` could not be loaded. |
-| `ApiVersionQueryFailed` | `vkEnumerateInstanceVersion` returned a failure code. |
-| `InstanceCreationFailed` | `vkCreateInstance` failed. |
-| `SurfaceCreationFailed` | `vkCreateWin32SurfaceKHR` failed or the window was empty. |
-| `AdapterNotFound` | No physical device has a graphics + present queue family for the surface. |
-| `DeviceCreationFailed` | `vkCreateDevice` failed or the adapter was empty. |
-| `QueueRequestFailed` | The requested queue flags are unavailable on the selected family. |
+| `eNone` | No error. |
+| `eDynamicLoaderFailed` | `vkGetInstanceProcAddr` could not be loaded. |
+| `eApiVersionQueryFailed` | `vkEnumerateInstanceVersion` returned a failure code. |
+| `eInstanceCreationFailed` | `vkCreateInstance` failed. |
+| `eSurfaceCreationFailed` | `vkCreateWin32SurfaceKHR` failed or the window was empty. |
+| `eAdapterNotFound` | No physical device has a graphics + present queue family for the surface. |
+| `eDeviceCreationFailed` | `vkCreateDevice` failed or the adapter was empty. |
+| `eQueueRequestFailed` | The requested queue flags are unavailable on the selected family. |
 
-`Error` lives in the `renaru:error` partition (`src/error.cppm`) together with its `std::formatter<Error, char>` specialization, so it can be printed with `std::println`. The `renaru` facade re-exports that partition.
+`Error` lives in the `renaru:error` partition (`src/error.cppm`). There is no `std::formatter<Error, char>` specialization yet: print the numeric value with `std::println("{}", static_cast<std::uint32_t>(err))` until C++26 static reflection is available in Clang. The `renaru` facade re-exports that partition.
 
-Failures are returned as `std::unexpected(Error::X)`.
+Failures are returned as `std::unexpected(Error::eX)`.
 
 ### Factory members returning `std::expected<T, Error>`
 

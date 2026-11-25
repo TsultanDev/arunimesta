@@ -72,18 +72,18 @@ renaru::Instance::requestAdapter(const renaru::Surface& sSurface){
         reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
             entry().resolveInstance(sInstance, "vkEnumeratePhysicalDevices"));
     if (pfnEnumeratePhysicalDevices == nullptr){
-        return std::unexpected(renaru::Error::AdapterNotFound);
+        return std::unexpected(renaru::Error::eAdapterNotFound);
     }
 
     std::uint32_t sDeviceCount = 0;
     if (pfnEnumeratePhysicalDevices(sInstance, &sDeviceCount, nullptr) != VK_SUCCESS ||
         sDeviceCount == 0){
-        return std::unexpected(renaru::Error::AdapterNotFound);
+        return std::unexpected(renaru::Error::eAdapterNotFound);
     }
 
     std::vector<VkPhysicalDevice> sDevices(sDeviceCount);
     if (pfnEnumeratePhysicalDevices(sInstance, &sDeviceCount, sDevices.data()) != VK_SUCCESS){
-        return std::unexpected(renaru::Error::AdapterNotFound);
+        return std::unexpected(renaru::Error::eAdapterNotFound);
     }
 
     PFN_vkGetPhysicalDeviceQueueFamilyProperties pfnGetQueueFamilyProperties =
@@ -93,7 +93,7 @@ renaru::Instance::requestAdapter(const renaru::Surface& sSurface){
         reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(
             entry().resolveInstance(sInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
     if (pfnGetQueueFamilyProperties == nullptr || pfnGetSurfaceSupportKHR == nullptr){
-        return std::unexpected(renaru::Error::AdapterNotFound);
+        return std::unexpected(renaru::Error::eAdapterNotFound);
     }
 
     for (const VkPhysicalDevice sDevice : sDevices){
@@ -116,5 +116,5 @@ renaru::Instance::requestAdapter(const renaru::Surface& sSurface){
         }
     }
 
-    return std::unexpected(renaru::Error::AdapterNotFound);
+    return std::unexpected(renaru::Error::eAdapterNotFound);
 }

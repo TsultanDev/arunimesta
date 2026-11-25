@@ -7,12 +7,12 @@
 ```cpp
 auto device = adapter.createDevice(adapter);
 if (!device) {
-    std::println("device: {}", device.error());
+    std::println("device: {}", static_cast<std::uint32_t>(device.error()));
     std::terminate();
 }
 ```
 
-`createDevice()` creates one queue from the adapter's graphics + present family and enables `VK_KHR_swapchain`. `DeviceCreationFailed` is returned as `std::unexpected(Error::DeviceCreationFailed)` if either adapter is empty or `vkCreateDevice` fails; it is formattable through `std::formatter<renaru::Error, char>`.
+`createDevice()` creates one queue from the adapter's graphics + present family and enables `VK_KHR_swapchain`. `eDeviceCreationFailed` is returned as `std::unexpected(Error::eDeviceCreationFailed)` if either adapter is empty or `vkCreateDevice` fails; it is printed as a numeric value.
 
 The object stores the parent instance, physical device, surface, logical device, and queue family index so that `requestQueue()` can validate and fetch queues. It also caches the swapchain, per-image framebuffers, and frame synchronization state (fences, semaphores, `frame_index`) used by `acquire()`; see [frame.md](frame.md).
 

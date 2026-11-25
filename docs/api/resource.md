@@ -27,7 +27,7 @@ Resources are created through `Device`:
 ```cpp
 auto imageResource = device.createImageResource(sImage, sFormat, sExtent);
 if (!imageResource) {
-    std::println("image resource: {}", imageResource.error());
+    std::println("image resource: {}", static_cast<std::uint32_t>(imageResource.error()));
     std::terminate();
 }
 
@@ -37,14 +37,14 @@ auto bufferResource = device.createBufferResource(
     VK_FORMAT_R32_SFLOAT
 );
 if (!bufferResource) {
-    std::println("buffer resource: {}", bufferResource.error());
+    std::println("buffer resource: {}", static_cast<std::uint32_t>(bufferResource.error()));
     std::terminate();
 }
 ```
 
 `createImageResource()` creates a 2D `VkImageView` with a color subresource range. The `VkImage` itself is borrowed (typically from a swapchain); the view is owned.
 
-`createBufferResource()` creates an exclusive `VkBuffer` and a `VkBufferView` over the whole buffer. Both are owned. `ResourceCreationFailed` is returned as `std::unexpected(Error::ResourceCreationFailed)` on failure; it is formattable through `std::formatter<renaru::Error, char>`.
+`createBufferResource()` creates an exclusive `VkBuffer` and a `VkBufferView` over the whole buffer. Both are owned. `eResourceCreationFailed` is returned as `std::unexpected(Error::eResourceCreationFailed)` on failure; it is printed as a numeric value.
 
 `Device::createSwapchainImages()` uses `createImageResource()` internally, so callers normally receive image resources rather than creating them directly. It returns `std::expected<std::vector<Resource>, Error>`.
 

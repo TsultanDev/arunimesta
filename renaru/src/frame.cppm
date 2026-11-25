@@ -16,7 +16,7 @@ import :device;
 
 std::expected<void, renaru::Error> renaru::Device::sEnsureFrameResources() const{
     if (sDevice == nullptr || sSwapchain == nullptr){
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
     if (sImageAvailableSemaphores.size() == MaxFramesInFlight &&
         sRenderFinishedSemaphores.size() == MaxFramesInFlight &&
@@ -31,7 +31,7 @@ std::expected<void, renaru::Error> renaru::Device::sEnsureFrameResources() const
     PFN_vkCreateFence pfnCreateFence = reinterpret_cast<PFN_vkCreateFence>(
         entry().resolveDevice(sDevice, "vkCreateFence"));
     if (pfnCreateSemaphore == nullptr || pfnCreateFence == nullptr){
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
 
     for (std::uint32_t sIndex = 0; sIndex < MaxFramesInFlight; ++sIndex){
@@ -59,7 +59,7 @@ std::expected<void, renaru::Error> renaru::Device::sEnsureFrameResources() const
                 }
             }
             sDestroyFrameResources();
-            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+            return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
         }
 
         VkFenceCreateInfo sFenceInfo{};
@@ -76,7 +76,7 @@ std::expected<void, renaru::Error> renaru::Device::sEnsureFrameResources() const
                 pfnDestroySemaphore(sDevice, sRenderSemaphore, nullptr);
             }
             sDestroyFrameResources();
-            return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+            return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
         }
 
         sImageAvailableSemaphores.push_back(sImageSemaphore);
@@ -88,7 +88,7 @@ std::expected<void, renaru::Error> renaru::Device::sEnsureFrameResources() const
         sRenderFinishedSemaphores.size() != MaxFramesInFlight ||
         sInFlightFences.size() != MaxFramesInFlight){
         sDestroyFrameResources();
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
 
     return {};
@@ -137,10 +137,10 @@ std::expected<void, renaru::Error> renaru::Device::sBeginFrame() const{
         return ready;
     }
     if (sFrameIndex >= sInFlightFences.size()){
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
 
-    sLastError = renaru::Error::None;
+    sLastError = renaru::Error::eNone;
     sActiveCommandBuffer = nullptr;
 
     const VkFence sFence = sInFlightFences[sFrameIndex];
@@ -154,21 +154,21 @@ std::expected<void, renaru::Error> renaru::Device::sBeginFrame() const{
         reinterpret_cast<PFN_vkAcquireNextImageKHR>(
             entry().resolveDevice(sDevice, "vkAcquireNextImageKHR"));
     if (pfnWaitForFences == nullptr || pfnResetFences == nullptr || pfnAcquireNextImageKHR == nullptr){
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
 
     if (pfnWaitForFences(sDevice, 1, &sFence, VK_TRUE, sTimeout) != VK_SUCCESS){
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
     if (pfnResetFences(sDevice, 1, &sFence) != VK_SUCCESS){
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
 
     const VkResult sAcquired = pfnAcquireNextImageKHR(
         sDevice, sSwapchain, sTimeout,
         sImageAvailableSemaphores[sFrameIndex], nullptr, &sCurrentImage);
     if (sAcquired != VK_SUCCESS && sAcquired != VK_SUBOPTIMAL_KHR){
-        return std::unexpected(renaru::Error::FrameAcquisitionFailed);
+        return std::unexpected(renaru::Error::eFrameAcquisitionFailed);
     }
 
     return {};
@@ -244,7 +244,7 @@ VkFence renaru::Device::sCurrentFence() const noexcept{
 }
 
 void renaru::Device::sNoteError(renaru::Error sError) const noexcept{
-    if (sLastError == renaru::Error::None){
+    if (sLastError == renaru::Error::eNone){
         sLastError = sError;
     }
 }

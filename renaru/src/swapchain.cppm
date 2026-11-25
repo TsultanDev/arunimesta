@@ -85,7 +85,7 @@ export namespace renaru {
 std::expected<renaru::Swapchain, renaru::Error>
 renaru::Device::createSwapchain(std::uint32_t sWidth, std::uint32_t sHeight) const{
     if (sDevice == nullptr || sSurface == nullptr){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
 
     PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfnGetCapabilities =
@@ -98,32 +98,32 @@ renaru::Device::createSwapchain(std::uint32_t sWidth, std::uint32_t sHeight) con
         reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(
             entry().resolveInstance(sInstance, "vkGetPhysicalDeviceSurfacePresentModesKHR"));
     if (pfnGetCapabilities == nullptr || pfnGetFormats == nullptr || pfnGetPresentModes == nullptr){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
 
     VkSurfaceCapabilitiesKHR sCapabilities{};
     if (pfnGetCapabilities(sPhysicalDevice, sSurface, &sCapabilities) != VK_SUCCESS){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
 
     std::uint32_t sFormatCount = 0;
     if (pfnGetFormats(sPhysicalDevice, sSurface, &sFormatCount, nullptr) != VK_SUCCESS ||
         sFormatCount == 0){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
     std::vector<VkSurfaceFormatKHR> sFormats(sFormatCount);
     if (pfnGetFormats(sPhysicalDevice, sSurface, &sFormatCount, sFormats.data()) != VK_SUCCESS){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
 
     std::uint32_t sModeCount = 0;
     if (pfnGetPresentModes(sPhysicalDevice, sSurface, &sModeCount, nullptr) != VK_SUCCESS ||
         sModeCount == 0){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
     std::vector<VkPresentModeKHR> sModes(sModeCount);
     if (pfnGetPresentModes(sPhysicalDevice, sSurface, &sModeCount, sModes.data()) != VK_SUCCESS){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
 
     VkSurfaceFormatKHR sChosenFormat = sFormats.front();
@@ -179,13 +179,13 @@ renaru::Device::createSwapchain(std::uint32_t sWidth, std::uint32_t sHeight) con
     PFN_vkCreateSwapchainKHR pfnCreateSwapchainKHR = reinterpret_cast<PFN_vkCreateSwapchainKHR>(
         entry().resolveDevice(sDevice, "vkCreateSwapchainKHR"));
     if (pfnCreateSwapchainKHR == nullptr){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
 
     VkSwapchainKHR sCreated = nullptr;
     if (pfnCreateSwapchainKHR(sDevice, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
         sCreated == nullptr){
-        return std::unexpected(renaru::Error::SwapchainCreationFailed);
+        return std::unexpected(renaru::Error::eSwapchainCreationFailed);
     }
 
     std::println("Aru RHI: Swapchain(created!!) images={}", sImageCount);
@@ -198,7 +198,7 @@ renaru::Device::createSwapchain(std::uint32_t sWidth, std::uint32_t sHeight) con
 std::expected<std::vector<renaru::Resource>, renaru::Error>
 renaru::Device::createSwapchainImages(const renaru::Swapchain& sSwapchain) const{
     if (sDevice == nullptr || sSwapchain.sSwapchain == nullptr){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     PFN_vkGetSwapchainImagesKHR pfnGetSwapchainImagesKHR =
@@ -207,17 +207,17 @@ renaru::Device::createSwapchainImages(const renaru::Swapchain& sSwapchain) const
     PFN_vkCreateImageView pfnCreateImageView = reinterpret_cast<PFN_vkCreateImageView>(
         entry().resolveDevice(sDevice, "vkCreateImageView"));
     if (pfnGetSwapchainImagesKHR == nullptr || pfnCreateImageView == nullptr){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     std::uint32_t sCount = 0;
     if (pfnGetSwapchainImagesKHR(sDevice, sSwapchain.sSwapchain, &sCount, nullptr) != VK_SUCCESS ||
         sCount == 0){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
     std::vector<VkImage> sImages(sCount);
     if (pfnGetSwapchainImagesKHR(sDevice, sSwapchain.sSwapchain, &sCount, sImages.data()) != VK_SUCCESS){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     std::vector<renaru::Resource> sResources;
@@ -238,7 +238,7 @@ renaru::Device::createSwapchainImages(const renaru::Swapchain& sSwapchain) const
         VkImageView sView = nullptr;
         if (pfnCreateImageView(sDevice, &sInfo, nullptr, &sView) != VK_SUCCESS ||
             sView == nullptr){
-            return std::unexpected(renaru::Error::ResourceCreationFailed);
+            return std::unexpected(renaru::Error::eResourceCreationFailed);
         }
 
         sResources.push_back(renaru::Resource(

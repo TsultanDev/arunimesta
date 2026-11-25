@@ -1,10 +1,10 @@
 module;
 #include <string>
-export module template;
+export module template:class_template;
 
 //nama namespace dan sesuai nama file
 export namespace template{
-    class Template{
+    class ClassTemplate{
         // private di atas dan public dibawah. untuk struct kebalikannya
         // data duluan baru fungsi
         private:
@@ -16,7 +16,7 @@ export namespace template{
             std::string sName("MyName");
 
             // selalu dahulukan konstruktor, sCreate diatas dan sDestroy dibawah, sementara fungsi internal lain berada setelah fungsi destroy
-            Template(void& ref) : sRef(ref) {}
+            ClassTemplate(void& ref) : sRef(ref) {}
             //jika object yang harus dibuat factor maka Template(factory, ref) untuk factory& dan ref& yang pnaggil dari method factory.create(ref).
 
             //buat create dan destroy jika ingin lebih rapi
@@ -45,17 +45,17 @@ export namespace template{
                 // sementara class yang ada factory class harus melewati
                 // factory.createTemplate()
             }
-            ~Template(){
+            ~ClassTemplate(){
                 //pembersihan resource
             }
             //delete copy
-            Template(const Tempate& other) = delete;
-            Template& operator=(const Template&  other) = delete;
+            ClassTemplate(const ClassTempate& other) = delete;
+            ClassTemplate& operator=(const ClassTemplate&  other) = delete;
 
-            Template(Tempate&& other) noexcept {
+            ClassTemplate(Tempate&& other) noexcept {
                 //move value
             };
-            Template& operator=(const Template& other) noexcept {
+            ClassTemplate& operator=(const && other) noexcept {
                 //move value
             };
 

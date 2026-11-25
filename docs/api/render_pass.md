@@ -7,7 +7,7 @@
 ```cpp
 auto renderPass = device.createRenderPass(swapchain);
 if (!renderPass) {
-    std::println("render pass: {}", renderPass.error());
+    std::println("render pass: {}", static_cast<std::uint32_t>(renderPass.error()));
     std::terminate();
 }
 ```
@@ -18,7 +18,7 @@ The current render pass has:
 - One graphics subpass referencing that attachment as `COLOR_ATTACHMENT_OPTIMAL`.
 - One external dependency on `COLOR_ATTACHMENT_OUTPUT` with `COLOR_ATTACHMENT_WRITE` destination access.
 
-`RenderPassCreationFailed` is returned as `std::unexpected(Error::RenderPassCreationFailed)` when the device/swapchain is empty or `vkCreateRenderPass` fails. It is formattable through `std::formatter<renaru::Error, char>`.
+`eRenderPassCreationFailed` is returned as `std::unexpected(Error::eRenderPassCreationFailed)` when the device/swapchain is empty or `vkCreateRenderPass` fails. It is printed as a numeric value.
 
 ## API
 
@@ -32,7 +32,7 @@ The current render pass has:
 | `VkDevice deviceHandle() const noexcept` | Owning device. |
 | `bool empty() const noexcept` | `true` when no render pass handle is held. |
 
-`render()` is meant to be called inside [`CommandBuffer::record()`](command_buffer.md): it uses the active command buffer, the framebuffer for `Device::currentImageIndex()`, and the cached swapchain extent. It returns `RenderPassRecordingFailed` when any of those is missing or when Vulkan rejects `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`. See [frame.md](frame.md) for the full flow.
+`render()` is meant to be called inside [`CommandBuffer::record()`](command_buffer.md): it uses the active command buffer, the framebuffer for `Device::currentImageIndex()`, and the cached swapchain extent. It returns `eRenderPassRecordingFailed` when any of those is missing or when Vulkan rejects `vkCmdBeginRenderPass` / `vkCmdEndRenderPass`. See [frame.md](frame.md) for the full flow.
 
 ## Move-Only Semantics
 

@@ -7,18 +7,18 @@
 ```cpp
 auto pool = device.createCommandPool(queue);
 if (!pool) {
-    std::println("command pool: {}", pool.error());
+    std::println("command pool: {}", static_cast<std::uint32_t>(pool.error()));
     std::terminate();
 }
 ```
 
-`createCommandPool()` accepts a `Queue` from the same `Device` and the same queue family. It returns `std::unexpected(Error::CommandPoolCreationFailed)` when:
+`createCommandPool()` accepts a `Queue` from the same `Device` and the same queue family. It returns `std::unexpected(Error::eCommandPoolCreationFailed)` when:
 
 - the device or the queue is empty;
 - the queue belongs to a different logical device or queue family;
 - `vkCreateCommandPool` fails.
 
-The pool is created with `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT`, so individual command buffers can be reset with `CommandBuffer::reset()`. The error is formattable through `std::formatter<renaru::Error, char>`.
+The pool is created with `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT`, so individual command buffers can be reset with `CommandBuffer::reset()`. The error is printed as a numeric value.
 
 ## API
 

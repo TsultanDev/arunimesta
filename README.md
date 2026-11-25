@@ -286,7 +286,7 @@ Window creation with explicit error handling:
 ```cpp
 auto windowResult = winaru::Window::create("Arunimesta — 世界", 800, 600);
 if (!windowResult) {
-    std::println("Error: {}", windowResult.error());
+    std::println("Error: {}", static_cast<std::uint32_t>(windowResult.error()));
     return 1;
 }
 auto window = std::move(*windowResult);

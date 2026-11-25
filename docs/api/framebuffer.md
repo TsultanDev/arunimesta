@@ -7,7 +7,7 @@
 ```cpp
 auto framebuffer = device.createFramebuffer(renderPass, image);
 if (!framebuffer) {
-    std::println("framebuffer: {}", framebuffer.error());
+    std::println("framebuffer: {}", static_cast<std::uint32_t>(framebuffer.error()));
     std::terminate();
 }
 ```
@@ -19,19 +19,19 @@ if (!framebuffer) {
 - `image.extent().width` / `image.extent().height` as its dimensions.
 - One layer.
 
-`FramebufferCreationFailed` is returned as `std::unexpected(Error::FramebufferCreationFailed)` on invalid input or `vkCreateFramebuffer` failure; it is formattable through `std::formatter<renaru::Error, char>`.
+`eFramebufferCreationFailed` is returned as `std::unexpected(Error::eFramebufferCreationFailed)` on invalid input or `vkCreateFramebuffer` failure; it is printed as a numeric value.
 
 ### Typical loop
 
 ```cpp
 auto images = device.createSwapchainImages(swapchain);
 if (!images) {
-    std::println("images: {}", images.error());
+    std::println("images: {}", static_cast<std::uint32_t>(images.error()));
     std::terminate();
 }
 auto renderPass = device.createRenderPass(swapchain);
 if (!renderPass) {
-    std::println("render pass: {}", renderPass.error());
+    std::println("render pass: {}", static_cast<std::uint32_t>(renderPass.error()));
     std::terminate();
 }
 
@@ -41,7 +41,7 @@ framebuffers.reserve(images->size());
 for (const auto& image : *images) {
     auto framebuffer = device.createFramebuffer(*renderPass, image);
     if (!framebuffer) {
-        std::println("framebuffer: {}", framebuffer.error());
+        std::println("framebuffer: {}", static_cast<std::uint32_t>(framebuffer.error()));
         std::terminate();
     }
     framebuffers.push_back(std::move(*framebuffer)); // transfer ownership into the vector

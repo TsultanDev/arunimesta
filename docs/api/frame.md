@@ -46,13 +46,13 @@ check(device.acquire([&]() mutable {
 
 | Error | Meaning |
 | :--- | :--- |
-| `FrameAcquisitionFailed` | Sync resources are missing, fence wait/reset failed, or `vkAcquireNextImageKHR` failed. |
-| `CommandBufferRecordingFailed` | `record()` could not reset/begin/end the command buffer. |
-| `RenderPassRecordingFailed` | `render()` could not begin/end the render pass. |
-| `CommandSubmissionFailed` | `vkQueueSubmit` failed or the required sync handles are missing. |
-| `FramePresentationFailed` | `vkQueuePresentKHR` failed or the swapchain/semaphore is missing. |
+| `eFrameAcquisitionFailed` | Sync resources are missing, fence wait/reset failed, or `vkAcquireNextImageKHR` failed. |
+| `eCommandBufferRecordingFailed` | `record()` could not reset/begin/end the command buffer. |
+| `eRenderPassRecordingFailed` | `render()` could not begin/end the render pass. |
+| `eCommandSubmissionFailed` | `vkQueueSubmit` failed or the required sync handles are missing. |
+| `eFramePresentationFailed` | `vkQueuePresentKHR` failed or the swapchain/semaphore is missing. |
 
-All are formattable through `std::formatter<renaru::Error, char>`.
+All are printed as a numeric value.
 
 ## Observers
 

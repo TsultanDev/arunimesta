@@ -79,17 +79,17 @@ renaru::Device::createFramebuffer(const renaru::RenderPass& sRenderPass,
                                   const renaru::Resource& sImage) const{
     if (sDevice == nullptr || sRenderPass.sRenderPass == nullptr ||
         sImage.sKind != renaru::ResourceKind::Image){
-        return std::unexpected(renaru::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::eFramebufferCreationFailed);
     }
 
     const VkImageView sAttachment = sImage.sData.sImage.sView;
     if (sAttachment == nullptr){
-        return std::unexpected(renaru::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::eFramebufferCreationFailed);
     }
 
     const VkExtent2D sExtent = sImage.sExtent;
     if (sExtent.width == 0 || sExtent.height == 0){
-        return std::unexpected(renaru::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::eFramebufferCreationFailed);
     }
 
     VkFramebufferCreateInfo sInfo{};
@@ -104,13 +104,13 @@ renaru::Device::createFramebuffer(const renaru::RenderPass& sRenderPass,
     PFN_vkCreateFramebuffer pfnCreateFramebuffer = reinterpret_cast<PFN_vkCreateFramebuffer>(
         entry().resolveDevice(sDevice, "vkCreateFramebuffer"));
     if (pfnCreateFramebuffer == nullptr){
-        return std::unexpected(renaru::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::eFramebufferCreationFailed);
     }
 
     VkFramebuffer sCreated = nullptr;
     if (pfnCreateFramebuffer(sDevice, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
         sCreated == nullptr){
-        return std::unexpected(renaru::Error::FramebufferCreationFailed);
+        return std::unexpected(renaru::Error::eFramebufferCreationFailed);
     }
 
     sRegisterFramebuffer(sCreated);

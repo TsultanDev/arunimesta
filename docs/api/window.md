@@ -10,7 +10,7 @@ import aru;          // re-exports winaru
 
 ## Overview
 
-`Window` represents a Win32 window. Instances are created through the `create()` factories, which return `std::expected<Window, Error>`. The title is stored as `std::wstring` in `sTitle` and passed directly to the Unicode Win32 APIs. The class follows the root `template.cppm` layout: private `s...` data first, private constructor plus `sCreate`/`sDestroy`, then the public factories, destructor, deleted copy, implemented move, and public methods.
+`Window` represents a Win32 window. Instances are created through the `create()` factories, which return `std::expected<Window, Error>`. The title is stored as `std::wstring` in `sTitle` and passed directly to the Unicode Win32 APIs. The class follows the `template/class_template.cppm` layout: private `s...` data first, private constructor plus `sCreate`/`sDestroy`, then the public factories, destructor, deleted copy, implemented move, and public methods.
 
 <p align="center">
   <img src="../../assets/window.png" alt="Arunimesta Win32 window" width="700">
@@ -23,19 +23,20 @@ import aru;          // re-exports winaru
 ## Error type
 
 ```cpp
-enum class winaru::Error {
-    None = 0,
-    ClassRegistrationFailed = 1,
-    WindowCreationFailed = 2,
+enum class winaru::Error : std::uint32_t {
+    eNone                       = 0x00000000,
+    eClassRegistrationFailed    = 0x00000001,
+    eWindowCreationFailed       = 0x00000002,
+    eMaxEnum                    = 0xFFFFFFFF
 };
 ```
 
-Failures are returned as `std::unexpected(Error::X)`.
+Failures are returned as `std::unexpected(Error::eX)`.
 
-A `std::formatter<winaru::Error, char>` specialization is exported, so `Error` can be printed directly:
+There is no `std::formatter<winaru::Error, char>` specialization yet. Print the numeric value instead:
 
 ```cpp
-std::println("Error! : {}", err);
+std::println("Error! : {}", static_cast<std::uint32_t>(err));
 ```
 
 ## API
@@ -47,7 +48,7 @@ Narrow-title overload. The title is treated as UTF-8 and converted to a `std::ws
 ```cpp
 auto window = winaru::Window::create("Arunimesta", 800, 600);
 if (!window) {
-    std::println("Error! : {}", window.error());
+    std::println("Error! : {}", static_cast<std::uint32_t>(window.error()));
     std::terminate();
 }
 ```
@@ -63,7 +64,7 @@ Creates a **new OS window** using the source window's title, width, and height. 
 ```cpp
 auto second = winaru::Window::createFromWindow(window);
 if (!second) {
-    std::println("Error! : {}", second.error());
+    std::println("Error! : {}", static_cast<std::uint32_t>(second.error()));
     std::terminate();
 }
 // second->handle() != window.handle()

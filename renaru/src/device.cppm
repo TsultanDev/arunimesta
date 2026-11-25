@@ -46,7 +46,7 @@ export namespace renaru {
             mutable std::uint32_t sFrameIndex = 0;
             mutable std::uint32_t sCurrentImage = 0;
             mutable VkCommandBuffer sActiveCommandBuffer = nullptr;
-            mutable Error sLastError = Error::None;
+            mutable Error sLastError = Error::eNone;
 
             Device(VkInstance sInstance, VkPhysicalDevice sPhysicalDevice,
                    VkSurfaceKHR sSurface, VkDevice sDevice,
@@ -78,7 +78,7 @@ export namespace renaru {
                 sFrameIndex = 0;
                 sCurrentImage = 0;
                 sActiveCommandBuffer = nullptr;
-                sLastError = Error::None;
+                sLastError = Error::eNone;
             }
 
             // Fungsi internal frame didefinisikan di partisi :frame.
@@ -128,7 +128,7 @@ export namespace renaru {
                 sFrameIndex(std::exchange(sOther.sFrameIndex, std::uint32_t{0})),
                 sCurrentImage(std::exchange(sOther.sCurrentImage, std::uint32_t{0})),
                 sActiveCommandBuffer(std::exchange(sOther.sActiveCommandBuffer, nullptr)),
-                sLastError(std::exchange(sOther.sLastError, Error::None))
+                sLastError(std::exchange(sOther.sLastError, Error::eNone))
             {}
 
             Device& operator=(Device&& sOther) noexcept{
@@ -148,7 +148,7 @@ export namespace renaru {
                     sFrameIndex = std::exchange(sOther.sFrameIndex, std::uint32_t{0});
                     sCurrentImage = std::exchange(sOther.sCurrentImage, std::uint32_t{0});
                     sActiveCommandBuffer = std::exchange(sOther.sActiveCommandBuffer, nullptr);
-                    sLastError = std::exchange(sOther.sLastError, Error::None);
+                    sLastError = std::exchange(sOther.sLastError, Error::eNone);
                 }
                 return *this;
             }
@@ -179,12 +179,12 @@ export namespace renaru {
                 try{
                     std::forward<Func>(sFunc)();
                 }catch(...){
-                    sNoteError(Error::CommandSubmissionFailed);
+                    sNoteError(Error::eCommandSubmissionFailed);
                 }
 
                 const Error sError = sCurrentError();
                 sFinishFrame();
-                if (sError != Error::None){
+                if (sError != Error::eNone){
                     return std::unexpected(sError);
                 }
                 return {};
@@ -201,7 +201,7 @@ export namespace renaru {
 std::expected<renaru::Device, renaru::Error>
 renaru::Adapter::createDevice(const renaru::Adapter& sAdapter) const{
     if (sPhysicalDevice == nullptr || sAdapter.sPhysicalDevice == nullptr){
-        return std::unexpected(renaru::Error::DeviceCreationFailed);
+        return std::unexpected(renaru::Error::eDeviceCreationFailed);
     }
 
     const float sPriority = 1.0F;
@@ -222,13 +222,13 @@ renaru::Adapter::createDevice(const renaru::Adapter& sAdapter) const{
     PFN_vkCreateDevice pfnCreateDevice = reinterpret_cast<PFN_vkCreateDevice>(
         entry().resolveInstance(sAdapter.sInstance, "vkCreateDevice"));
     if (pfnCreateDevice == nullptr){
-        return std::unexpected(renaru::Error::DeviceCreationFailed);
+        return std::unexpected(renaru::Error::eDeviceCreationFailed);
     }
 
     VkDevice sCreated = nullptr;
     if (pfnCreateDevice(sAdapter.sPhysicalDevice, &sCreateInfo, nullptr, &sCreated) != VK_SUCCESS ||
         sCreated == nullptr){
-        return std::unexpected(renaru::Error::DeviceCreationFailed);
+        return std::unexpected(renaru::Error::eDeviceCreationFailed);
     }
 
     std::println("Aru RHI: Device(created!!)");

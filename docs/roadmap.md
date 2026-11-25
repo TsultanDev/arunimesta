@@ -36,7 +36,7 @@ This document contains the status, milestones, and development plan for Arunimes
 - [x] Text uses `std::string`, `std::u8string`, `std::u16string`, `std::u32string`, `std::wstring`, and `std::string_view`
 - [x] Containers use `std::vector<T>` and `std::array<T, N>`
 - [x] Logging uses `std::println` / `std::eprintln`
-- [x] `std::formatter` specializations for `winaru::Error` and `renaru::Error`
+- [x] Error enums printed as numeric values; `std::formatter` specializations deliberately omitted until C++26 static reflection lands in Clang
 
 **Done criteria:** engine code uses the C++ standard library directly, the `aru` facade re-exports only `winaru` and `renaru`, and the project builds.
 

@@ -35,7 +35,7 @@ export namespace winaru {
             static ResultType sCreate(const char* sTitle, std::uint32_t sWidth,
                                       std::uint32_t sHeight){
                 if (sTitle == nullptr){
-                    return std::unexpected(Error::WindowCreationFailed);
+                    return std::unexpected(Error::eWindowCreationFailed);
                 }
                 const std::wstring sWide = sUtf8ToWide(sTitle);
                 return sCreate(reinterpret_cast<const char16_t*>(sWide.c_str()), sWidth, sHeight);
@@ -44,12 +44,12 @@ export namespace winaru {
             static ResultType sCreate(const char16_t* sTitle, std::uint32_t sWidth,
                                       std::uint32_t sHeight){
                 if (sTitle == nullptr){
-                    return std::unexpected(Error::WindowCreationFailed);
+                    return std::unexpected(Error::eWindowCreationFailed);
                 }
 
                 HINSTANCE sInstance = GetModuleHandleW(nullptr);
                 if (sInstance == nullptr || !sRegisterClass(sInstance)){
-                    return std::unexpected(Error::ClassRegistrationFailed);
+                    return std::unexpected(Error::eClassRegistrationFailed);
                 }
 
                 // wchar_t berukuran 16-bit di Windows, jadi char16_t bisa dipetakan langsung.
@@ -70,7 +70,7 @@ export namespace winaru {
                 );
 
                 if (sHwnd == nullptr){
-                    return std::unexpected(Error::WindowCreationFailed);
+                    return std::unexpected(Error::eWindowCreationFailed);
                 }
 
                 ShowWindow(sHwnd, SW_SHOW);

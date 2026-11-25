@@ -7,18 +7,18 @@
 ```cpp
 auto buffers = device.allocateCommandBuffers(pool, imageCount);
 if (!buffers) {
-    std::println("command buffers: {}", buffers.error());
+    std::println("command buffers: {}", static_cast<std::uint32_t>(buffers.error()));
     std::terminate();
 }
 ```
 
-`allocateCommandBuffers()` creates `count` **primary** command buffers. It returns `std::unexpected(Error::CommandBufferAllocationFailed)` when:
+`allocateCommandBuffers()` creates `count` **primary** command buffers. It returns `std::unexpected(Error::eCommandBufferAllocationFailed)` when:
 
 - the device or pool is empty, or `count` is zero;
 - the pool belongs to a different logical device;
 - `vkAllocateCommandBuffers` fails or returns a different number of buffers.
 
-The error is formattable through `std::formatter<renaru::Error, char>`.
+The error is printed as a numeric value.
 
 ## API
 
@@ -50,7 +50,7 @@ Use `std::move` when transferring buffers into a container:
 ```cpp
 auto result = device.allocateCommandBuffers(pool, swapchainImages.size());
 if (!result) {
-    std::println("command buffers: {}", result.error());
+    std::println("command buffers: {}", static_cast<std::uint32_t>(result.error()));
     std::terminate();
 }
 

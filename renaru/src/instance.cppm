@@ -73,7 +73,7 @@ export namespace renaru {
 
             static ResultType sCreate(const std::string& sAppName){
                 if (!entry().valid()){
-                    return std::unexpected(renaru::Error::DynamicLoaderFailed);
+                    return std::unexpected(renaru::Error::eDynamicLoaderFailed);
                 }
 
                 std::uint32_t sAvailableVersion = VK_API_VERSION_1_0;
@@ -82,7 +82,7 @@ export namespace renaru {
                         entry().resolveGlobal("vkEnumerateInstanceVersion"));
                 if (pfnEnumerateInstanceVersion != nullptr){
                     if (pfnEnumerateInstanceVersion(&sAvailableVersion) != VK_SUCCESS){
-                        return std::unexpected(renaru::Error::ApiVersionQueryFailed);
+                        return std::unexpected(renaru::Error::eApiVersionQueryFailed);
                     }
                 }
 
@@ -108,13 +108,13 @@ export namespace renaru {
                 PFN_vkCreateInstance pfnCreateInstance = reinterpret_cast<PFN_vkCreateInstance>(
                     entry().resolveGlobal("vkCreateInstance"));
                 if (pfnCreateInstance == nullptr){
-                    return std::unexpected(renaru::Error::DynamicLoaderFailed);
+                    return std::unexpected(renaru::Error::eDynamicLoaderFailed);
                 }
 
                 VkInstance sCreated = nullptr;
                 if (pfnCreateInstance(&sCreateInfo, nullptr, &sCreated) != VK_SUCCESS ||
                     sCreated == nullptr){
-                    return std::unexpected(renaru::Error::InstanceCreationFailed);
+                    return std::unexpected(renaru::Error::eInstanceCreationFailed);
                 }
 
                 std::println("Aru RHI: Instance(created!!)");

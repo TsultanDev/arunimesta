@@ -69,7 +69,7 @@ export namespace renaru {
 std::expected<renaru::Surface, renaru::Error>
 renaru::Instance::createSurface(const winaru::Window& sWindow){
     if (sWindow.empty()){
-        return std::unexpected(renaru::Error::SurfaceCreationFailed);
+        return std::unexpected(renaru::Error::eSurfaceCreationFailed);
     }
 
     VkWin32SurfaceCreateInfoKHR sInfo{};
@@ -81,13 +81,13 @@ renaru::Instance::createSurface(const winaru::Window& sWindow){
         reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(
             entry().resolveInstance(sInstance, "vkCreateWin32SurfaceKHR"));
     if (pfnCreateWin32SurfaceKHR == nullptr){
-        return std::unexpected(renaru::Error::SurfaceCreationFailed);
+        return std::unexpected(renaru::Error::eSurfaceCreationFailed);
     }
 
     VkSurfaceKHR sCreated = nullptr;
     if (pfnCreateWin32SurfaceKHR(sInstance, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
         sCreated == nullptr){
-        return std::unexpected(renaru::Error::SurfaceCreationFailed);
+        return std::unexpected(renaru::Error::eSurfaceCreationFailed);
     }
 
     std::println("Aru RHI: Surface(created!!)");

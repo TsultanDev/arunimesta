@@ -54,7 +54,7 @@ export namespace renaru {
                     std::forward<Func>(sFunc)();
                 }catch(...){
                     sEndRender();
-                    const renaru::Error sError = renaru::Error::RenderPassRecordingFailed;
+                    const renaru::Error sError = renaru::Error::eRenderPassRecordingFailed;
                     if (sOwner != nullptr){
                         sOwner->sNoteError(sError);
                     }
@@ -62,7 +62,7 @@ export namespace renaru {
                 }
 
                 sEndRender();
-                if (sOwner != nullptr && sOwner->sCurrentError() != Error::None){
+                if (sOwner != nullptr && sOwner->sCurrentError() != Error::eNone){
                     return std::unexpected(sOwner->sCurrentError());
                 }
                 return {};
@@ -70,7 +70,7 @@ export namespace renaru {
 
             std::expected<void, Error> sBeginRender(const std::array<float, 4>& sClearColor) const{
                 if (sRenderPass == nullptr || sOwner == nullptr){
-                    return std::unexpected(renaru::Error::RenderPassRecordingFailed);
+                    return std::unexpected(renaru::Error::eRenderPassRecordingFailed);
                 }
 
                 const VkCommandBuffer sCommandBuffer = sOwner->sActiveCommandBuffer;
@@ -78,7 +78,7 @@ export namespace renaru {
                 const VkExtent2D sExtent = sOwner->sCurrentFrameExtent();
                 if (sCommandBuffer == nullptr || sFramebuffer == nullptr ||
                     sExtent.width == 0 || sExtent.height == 0){
-                    return std::unexpected(renaru::Error::RenderPassRecordingFailed);
+                    return std::unexpected(renaru::Error::eRenderPassRecordingFailed);
                 }
 
                 VkClearValue sClear{};
@@ -100,7 +100,7 @@ export namespace renaru {
                     reinterpret_cast<PFN_vkCmdBeginRenderPass>(
                         entry().resolveDevice(sDevice, "vkCmdBeginRenderPass"));
                 if (pfnCmdBeginRenderPass == nullptr){
-                    return std::unexpected(renaru::Error::RenderPassRecordingFailed);
+                    return std::unexpected(renaru::Error::eRenderPassRecordingFailed);
                 }
                 pfnCmdBeginRenderPass(sCommandBuffer, &sInfo, VK_SUBPASS_CONTENTS_INLINE);
                 return {};
@@ -118,7 +118,7 @@ export namespace renaru {
                     reinterpret_cast<PFN_vkCmdEndRenderPass>(
                         entry().resolveDevice(sDevice, "vkCmdEndRenderPass"));
                 if (pfnCmdEndRenderPass == nullptr){
-                    sOwner->sNoteError(renaru::Error::RenderPassRecordingFailed);
+                    sOwner->sNoteError(renaru::Error::eRenderPassRecordingFailed);
                     return;
                 }
                 pfnCmdEndRenderPass(sCommandBuffer);
@@ -170,7 +170,7 @@ export namespace renaru {
 std::expected<renaru::RenderPass, renaru::Error>
 renaru::Device::createRenderPass(const renaru::Swapchain& sSwapchain) const{
     if (sDevice == nullptr || sSwapchain.sSwapchain == nullptr){
-        return std::unexpected(renaru::Error::RenderPassCreationFailed);
+        return std::unexpected(renaru::Error::eRenderPassCreationFailed);
     }
 
     VkAttachmentDescription sColorAttachment{};
@@ -212,13 +212,13 @@ renaru::Device::createRenderPass(const renaru::Swapchain& sSwapchain) const{
     PFN_vkCreateRenderPass pfnCreateRenderPass = reinterpret_cast<PFN_vkCreateRenderPass>(
         entry().resolveDevice(sDevice, "vkCreateRenderPass"));
     if (pfnCreateRenderPass == nullptr){
-        return std::unexpected(renaru::Error::RenderPassCreationFailed);
+        return std::unexpected(renaru::Error::eRenderPassCreationFailed);
     }
 
     VkRenderPass sCreated = nullptr;
     if (pfnCreateRenderPass(sDevice, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
         sCreated == nullptr){
-        return std::unexpected(renaru::Error::RenderPassCreationFailed);
+        return std::unexpected(renaru::Error::eRenderPassCreationFailed);
     }
 
     std::println("Aru RHI: RenderPass(created!!)");

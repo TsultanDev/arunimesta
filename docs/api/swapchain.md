@@ -7,7 +7,7 @@
 ```cpp
 auto swapchain = device.createSwapchain(window.windowWidth(), window.windowHeight());
 if (!swapchain) {
-    std::println("swapchain: {}", swapchain.error());
+    std::println("swapchain: {}", static_cast<std::uint32_t>(swapchain.error()));
     std::terminate();
 }
 ```
@@ -21,14 +21,14 @@ if (!swapchain) {
 - Requests `minImageCount + 1` images, capped by `maxImageCount`.
 - Enables `COLOR_ATTACHMENT` usage and opaque composite alpha.
 
-`SwapchainCreationFailed` is returned as `std::unexpected(Error::SwapchainCreationFailed)` on any query failure or `vkCreateSwapchainKHR` failure. It is formattable through `std::formatter<renaru::Error, char>`.
+`eSwapchainCreationFailed` is returned as `std::unexpected(Error::eSwapchainCreationFailed)` on any query failure or `vkCreateSwapchainKHR` failure. It is printed as a numeric value.
 
 ## Swapchain Images
 
 ```cpp
 auto images = device.createSwapchainImages(*swapchain);
 if (!images) {
-    std::println("images: {}", images.error());
+    std::println("images: {}", static_cast<std::uint32_t>(images.error()));
     std::terminate();
 }
 ```

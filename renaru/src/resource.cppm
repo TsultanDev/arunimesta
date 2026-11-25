@@ -190,7 +190,7 @@ export namespace renaru {
 std::expected<renaru::Resource, renaru::Error>
 renaru::Device::createImageResource(VkImage sImage, VkFormat sFormat, VkExtent2D sExtent) const{
     if (sDevice == nullptr || sImage == nullptr){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     VkImageViewCreateInfo sInfo{};
@@ -207,12 +207,12 @@ renaru::Device::createImageResource(VkImage sImage, VkFormat sFormat, VkExtent2D
     PFN_vkCreateImageView pfnCreateImageView = reinterpret_cast<PFN_vkCreateImageView>(
         entry().resolveDevice(sDevice, "vkCreateImageView"));
     if (pfnCreateImageView == nullptr){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     VkImageView sView = nullptr;
     if (pfnCreateImageView(sDevice, &sInfo, nullptr, &sView) != VK_SUCCESS || sView == nullptr){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     return Resource(sDevice, sImage, sView, sExtent);
@@ -221,7 +221,7 @@ renaru::Device::createImageResource(VkImage sImage, VkFormat sFormat, VkExtent2D
 std::expected<renaru::Resource, renaru::Error>
 renaru::Device::createBufferResource(VkDeviceSize sSize, VkBufferUsageFlags sUsage, VkFormat sFormat) const{
     if (sDevice == nullptr || sSize == 0){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     VkBufferCreateInfo sBufferInfo{};
@@ -235,13 +235,13 @@ renaru::Device::createBufferResource(VkDeviceSize sSize, VkBufferUsageFlags sUsa
     PFN_vkCreateBufferView pfnCreateBufferView = reinterpret_cast<PFN_vkCreateBufferView>(
         entry().resolveDevice(sDevice, "vkCreateBufferView"));
     if (pfnCreateBuffer == nullptr || pfnCreateBufferView == nullptr){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     VkBuffer sBuffer = nullptr;
     if (pfnCreateBuffer(sDevice, &sBufferInfo, nullptr, &sBuffer) != VK_SUCCESS ||
         sBuffer == nullptr){
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     VkBufferViewCreateInfo sViewInfo{};
@@ -259,7 +259,7 @@ renaru::Device::createBufferResource(VkDeviceSize sSize, VkBufferUsageFlags sUsa
         if (pfnDestroyBuffer != nullptr){
             pfnDestroyBuffer(sDevice, sBuffer, nullptr);
         }
-        return std::unexpected(renaru::Error::ResourceCreationFailed);
+        return std::unexpected(renaru::Error::eResourceCreationFailed);
     }
 
     return Resource(sDevice, sBuffer, sView, sSize);

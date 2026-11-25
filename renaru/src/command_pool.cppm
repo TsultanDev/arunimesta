@@ -85,10 +85,10 @@ export namespace renaru {
 std::expected<renaru::CommandPool, renaru::Error>
 renaru::Device::createCommandPool(const renaru::Queue& sQueue) const{
     if (sDevice == nullptr || sQueue.sQueue == nullptr){
-        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::eCommandPoolCreationFailed);
     }
     if (sQueue.sDevice != sDevice || sQueue.sFamily != sQueueFamily){
-        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::eCommandPoolCreationFailed);
     }
 
     VkCommandPoolCreateInfo sInfo{};
@@ -99,13 +99,13 @@ renaru::Device::createCommandPool(const renaru::Queue& sQueue) const{
     PFN_vkCreateCommandPool pfnCreateCommandPool = reinterpret_cast<PFN_vkCreateCommandPool>(
         entry().resolveDevice(sDevice, "vkCreateCommandPool"));
     if (pfnCreateCommandPool == nullptr){
-        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::eCommandPoolCreationFailed);
     }
 
     VkCommandPool sCreated = nullptr;
     if (pfnCreateCommandPool(sDevice, &sInfo, nullptr, &sCreated) != VK_SUCCESS ||
         sCreated == nullptr){
-        return std::unexpected(renaru::Error::CommandPoolCreationFailed);
+        return std::unexpected(renaru::Error::eCommandPoolCreationFailed);
     }
 
     std::println("Aru RHI: CommandPool(created!!) family={}", sQueueFamily);

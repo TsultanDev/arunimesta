@@ -1,16 +1,16 @@
 import aru;
 
 #include <array>
+#include <cstdint>
 #include <exception>
 #include <print>
 #include <utility>
 #include <vector>
 
 int main() {
-    // Pola demo: hentikan program sambil mencetak error bila expected kosong.
     auto unwrap = [](auto&& result) {
         if (!result) {
-            std::println("Aru error: {}", result.error());
+            std::println("Aru error: {}", static_cast<std::uint32_t>(result.error()));
             std::terminate();
         }
         return std::move(*result);
@@ -19,7 +19,7 @@ int main() {
     // Untuk expected<void, Error> (frame/record/render/submit/present).
     auto check = [](auto&& result) {
         if (!result) {
-            std::println("Aru error: {}", result.error());
+            std::println("Aru error: {}", static_cast<std::uint32_t>(result.error()));
             std::terminate();
         }
     };

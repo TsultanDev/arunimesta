@@ -9,14 +9,14 @@ There is no public constructor. Use the `Instance` member:
 ```cpp
 auto adapter = instance.requestAdapter(surface);
 if (!adapter) {
-    std::println("adapter: {}", adapter.error());
+    std::println("adapter: {}", static_cast<std::uint32_t>(adapter.error()));
     std::terminate();
 }
 ```
 
 `requestAdapter()` enumerates physical devices, then walks their queue families. The first family that has `VK_QUEUE_GRAPHICS_BIT` **and** supports presentation on the given surface wins. The `VkInstance`, `VkPhysicalDevice`, `VkSurfaceKHR`, and family index are stored for later device/queue creation.
 
-`AdapterNotFound` is returned as `std::unexpected(Error::AdapterNotFound)` when no physical device satisfies both conditions. It is formattable through `std::formatter<renaru::Error, char>`.
+`eAdapterNotFound` is returned as `std::unexpected(Error::eAdapterNotFound)` when no physical device satisfies both conditions. It is printed as a numeric value.
 
 ## API
 
