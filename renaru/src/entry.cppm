@@ -44,41 +44,19 @@ export namespace renaru {
                 sGetDeviceProcAddr = nullptr;
             }
 
-        public:
-            static Entry& shared() noexcept{
-                static Entry sEntry;
-                return sEntry;
-            }
-
-            ~Entry(){ sDestroy(); }
-
-            Entry(const Entry&) = delete;
-            Entry& operator=(const Entry&) = delete;
-
-            Entry(Entry&& sOther) noexcept :
-                sModule(std::exchange(sOther.sModule, nullptr)),
-                sGetInstanceProcAddr(std::exchange(sOther.sGetInstanceProcAddr, nullptr)),
-                sGetDeviceProcAddr(std::exchange(sOther.sGetDeviceProcAddr, nullptr))
-            {}
-
-            Entry& operator=(Entry&& sOther) noexcept{
-                if (this != &sOther){
-                    sDestroy();
-                    sModule = std::exchange(sOther.sModule, nullptr);
-                    sGetInstanceProcAddr = std::exchange(sOther.sGetInstanceProcAddr, nullptr);
-                    sGetDeviceProcAddr = std::exchange(sOther.sGetDeviceProcAddr, nullptr);
-                }
-                return *this;
-            }
-
-            bool valid() const noexcept{
-                return sModule != nullptr &&
-                       sGetInstanceProcAddr != nullptr &&
-                       sGetDeviceProcAddr != nullptr;
-            }
-
-            // Didefinisikan di partisi :instance karena butuh tipe Instance lengkap.
-            std::expected<Instance, Error> createInstance();
+            // Hanya class renaru yang boleh memakai dispatcher Vulkan.
+            friend class Instance;
+            friend class Surface;
+            friend class Adapter;
+            friend class Device;
+            friend class Queue;
+            friend class Frame;
+            friend class Resource;
+            friend class Swapchain;
+            friend class RenderPass;
+            friend class Framebuffer;
+            friend class CommandPool;
+            friend class CommandBuffer;
 
             // Dispatch panas disimpan; command dingin diload lokal lewat resolver ini.
             using Proc = PFN_vkVoidFunction;
@@ -103,9 +81,40 @@ export namespace renaru {
                 }
                 return sGetDeviceProcAddr(sDevice, sPName);
             }
-    };
 
-    inline Entry& entry() noexcept{
-        return Entry::shared();
-    }
+        public:
+            static std::expected<Entry, Error> init() noexcept{
+                Entry sEntry;
+                if (sEntry.sModule == nullptr ||
+                    sEntry.sGetInstanceProcAddr == nullptr ||
+                    sEntry.sGetDeviceProcAddr == nullptr){
+                    return std::unexpected(Error::eDynamicLoaderFailed);
+                }
+                return sEntry;
+            }
+
+            ~Entry(){ sDestroy(); }
+
+            Entry(const Entry&) = delete;
+            Entry& operator=(const Entry&) = delete;
+
+            Entry(Entry&& sOther) noexcept :
+                sModule(std::exchange(sOther.sModule, nullptr)),
+                sGetInstanceProcAddr(std::exchange(sOther.sGetInstanceProcAddr, nullptr)),
+                sGetDeviceProcAddr(std::exchange(sOther.sGetDeviceProcAddr, nullptr))
+            {}
+
+            Entry& operator=(Entry&& sOther) noexcept{
+                if (this != &sOther){
+                    sDestroy();
+                    sModule = std::exchange(sOther.sModule, nullptr);
+                    sGetInstanceProcAddr = std::exchange(sOther.sGetInstanceProcAddr, nullptr);
+                    sGetDeviceProcAddr = std::exchange(sOther.sGetDeviceProcAddr, nullptr);
+                }
+                return *this;
+            }
+
+            // Didefinisikan di partisi :instance karena butuh tipe Instance lengkap.
+            std::expected<Instance, Error> createInstance();
+    };
 }

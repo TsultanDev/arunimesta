@@ -60,7 +60,7 @@ export namespace renaru {
             Surface& operator=(Surface&& sOther) noexcept{
                 if (this != &sOther){
                     sDestroy();
-                    // sEntry tidak di-assign: selalu merujuk Entry::shared().
+                    // sEntry tidak di-assign: objek Entry tetap yang dipakai surface ini.
                     sInstance = std::exchange(sOther.sInstance, nullptr);
                     sSurface = std::exchange(sOther.sSurface, nullptr);
                 }

@@ -56,7 +56,7 @@ export namespace renaru {
 
             Adapter& operator=(Adapter&& sOther) noexcept{
                 if (this != &sOther){
-                    // sEntry tidak di-assign: selalu merujuk Entry::shared().
+                    // sEntry tidak di-assign: objek Entry tetap yang dipakai adapter ini.
                     sInstance = std::exchange(sOther.sInstance, nullptr);
                     sPhysicalDevice = std::exchange(sOther.sPhysicalDevice, nullptr);
                     sSurface = std::exchange(sOther.sSurface, nullptr);
