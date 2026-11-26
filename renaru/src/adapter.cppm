@@ -21,13 +21,15 @@ export namespace renaru {
         private:
             using ResultType = std::expected<Adapter, Error>;
 
+            Entry& sEntry;
             VkInstance sInstance = nullptr;
             VkPhysicalDevice sPhysicalDevice = nullptr;
             VkSurfaceKHR sSurface = nullptr;
             std::uint32_t sQueueFamily = 0;
 
-            Adapter(VkInstance sInstance, VkPhysicalDevice sPhysicalDevice,
+            Adapter(Entry& sEntry, VkInstance sInstance, VkPhysicalDevice sPhysicalDevice,
                     VkSurfaceKHR sSurface, std::uint32_t sQueueFamilyIndex) noexcept :
+                sEntry(sEntry),
                 sInstance(sInstance),
                 sPhysicalDevice(sPhysicalDevice),
                 sSurface(sSurface),
@@ -45,6 +47,7 @@ export namespace renaru {
             Adapter& operator=(const Adapter&) = delete;
 
             Adapter(Adapter&& sOther) noexcept :
+                sEntry(sOther.sEntry),
                 sInstance(std::exchange(sOther.sInstance, nullptr)),
                 sPhysicalDevice(std::exchange(sOther.sPhysicalDevice, nullptr)),
                 sSurface(std::exchange(sOther.sSurface, nullptr)),
@@ -53,6 +56,7 @@ export namespace renaru {
 
             Adapter& operator=(Adapter&& sOther) noexcept{
                 if (this != &sOther){
+                    // sEntry tidak di-assign: selalu merujuk Entry::shared().
                     sInstance = std::exchange(sOther.sInstance, nullptr);
                     sPhysicalDevice = std::exchange(sOther.sPhysicalDevice, nullptr);
                     sSurface = std::exchange(sOther.sSurface, nullptr);
@@ -70,7 +74,7 @@ std::expected<renaru::Adapter, renaru::Error>
 renaru::Instance::requestAdapter(const renaru::Surface& sSurface){
     PFN_vkEnumeratePhysicalDevices pfnEnumeratePhysicalDevices =
         reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
-            entry().resolveInstance(sInstance, "vkEnumeratePhysicalDevices"));
+            sEntry.resolveInstance(sInstance, "vkEnumeratePhysicalDevices"));
     if (pfnEnumeratePhysicalDevices == nullptr){
         return std::unexpected(renaru::Error::eAdapterNotFound);
     }
@@ -88,10 +92,10 @@ renaru::Instance::requestAdapter(const renaru::Surface& sSurface){
 
     PFN_vkGetPhysicalDeviceQueueFamilyProperties pfnGetQueueFamilyProperties =
         reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(
-            entry().resolveInstance(sInstance, "vkGetPhysicalDeviceQueueFamilyProperties"));
+            sEntry.resolveInstance(sInstance, "vkGetPhysicalDeviceQueueFamilyProperties"));
     PFN_vkGetPhysicalDeviceSurfaceSupportKHR pfnGetSurfaceSupportKHR =
         reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(
-            entry().resolveInstance(sInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
+            sEntry.resolveInstance(sInstance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
     if (pfnGetQueueFamilyProperties == nullptr || pfnGetSurfaceSupportKHR == nullptr){
         return std::unexpected(renaru::Error::eAdapterNotFound);
     }
@@ -111,7 +115,7 @@ renaru::Instance::requestAdapter(const renaru::Surface& sSurface){
             pfnGetSurfaceSupportKHR(sDevice, sIndex, sSurface.sSurface, &sSupportsPresent);
             if (sSupportsPresent == VK_TRUE){
                 std::println("Aru RHI: Adapter(found!!) family={}", sIndex);
-                return Adapter(sInstance, sDevice, sSurface.sSurface, sIndex);
+                return Adapter(sEntry, sInstance, sDevice, sSurface.sSurface, sIndex);
             }
         }
     }

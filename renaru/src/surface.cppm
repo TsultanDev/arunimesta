@@ -18,10 +18,12 @@ export namespace renaru {
         private:
             using ResultType = std::expected<Surface, Error>;
 
+            Entry& sEntry;
             VkInstance sInstance = nullptr;
             VkSurfaceKHR sSurface = nullptr;
 
-            Surface(VkInstance sInstance, VkSurfaceKHR sSurface) noexcept :
+            Surface(Entry& sEntry, VkInstance sInstance, VkSurfaceKHR sSurface) noexcept :
+                sEntry(sEntry),
                 sInstance(sInstance),
                 sSurface(sSurface)
             {}
@@ -30,7 +32,7 @@ export namespace renaru {
                 if (sSurface != nullptr && sInstance != nullptr){
                     PFN_vkDestroySurfaceKHR pfnDestroySurfaceKHR =
                         reinterpret_cast<PFN_vkDestroySurfaceKHR>(
-                            entry().resolveInstance(sInstance, "vkDestroySurfaceKHR"));
+                            sEntry.resolveInstance(sInstance, "vkDestroySurfaceKHR"));
                     if (pfnDestroySurfaceKHR != nullptr){
                         pfnDestroySurfaceKHR(sInstance, sSurface, nullptr);
                     }
@@ -50,6 +52,7 @@ export namespace renaru {
             Surface& operator=(const Surface&) = delete;
 
             Surface(Surface&& sOther) noexcept :
+                sEntry(sOther.sEntry),
                 sInstance(std::exchange(sOther.sInstance, nullptr)),
                 sSurface(std::exchange(sOther.sSurface, nullptr))
             {}
@@ -57,6 +60,7 @@ export namespace renaru {
             Surface& operator=(Surface&& sOther) noexcept{
                 if (this != &sOther){
                     sDestroy();
+                    // sEntry tidak di-assign: selalu merujuk Entry::shared().
                     sInstance = std::exchange(sOther.sInstance, nullptr);
                     sSurface = std::exchange(sOther.sSurface, nullptr);
                 }
@@ -79,7 +83,7 @@ renaru::Instance::createSurface(const winaru::Window& sWindow){
 
     PFN_vkCreateWin32SurfaceKHR pfnCreateWin32SurfaceKHR =
         reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(
-            entry().resolveInstance(sInstance, "vkCreateWin32SurfaceKHR"));
+            sEntry.resolveInstance(sInstance, "vkCreateWin32SurfaceKHR"));
     if (pfnCreateWin32SurfaceKHR == nullptr){
         return std::unexpected(renaru::Error::eSurfaceCreationFailed);
     }
@@ -92,5 +96,5 @@ renaru::Instance::createSurface(const winaru::Window& sWindow){
 
     std::println("Aru RHI: Surface(created!!)");
 
-    return Surface(sInstance, sCreated);
+    return Surface(sEntry, sInstance, sCreated);
 }

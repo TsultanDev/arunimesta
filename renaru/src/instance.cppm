@@ -7,7 +7,6 @@ module;
 #include <iterator>
 #include <print>
 #include <string>
-#include <string_view>
 #include <utility>
 
 export module renaru:instance;
@@ -17,35 +16,6 @@ import :entry;
 export import :error;
 
 export namespace renaru {
-    enum class QueueFlags : std::uint32_t {
-        eNone        = 0x00000000,
-        eGraphics    = 0x00000001,
-        eCompute     = 0x00000002,
-        eTransfer    = 0x00000004,
-        ePresent     = 0x00000008,
-        eMaxEnum    = 0x11111111
-    };
-
-    constexpr QueueFlags operator|(QueueFlags sLhs, QueueFlags sRhs) noexcept{
-        return static_cast<QueueFlags>(static_cast<std::uint32_t>(sLhs) | static_cast<std::uint32_t>(sRhs));
-    }
-    constexpr QueueFlags operator&(QueueFlags sLhs, QueueFlags sRhs) noexcept{
-        return static_cast<QueueFlags>(static_cast<std::uint32_t>(sLhs) & static_cast<std::uint32_t>(sRhs));
-    }
-    constexpr QueueFlags operator^(QueueFlags sLhs, QueueFlags sRhs) noexcept{
-        return static_cast<QueueFlags>(static_cast<std::uint32_t>(sLhs) ^ static_cast<std::uint32_t>(sRhs));
-    }
-    constexpr QueueFlags operator~(QueueFlags sValue) noexcept{
-        return static_cast<QueueFlags>(~static_cast<std::uint32_t>(sValue));
-    }
-    constexpr QueueFlags& operator|=(QueueFlags& sLhs, QueueFlags sRhs) noexcept{
-        sLhs = sLhs | sRhs;
-        return sLhs;
-    }
-    constexpr bool hasFlag(QueueFlags sValue, QueueFlags sFlag) noexcept{
-        return (static_cast<std::uint32_t>(sValue) & static_cast<std::uint32_t>(sFlag)) != 0;
-    }
-
     class Surface;
     class Adapter;
 }
@@ -55,73 +25,24 @@ export namespace renaru {
         private:
             using ResultType = std::expected<Instance, Error>;
 
-            VkInstance sInstance = nullptr;
+            Entry& sEntry;
+            VkInstance sInstance{nullptr};
             std::string sApplicationName{};
-            std::uint32_t sApiVersion = VK_API_VERSION_1_0;
+            std::uint32_t sApiVersion{VK_API_VERSION_1_0};
 
-            Instance(VkInstance sInstance, std::string&& sName,
+            Instance(Entry& sEntry, VkInstance sInstance, std::string&& sName,
                      std::uint32_t sVersion) noexcept :
+                sEntry(sEntry),
                 sInstance(sInstance),
                 sApplicationName(std::move(sName)),
                 sApiVersion(sVersion)
             {}
 
-            static ResultType sCreate(const std::string& sAppName){
-                if (!entry().valid()){
-                    return std::unexpected(renaru::Error::eDynamicLoaderFailed);
-                }
-
-                std::uint32_t sAvailableVersion = VK_API_VERSION_1_0;
-                PFN_vkEnumerateInstanceVersion pfnEnumerateInstanceVersion =
-                    reinterpret_cast<PFN_vkEnumerateInstanceVersion>(
-                        entry().resolveGlobal("vkEnumerateInstanceVersion"));
-                if (pfnEnumerateInstanceVersion != nullptr){
-                    if (pfnEnumerateInstanceVersion(&sAvailableVersion) != VK_SUCCESS){
-                        return std::unexpected(renaru::Error::eApiVersionQueryFailed);
-                    }
-                }
-
-                VkApplicationInfo sAppInfo{};
-                sAppInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-                sAppInfo.pApplicationName = sAppName.c_str();
-                sAppInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-                sAppInfo.pEngineName = "Arunimesta";
-                sAppInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-                sAppInfo.apiVersion = sAvailableVersion;
-
-                const char* sExtensions[] = {
-                    VK_KHR_SURFACE_EXTENSION_NAME,
-                    VK_KHR_WIN32_SURFACE_EXTENSION_NAME
-                };
-
-                VkInstanceCreateInfo sCreateInfo{};
-                sCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-                sCreateInfo.pApplicationInfo = &sAppInfo;
-                sCreateInfo.enabledExtensionCount = static_cast<std::uint32_t>(std::size(sExtensions));
-                sCreateInfo.ppEnabledExtensionNames = sExtensions;
-
-                PFN_vkCreateInstance pfnCreateInstance = reinterpret_cast<PFN_vkCreateInstance>(
-                    entry().resolveGlobal("vkCreateInstance"));
-                if (pfnCreateInstance == nullptr){
-                    return std::unexpected(renaru::Error::eDynamicLoaderFailed);
-                }
-
-                VkInstance sCreated = nullptr;
-                if (pfnCreateInstance(&sCreateInfo, nullptr, &sCreated) != VK_SUCCESS ||
-                    sCreated == nullptr){
-                    return std::unexpected(renaru::Error::eInstanceCreationFailed);
-                }
-
-                std::println("Aru RHI: Instance(created!!)");
-
-                return Instance(sCreated, std::string(sAppName), sAvailableVersion);
-            }
-
-            void sDestroy() noexcept{
+            void destroy() noexcept{
                 if (sInstance != nullptr){
                     PFN_vkDestroyInstance pfnDestroyInstance =
                         reinterpret_cast<PFN_vkDestroyInstance>(
-                            entry().resolveInstance(sInstance, "vkDestroyInstance"));
+                            sEntry.resolveInstance(sInstance, "vkDestroyInstance"));
                     if (pfnDestroyInstance != nullptr){
                         pfnDestroyInstance(sInstance, nullptr);
                     }
@@ -131,18 +52,20 @@ export namespace renaru {
                 sApiVersion = VK_API_VERSION_1_0;
             }
 
+            friend class Entry;
+
         public:
-            // sAppName adalah UTF-8; string_view tidak perlu null-terminated.
-            static ResultType create(std::string_view sAppName){
-                return sCreate(std::string(sAppName));
+            static ResultType create(){
+                return entry().createInstance();
             }
 
-            ~Instance(){ sDestroy(); }
+            ~Instance(){ destroy(); }
 
             Instance(const Instance&) = delete;
             Instance& operator=(const Instance&) = delete;
 
             Instance(Instance&& sOther) noexcept :
+                sEntry(sOther.sEntry),
                 sInstance(std::exchange(sOther.sInstance, nullptr)),
                 sApplicationName(std::move(sOther.sApplicationName)),
                 sApiVersion(std::exchange(sOther.sApiVersion, std::uint32_t{VK_API_VERSION_1_0}))
@@ -150,7 +73,8 @@ export namespace renaru {
 
             Instance& operator=(Instance&& sOther) noexcept{
                 if (this != &sOther){
-                    sDestroy();
+                    destroy();
+                    // sEntry tidak di-assign: selalu merujuk Entry::shared().
                     sInstance = std::exchange(sOther.sInstance, nullptr);
                     sApplicationName = std::move(sOther.sApplicationName);
                     sApiVersion = std::exchange(sOther.sApiVersion, std::uint32_t{VK_API_VERSION_1_0});
@@ -158,7 +82,70 @@ export namespace renaru {
                 return *this;
             }
 
+            Entry& entryRef() const noexcept{
+                return sEntry;
+            }
+
             std::expected<Surface, Error> createSurface(const winaru::Window& sWindow);
             std::expected<Adapter, Error> requestAdapter(const Surface& sSurface);
     };
+}
+
+// Entry::createInstance() didefinisikan di sini karena butuh tipe lengkap Instance.
+std::expected<renaru::Instance, renaru::Error>
+renaru::Entry::createInstance(){
+    if (!valid()){
+        return std::unexpected(Error::eDynamicLoaderFailed);
+    }
+
+    std::uint32_t sAvailableVersion = VK_API_VERSION_1_0;
+    PFN_vkEnumerateInstanceVersion pfnEnumerateInstanceVersion =
+        reinterpret_cast<PFN_vkEnumerateInstanceVersion>(
+            resolveGlobal("vkEnumerateInstanceVersion"));
+    if (pfnEnumerateInstanceVersion != nullptr){
+        if (pfnEnumerateInstanceVersion(&sAvailableVersion) != VK_SUCCESS){
+            return std::unexpected(Error::eApiVersionQueryFailed);
+        }
+    }
+
+    VkApplicationInfo sAppInfo{};
+    sAppInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    sAppInfo.pApplicationName = ARUNIMESTA_NAME;
+    sAppInfo.applicationVersion = VK_MAKE_VERSION(
+        ARUNIMESTA_VERSION_MAJOR,
+        ARUNIMESTA_VERSION_MINOR,
+        ARUNIMESTA_VERSION_PATCH);
+    sAppInfo.pEngineName = RENARU_NAME;
+    sAppInfo.engineVersion = VK_MAKE_VERSION(
+        RENARU_VERSION_MAJOR,
+        RENARU_VERSION_MINOR,
+        RENARU_VERSION_PATCH);
+    sAppInfo.apiVersion = sAvailableVersion;
+
+    const char* sExtensions[] = {
+        VK_KHR_SURFACE_EXTENSION_NAME,
+        VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    };
+
+    VkInstanceCreateInfo sCreateInfo{};
+    sCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    sCreateInfo.pApplicationInfo = &sAppInfo;
+    sCreateInfo.enabledExtensionCount = static_cast<std::uint32_t>(std::size(sExtensions));
+    sCreateInfo.ppEnabledExtensionNames = sExtensions;
+
+    PFN_vkCreateInstance pfnCreateInstance = reinterpret_cast<PFN_vkCreateInstance>(
+        resolveGlobal("vkCreateInstance"));
+    if (pfnCreateInstance == nullptr){
+        return std::unexpected(Error::eDynamicLoaderFailed);
+    }
+
+    VkInstance sCreated = nullptr;
+    if (pfnCreateInstance(&sCreateInfo, nullptr, &sCreated) != VK_SUCCESS ||
+        sCreated == nullptr){
+        return std::unexpected(Error::eInstanceCreationFailed);
+    }
+
+    std::println("Aru RHI: Instance(created!!)");
+
+    return Instance(*this, sCreated, std::string(ARUNIMESTA_NAME), sAvailableVersion);
 }

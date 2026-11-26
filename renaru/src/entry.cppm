@@ -3,11 +3,16 @@ module;
 #include <Windows.h>
 #include <vulkan/vulkan.h>
 
+#include <expected>
 #include <utility>
 
 export module renaru:entry;
 
+import :error;
+
 export namespace renaru {
+    class Instance;
+
     class Entry {
         private:
             static constexpr const char* sLibraryName = "vulkan-1.dll";
@@ -71,6 +76,9 @@ export namespace renaru {
                        sGetInstanceProcAddr != nullptr &&
                        sGetDeviceProcAddr != nullptr;
             }
+
+            // Didefinisikan di partisi :instance karena butuh tipe Instance lengkap.
+            std::expected<Instance, Error> createInstance();
 
             // Dispatch panas disimpan; command dingin diload lokal lewat resolver ini.
             using Proc = PFN_vkVoidFunction;

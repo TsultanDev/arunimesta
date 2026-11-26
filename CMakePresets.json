@@ -27,7 +27,9 @@
       },
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ARUNIMESTA_VERSION": "0.1.0",
+        "RENARU_VERSION": "0.1.0"
       }
     },
     {
